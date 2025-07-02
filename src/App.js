@@ -57,7 +57,7 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
     );
 });
 
-const PdfViewer = memo(({ file, numPages, scale, highlights, pendingComment, listRef, pageHeights, viewerRef, handleViewerMouseUp, onDocumentLoadSuccess, startCommenting }) => {
+const PdfViewer = memo(({ file, numPages, scale, highlights, pendingHighlight, listRef, pageHeights, viewerRef, handleViewerMouseUp, onDocumentLoadSuccess, startNewNote }) => {
     const onPageRenderSuccess = useCallback((page) => {
         if (pageHeights.current[page.pageNumber - 1] !== page.height) {
             pageHeights.current[page.pageNumber - 1] = page.height;
@@ -73,13 +73,13 @@ const PdfViewer = memo(({ file, numPages, scale, highlights, pendingComment, lis
     
     return (
         <div className="pdf-viewer-container" ref={viewerRef} onMouseUp={handleViewerMouseUp}>
-            {pendingComment && (
+            {pendingHighlight && (
                 <div 
                 className="comment-popup" 
-                style={{ top: pendingComment.top, left: pendingComment.left }}
-                onClick={startCommenting}
+                style={{ top: pendingHighlight.top, left: pendingHighlight.left }}
+                onClick={startNewNote}
                 >
-                Add Comment
+                Add Note
                 </div>
             )}
             <Document file={file} onLoadSuccess={onDocumentLoadSuccess}>
@@ -97,7 +97,7 @@ const PdfViewer = memo(({ file, numPages, scale, highlights, pendingComment, lis
                             style={style}
                             scale={scale}
                             highlights={highlights.filter(h => h.pageIndex === index)}
-                            pendingHighlight={pendingComment && pendingComment.pageIndex === index ? pendingComment : null}
+                            pendingHighlight={pendingHighlight && pendingHighlight.pageIndex === index ? pendingHighlight : null}
                             onPageRenderSuccess={onPageRenderSuccess}
                         />
                     )}
@@ -112,10 +112,10 @@ const PdfViewer = memo(({ file, numPages, scale, highlights, pendingComment, lis
 function App() {
   const [file, setFile] = useState(null);
   const [numPages, setNumPages] = useState(null);
-  const [comments, setComments] = useState([]);
+  const [notes, setNotes] = useState([]);
   const [scale, setScale] = useState(1.5);
   const [highlights, setHighlights] = useState([]);
-  const [pendingComment, setPendingComment] = useState(null);
+  const [pendingHighlight, setPendingHighlight] = useState(null);
   const listRef = useRef();
   const pageHeights = useRef({});
   const viewerRef = useRef(null);
@@ -123,8 +123,8 @@ function App() {
   const onFileChange = (event) => {
     setFile(event.target.files[0]);
     setHighlights([]);
-    setComments([]);
-    setPendingComment(null);
+    setNotes([]);
+    setPendingHighlight(null);
     pageHeights.current = {};
   };
 
@@ -132,31 +132,32 @@ function App() {
     setNumPages(numPages);
   }, []);
 
-  const startCommenting = useCallback(() => {
-    if (!pendingComment) return;
+  const startNewNote = useCallback(() => {
+    if (!pendingHighlight) return;
 
     const newHighlight = {
       id: `highlight-${Date.now()}`,
-      pageIndex: pendingComment.pageIndex,
-      rects: pendingComment.rects,
+      pageIndex: pendingHighlight.pageIndex,
+      rects: pendingHighlight.rects,
     };
 
-    const newComment = {
-      text: '', // Will be filled in from the sidebar
-      highlightedText: pendingComment.highlightedText,
+    const newNote = {
+      question: '',
+      answer: '',
+      highlightedText: pendingHighlight.highlightedText,
       id: newHighlight.id,
       isEditing: true,
     };
 
     setHighlights(prev => [...prev, newHighlight]);
-    setComments(prev => [...prev, newComment]);
-    setPendingComment(null);
-  }, [pendingComment]);
+    setNotes(prev => [...prev, newNote]);
+    setPendingHighlight(null);
+  }, [pendingHighlight]);
 
   const handleTextSelection = useCallback(() => {
     const selection = window.getSelection();
     if (selection.isCollapsed) {
-      setPendingComment(null);
+      setPendingHighlight(null);
       return;
     }
 
@@ -175,7 +176,7 @@ function App() {
         height: rect.height,
     }));
 
-    const newPendingComment = {
+    const newPendingHighlight = {
       top: selectionRect.top - viewerRect.top + viewerRef.current.scrollTop,
       left: selectionRect.left - viewerRect.left,
       highlightedText: selection.toString(),
@@ -183,18 +184,27 @@ function App() {
       rects: selectionRects,
     };
     
-    setPendingComment(newPendingComment);
+    setPendingHighlight(newPendingHighlight);
     selection.removeAllRanges();
 
   }, []);
 
-  const handleCommentChange = (commentId, newText) => {
-    setComments(comments.map(c => c.id === commentId ? {...c, text: newText} : c));
+  const handleNoteChange = (noteId, field, value) => {
+    setNotes(notes.map(n => n.id === noteId ? {...n, [field]: value} : n));
   };
 
-  const handleCommentSave = (commentId, e) => {
-    if (e.key === 'Enter') {
-      setComments(comments.map(c => c.id === commentId ? {...c, isEditing: false} : c));
+  const handleNoteCancel = (noteId) => {
+    setNotes(notes.filter(n => n.id !== noteId));
+    setHighlights(highlights.filter(h => h.id !== noteId));
+  };
+
+  const handleNoteSave = (noteId, e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        setNotes(notes.map(n => n.id === noteId ? {...n, isEditing: false} : n));
+    }
+    if (e.key === 'Escape') {
+        handleNoteCancel(noteId);
     }
   };
 
@@ -224,31 +234,44 @@ function App() {
             numPages={numPages}
             scale={scale}
             highlights={highlights}
-            pendingComment={pendingComment}
+            pendingHighlight={pendingHighlight}
             listRef={listRef}
             pageHeights={pageHeights}
             viewerRef={viewerRef}
             handleViewerMouseUp={handleViewerMouseUp}
             onDocumentLoadSuccess={onDocumentLoadSuccess}
-            startCommenting={startCommenting}
+            startNewNote={startNewNote}
         />
       </div>
       <div className="sidebar">
-        <h2>Comments</h2>
-        <div className="comments-container">
-          {comments.map(comment => (
-            <div key={comment.id} className="comment">
-              <p><strong>Highlighted:</strong> {comment.highlightedText}</p>
-              {comment.isEditing ? (
-                <textarea
-                  autoFocus
-                  value={comment.text}
-                  onChange={(e) => handleCommentChange(comment.id, e.target.value)}
-                  onKeyDown={(e) => handleCommentSave(comment.id, e)}
-                  placeholder="Type your comment..."
-                />
+        <h2>Flashcards</h2>
+        <div className="notes-container">
+          {notes.map(note => (
+            <div key={note.id} className="note">
+              <p><strong>Highlighted:</strong> {note.highlightedText}</p>
+              {note.isEditing ? (
+                <>
+                  <textarea
+                    autoFocus
+                    value={note.question}
+                    onChange={(e) => handleNoteChange(note.id, 'question', e.target.value)}
+                    placeholder="Question"
+                  />
+                  <textarea
+                    value={note.answer}
+                    onChange={(e) => handleNoteChange(note.id, 'answer', e.target.value)}
+                    onKeyDown={(e) => handleNoteSave(note.id, e)}
+                    placeholder="Answer"
+                  />
+                  <div className="note-actions">
+                    <button onClick={() => handleNoteCancel(note.id)}>Cancel</button>
+                  </div>
+                </>
               ) : (
-                <p><strong>Comment:</strong> {comment.text}</p>
+                <>
+                  <p><strong>Question:</strong> {note.question}</p>
+                  <p><strong>Answer:</strong> {note.answer}</p>
+                </>
               )}
             </div>
           ))}
