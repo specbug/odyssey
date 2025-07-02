@@ -9,13 +9,32 @@ pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
 
 const MemoizedPage = memo(Page);
 
+const ContentEditable = memo(React.forwardRef(({ value, onChange, onKeyDown, onPaste, ...props }, ref) => {
+    const localRef = useRef(null);
+
+    useEffect(() => {
+        if (localRef.current && localRef.current.innerHTML !== value) {
+            localRef.current.innerHTML = value;
+        }
+    }, [value]);
+
+    const handleInput = (e) => {
+        onChange(e.currentTarget.innerHTML);
+    };
+
+    return <div {...props} ref={r => { localRef.current = r; if (ref) ref.current = r; }} contentEditable onInput={handleInput} onKeyDown={onKeyDown} onPaste={onPaste}></div>;
+}));
+
+
 const Note = memo(({ note, onSave, onCancel }) => {
     const [question, setQuestion] = useState(note.question);
     const [answer, setAnswer] = useState(note.answer);
     const questionRef = useRef(null);
 
     useEffect(() => {
-        questionRef.current?.focus();
+        if (questionRef.current) {
+            questionRef.current.focus();
+        }
     }, []);
 
     const handleKeyDown = (e) => {
@@ -28,19 +47,42 @@ const Note = memo(({ note, onSave, onCancel }) => {
         }
     };
 
+    const handlePaste = (e) => {
+        e.preventDefault();
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                const blob = items[i].getAsFile();
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = `<img src="${event.target.result}" class="pasted-image" />`;
+                    document.execCommand('insertHTML', false, img);
+                };
+                reader.readAsDataURL(blob);
+            } else if (items[i].type === 'text/plain') {
+                const text = e.clipboardData.getData('text/plain');
+                document.execCommand('insertText', false, text);
+            }
+        }
+    };
+
     return (
         <div className="note">
-            <textarea
+            <ContentEditable
                 ref={questionRef}
+                className="editable-div"
                 value={question}
-                onChange={(e) => setQuestion(e.target.value)}
+                onChange={setQuestion}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 placeholder="Question"
             />
-            <textarea
+            <ContentEditable
+                className="editable-div"
                 value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
+                onChange={setAnswer}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
                 placeholder="Answer"
             />
             <div className="note-actions">
@@ -116,8 +158,8 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
                                />
                            ) : (
                             <div className="note">
-                                <p className="note-question">{note.question}</p>
-                                <p className="note-answer">{note.answer}</p>
+                                <div className="note-question" dangerouslySetInnerHTML={{ __html: note.question }}></div>
+                                <div className="note-answer" dangerouslySetInnerHTML={{ __html: note.answer }}></div>
                                 <button className="delete-note-button" onClick={() => onNoteDelete(note.id)}>×</button>
                             </div>
                            )}

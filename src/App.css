@@ -135,7 +135,7 @@
     color: #333;
 }
 
-.note textarea {
+.editable-div {
   width: 100%;
   background-color: #f8f9fa;
   color: #333;
@@ -147,6 +147,7 @@
   resize: vertical;
   font-family: inherit;
   font-size: 14px;
+  min-height: 50px;
 }
 
 .note-actions {
@@ -184,4 +185,10 @@
 
 .comment-popup:hover {
   background-color: #000;
+}
+
+.pasted-image {
+    max-width: 100%;
+    border-radius: 4px;
+    margin: 10px 0;
 }
