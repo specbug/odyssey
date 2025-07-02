@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, memo } from 'react';
+import React, { useState, useCallback, useRef, memo, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { VariableSizeList as List } from 'react-window';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -9,51 +9,48 @@ pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
 
 const MemoizedPage = memo(Page);
 
-const Note = memo(({ note, onChange, onSave, onCancel }) => {
+const Note = memo(({ note, onSave, onCancel }) => {
+    const [question, setQuestion] = useState(note.question);
+    const [answer, setAnswer] = useState(note.answer);
+    const questionRef = useRef(null);
+
+    useEffect(() => {
+        questionRef.current?.focus();
+    }, []);
+
     const handleKeyDown = (e) => {
         if (e.key === 'Escape') {
             onCancel(note.id);
-            return;
         }
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            onSave(note.id);
+            onSave({ ...note, question, answer, isEditing: false });
         }
     };
 
     return (
         <div className="note">
-            {note.isEditing ? (
-                <>
-                    <textarea
-                        autoFocus
-                        value={note.question}
-                        onChange={(e) => onChange(note.id, 'question', e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Question"
-                    />
-                    <textarea
-                        value={note.answer}
-                        onChange={(e) => onChange(note.id, 'answer', e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Answer"
-                    />
-                    <div className="note-actions">
-                        <button onClick={() => onCancel(note.id)}>Cancel</button>
-                    </div>
-                </>
-            ) : (
-                <>
-                    <p><strong>Question:</strong> {note.question}</p>
-                    <p><strong>Answer:</strong> {note.answer}</p>
-                </>
-            )}
+            <textarea
+                ref={questionRef}
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Question"
+            />
+            <textarea
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Answer"
+            />
+            <div className="note-actions">
+                <button onClick={() => onCancel(note.id)}>Cancel</button>
+            </div>
         </div>
     );
 });
 
-
-const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, onPageRenderSuccess, notes, handleNoteChange, handleNoteSave, handleNoteCancel }) => {
+const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, onPageRenderSuccess, notes, onNoteSave, onNoteCancel }) => {
     const pageNotes = notes.filter(note => {
         const highlight = highlights.find(h => h.id === note.id);
         return highlight && highlight.pageIndex === index;
@@ -111,12 +108,18 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
 
                     return (
                         <div key={note.id} className="note-wrapper" style={{ top: `${firstRect.top}px` }}>
-                           <Note 
-                                note={note}
-                                onChange={handleNoteChange}
-                                onSave={handleNoteSave}
-                                onCancel={handleNoteCancel}
-                           />
+                           {note.isEditing ? (
+                                <Note 
+                                    note={note}
+                                    onSave={onNoteSave}
+                                    onCancel={onNoteCancel}
+                               />
+                           ) : (
+                            <div className="note">
+                                <p><strong>Question:</strong> {note.question}</p>
+                                <p><strong>Answer:</strong> {note.answer}</p>
+                            </div>
+                           )}
                         </div>
                     );
                 })}
@@ -201,17 +204,13 @@ function App() {
         selection.removeAllRanges();
     }, []);
 
-    const handleNoteChange = useCallback((noteId, field, value) => {
-        setNotes(notes => notes.map(n => n.id === noteId ? { ...n, [field]: value } : n));
+    const handleNoteSave = useCallback((updatedNote) => {
+        setNotes(notes => notes.map(n => n.id === updatedNote.id ? updatedNote : n));
     }, []);
 
     const handleNoteCancel = useCallback((noteId) => {
         setNotes(notes => notes.filter(n => n.id !== noteId));
         setHighlights(highlights => highlights.filter(h => h.id !== noteId));
-    }, []);
-
-    const handleNoteSave = useCallback((noteId) => {
-        setNotes(notes => notes.map(n => n.id === noteId ? { ...n, isEditing: false } : n));
     }, []);
 
     const handleViewerMouseUp = useCallback((event) => {
@@ -273,9 +272,8 @@ function App() {
                                     pendingHighlight={pendingHighlight}
                                     onPageRenderSuccess={onPageRenderSuccess}
                                     notes={notes}
-                                    handleNoteChange={handleNoteChange}
-                                    handleNoteSave={handleNoteSave}
-                                    handleNoteCancel={handleNoteCancel}
+                                    onNoteSave={handleNoteSave}
+                                    onNoteCancel={handleNoteCancel}
                                 />
                             )}
                         </List>
