@@ -116,8 +116,8 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
                                />
                            ) : (
                             <div className="note">
-                                <p><strong>Question:</strong> {note.question}</p>
-                                <p><strong>Answer:</strong> {note.answer}</p>
+                                <p className="note-question">{note.question}</p>
+                                <p className="note-answer">{note.answer}</p>
                             </div>
                            )}
                         </div>
