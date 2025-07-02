@@ -50,7 +50,7 @@ const Note = memo(({ note, onSave, onCancel }) => {
     );
 });
 
-const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, onPageRenderSuccess, notes, onNoteSave, onNoteCancel }) => {
+const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, onPageRenderSuccess, notes, onNoteSave, onNoteCancel, onNoteDelete }) => {
     const pageNotes = notes.filter(note => {
         const highlight = highlights.find(h => h.id === note.id);
         return highlight && highlight.pageIndex === index;
@@ -118,6 +118,7 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
                             <div className="note">
                                 <p className="note-question">{note.question}</p>
                                 <p className="note-answer">{note.answer}</p>
+                                <button className="delete-note-button" onClick={() => onNoteDelete(note.id)}>×</button>
                             </div>
                            )}
                         </div>
@@ -204,14 +205,23 @@ function App() {
         selection.removeAllRanges();
     }, []);
 
+    const handleNoteDelete = useCallback((noteId) => {
+        setNotes(notes => notes.filter(n => n.id !== noteId));
+        setHighlights(highlights => highlights.filter(h => h.id !== noteId));
+    }, []);
+
     const handleNoteSave = useCallback((updatedNote) => {
         setNotes(notes => notes.map(n => n.id === updatedNote.id ? updatedNote : n));
     }, []);
 
     const handleNoteCancel = useCallback((noteId) => {
-        setNotes(notes => notes.filter(n => n.id !== noteId));
-        setHighlights(highlights => highlights.filter(h => h.id !== noteId));
-    }, []);
+        const note = notes.find(n => n.id === noteId);
+        if (note && note.question === '' && note.answer === '') {
+            handleNoteDelete(noteId);
+        } else {
+            setNotes(notes => notes.map(n => n.id === noteId ? { ...n, isEditing: false } : n));
+        }
+    }, [notes, handleNoteDelete]);
 
     const handleViewerMouseUp = useCallback((event) => {
         if (event.target.closest('.comment-popup') || event.target.closest('.note')) {
@@ -274,6 +284,7 @@ function App() {
                                     notes={notes}
                                     onNoteSave={handleNoteSave}
                                     onNoteCancel={handleNoteCancel}
+                                    onNoteDelete={handleNoteDelete}
                                 />
                             )}
                         </List>
