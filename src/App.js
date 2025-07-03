@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, memo, useEffect } from 'react';
+import React, { useState, useCallback, useRef, memo, useEffect, useMemo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { VariableSizeList as List } from 'react-window';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -82,16 +82,16 @@ const NoteContent = memo(({ content, className }) => {
     return <div className={`note-content ${className}`}>{renderLatex(content)}</div>;
 });
 
-const Note = memo(({ note, onSave, onCancel }) => {
+const Note = memo(({ note, onSave, onCancel, isPositioned }) => {
     const [question, setQuestion] = useState(note.question);
     const [answer, setAnswer] = useState(note.answer);
     const questionRef = useRef(null);
 
     useEffect(() => {
-        if (questionRef.current) {
+        if (note.isEditing && isPositioned && questionRef.current) {
             questionRef.current.focus();
         }
-    }, []);
+    }, [note.isEditing, isPositioned]);
 
     const handleKeyDown = (e) => {
         if (e.key === 'Escape') {
@@ -149,10 +149,52 @@ const Note = memo(({ note, onSave, onCancel }) => {
 });
 
 const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, onPageRenderSuccess, notes, onNoteSave, onNoteCancel, onNoteDelete }) => {
-    const pageNotes = notes.filter(note => {
+    const [notePositions, setNotePositions] = useState({});
+    const [areNotesVisible, setAreNotesVisible] = useState(false);
+    const noteRefs = useRef({});
+
+    const pageNotes = useMemo(() => notes.filter(note => {
         const highlight = highlights.find(h => h.id === note.id);
         return highlight && highlight.pageIndex === index;
-    });
+    }), [notes, highlights, index]);
+
+    useEffect(() => {
+        const calculatePositions = () => {
+            const newPositions = {};
+            let lastBottom = 0;
+            const sortedNotes = [...pageNotes].sort((a, b) => {
+                const aHighlight = highlights.find(h => h.id === a.id);
+                const bHighlight = highlights.find(h => h.id === b.id);
+                return (aHighlight?.rects[0]?.top || 0) - (bHighlight?.rects[0]?.top || 0);
+            });
+
+            sortedNotes.forEach(note => {
+                const highlight = highlights.find(h => h.id === note.id);
+                if (!highlight || !highlight.rects.length) return;
+
+                const noteElement = noteRefs.current[note.id];
+                if (!noteElement) return;
+
+                const noteHeight = noteElement.offsetHeight;
+                const highlightTop = highlight.rects[0].top;
+                
+                const top = Math.max(highlightTop, lastBottom + 10);
+                newPositions[note.id] = top;
+                lastBottom = top + noteHeight;
+            });
+
+            setNotePositions(newPositions);
+            setAreNotesVisible(true);
+        };
+
+        const allNotesRendered = pageNotes.every(note => noteRefs.current[note.id]);
+
+        if (pageNotes.length > 0 && allNotesRendered) {
+            calculatePositions();
+        } else {
+            setAreNotesVisible(false);
+        }
+    }, [pageNotes, highlights]);
 
     return (
         <div style={style} className="page-and-notes-container">
@@ -198,19 +240,21 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
                 </MemoizedPage>
             </div>
 
-            <div className="notes-column">
+            <div className="notes-column" style={{ opacity: areNotesVisible ? 1 : 0, transition: 'opacity 0.2s' }}>
                 {pageNotes.map(note => {
-                    const highlight = highlights.find(h => h.id === note.id);
-                    if (!highlight || !highlight.rects.length) return null;
-                    const firstRect = highlight.rects[0];
-
                     return (
-                        <div key={note.id} className="note-wrapper" style={{ top: `${firstRect.top}px` }}>
+                        <div 
+                            key={note.id} 
+                            ref={el => noteRefs.current[note.id] = el}
+                            className="note-wrapper" 
+                            style={{ top: `${notePositions[note.id] || 0}px` }}
+                        >
                            {note.isEditing ? (
                                 <Note 
                                     note={note}
                                     onSave={onNoteSave}
                                     onCancel={onNoteCancel}
+                                    isPositioned={notePositions[note.id] !== undefined}
                                />
                            ) : (
                             <div className="note">
