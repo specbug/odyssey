@@ -3,9 +3,14 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import { VariableSizeList as List } from 'react-window';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
+import 'katex/dist/katex.min.css';
+import { InlineMath, BlockMath } from 'react-katex';
 import './App.css';
 
-pdfjs.GlobalWorkerOptions.workerSrc = `/pdf.worker.min.mjs`;
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString();
 
 const MemoizedPage = memo(Page);
 
@@ -25,6 +30,57 @@ const ContentEditable = memo(React.forwardRef(({ value, onChange, onKeyDown, onP
     return <div {...props} ref={r => { localRef.current = r; if (ref) ref.current = r; }} contentEditable onInput={handleInput} onKeyDown={onKeyDown} onPaste={onPaste}></div>;
 }));
 
+const NoteContent = memo(({ content }) => {
+    const renderLatex = (string) => {
+        if (!string) return [];
+        
+        const processedString = string.replace(/<div>/g, ' ').replace(/<\/div>/g, ' ');
+
+        const latexRegex = /(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$|\\[[\s\S]*?\\\]|\\\(.*?\\\)|\\begin\{equation\}[\s\S]*?\\end\{equation\})/g;
+        const parts = processedString.split(latexRegex);
+
+        return parts.map((part, index) => {
+            if (!part) {
+                return null;
+            }
+
+            const match = part.match(latexRegex);
+            if (match && match[0] === part) {
+                let isBlock = false;
+                let katexString = '';
+
+                if (part.startsWith('$$')) {
+                    isBlock = true;
+                    katexString = part.substring(2, part.length - 2);
+                } else if (part.startsWith('\\[')) {
+                    isBlock = true;
+                    katexString = part.substring(2, part.length - 2);
+                } else if (part.startsWith('\\begin{equation}')) {
+                    isBlock = true;
+                    katexString = part.substring(16, part.length - 14);
+                } else if (part.startsWith('$')) {
+                    isBlock = false;
+                    katexString = part.substring(1, part.length - 1);
+                } else if (part.startsWith('\\(')) {
+                    isBlock = false;
+                    katexString = part.substring(2, part.length - 2);
+                }
+                
+                if (katexString) {
+                    if (isBlock) {
+                        return <BlockMath key={index} math={katexString} />;
+                    } else {
+                        return <InlineMath key={index} math={katexString} />;
+                    }
+                }
+            }
+            
+            return <span key={index} dangerouslySetInnerHTML={{ __html: part }}></span>;
+        });
+    };
+
+    return <div className="note-content">{renderLatex(content)}</div>;
+});
 
 const Note = memo(({ note, onSave, onCancel }) => {
     const [question, setQuestion] = useState(note.question);
@@ -158,8 +214,8 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
                                />
                            ) : (
                             <div className="note">
-                                <div className="note-question" dangerouslySetInnerHTML={{ __html: note.question }}></div>
-                                <div className="note-answer" dangerouslySetInnerHTML={{ __html: note.answer }}></div>
+                                <NoteContent content={note.question} />
+                                <NoteContent content={note.answer} />
                                 <button className="delete-note-button" onClick={() => onNoteDelete(note.id)}>×</button>
                             </div>
                            )}
