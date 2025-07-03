@@ -148,10 +148,9 @@ const Note = memo(({ note, onSave, onCancel, isPositioned }) => {
     );
 });
 
-const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, onPageRenderSuccess, notes, onNoteSave, onNoteCancel, onNoteDelete }) => {
+const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, onPageRenderSuccess, notes, onNoteSave, onNoteCancel, onNoteDelete, activeNoteId, onNoteClick, onHighlightClick, noteRefs }) => {
     const [notePositions, setNotePositions] = useState({});
     const [areNotesVisible, setAreNotesVisible] = useState(false);
-    const noteRefs = useRef({});
 
     const pageNotes = useMemo(() => notes.filter(note => {
         const highlight = highlights.find(h => h.id === note.id);
@@ -194,7 +193,7 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
         } else {
             setAreNotesVisible(false);
         }
-    }, [pageNotes, highlights]);
+    }, [pageNotes, highlights, noteRefs]);
 
     return (
         <div style={style} className="page-and-notes-container">
@@ -212,7 +211,8 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
                             {h.rects.map((rect, i) => (
                                 <div
                                     key={i}
-                                    className="highlight"
+                                    onClick={(e) => { e.stopPropagation(); onHighlightClick(h.id); }}
+                                    className={`highlight ${h.id === activeNoteId ? 'active' : ''}`}
                                     style={{
                                         position: 'absolute',
                                         top: `${rect.top}px`,
@@ -257,10 +257,10 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
                                     isPositioned={notePositions[note.id] !== undefined}
                                />
                            ) : (
-                            <div className="note">
+                            <div className={`note ${note.id === activeNoteId ? 'active' : ''}`} onClick={(e) => { e.stopPropagation(); onNoteClick(note.id); }}>
                                 <NoteContent content={note.question} className="note-question" />
                                 <NoteContent content={note.answer} className="note-answer" />
-                                <button className="delete-note-button" onClick={() => onNoteDelete(note.id)}>×</button>
+                                <button className="delete-note-button" onClick={(e) => { e.stopPropagation(); onNoteDelete(note.id); }}>×</button>
                             </div>
                            )}
                         </div>
@@ -278,16 +278,20 @@ function App() {
     const [scale, setScale] = useState(1.2);
     const [highlights, setHighlights] = useState([]);
     const [pendingHighlight, setPendingHighlight] = useState(null);
+    const [activeNoteId, setActiveNoteId] = useState(null);
     const listRef = useRef();
     const pageHeights = useRef({});
     const viewerRef = useRef(null);
+    const noteRefs = useRef({});
 
     const onFileChange = (event) => {
         setFile(event.target.files[0]);
         setHighlights([]);
         setNotes([]);
         setPendingHighlight(null);
+        setActiveNoteId(null);
         pageHeights.current = {};
+        noteRefs.current = {};
     };
 
     const onDocumentLoadSuccess = useCallback(({ numPages }) => {
@@ -315,6 +319,8 @@ function App() {
         setNotes(prev => [newNote, ...prev]);
         setPendingHighlight(null);
     }, [pendingHighlight]);
+
+    const getPageHeight = useCallback((index) => pageHeights.current[index] || (1188 * scale), [scale]);
 
     const handleTextSelection = useCallback(() => {
         const selection = window.getSelection();
@@ -356,6 +362,46 @@ function App() {
         setNotes(notes => notes.map(n => n.id === updatedNote.id ? updatedNote : n));
     }, []);
 
+    const handleNoteClick = useCallback((noteId) => {
+        setActiveNoteId(noteId);
+        const highlight = highlights.find(h => h.id === noteId);
+        if (highlight && viewerRef.current) {
+            // Calculate total height of all pages before the target page
+            let offsetToPage = 0;
+            for (let i = 0; i < highlight.pageIndex; i++) {
+                offsetToPage += getPageHeight(i);
+            }
+            
+            // Add the highlight's position within the page, accounting for scale and padding
+            const highlightTopOnPage = highlight.rects[0]?.top || 0;
+            const scaledHighlightTop = highlightTopOnPage * scale;
+            const pageContainerPadding = 20; // From CSS .page-and-notes-container padding
+            
+            const absoluteHighlightTop = offsetToPage + scaledHighlightTop + pageContainerPadding;
+            
+            // Center the highlight in the viewport
+            const viewportHeight = viewerRef.current.offsetHeight;
+            const targetScrollTop = absoluteHighlightTop - viewportHeight / 2;
+            
+            viewerRef.current.scrollTo({
+                top: Math.max(0, targetScrollTop),
+                behavior: 'smooth'
+            });
+        }
+    }, [highlights, scale, getPageHeight]);
+
+    const handleHighlightClick = useCallback((noteId) => {
+        setActiveNoteId(noteId);
+        const noteElement = noteRefs.current[noteId];
+        if (noteElement) {
+            noteElement.scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'center',
+                inline: 'nearest'
+            });
+        }
+    }, []);
+
     const handleNoteCancel = useCallback((noteId) => {
         const note = notes.find(n => n.id === noteId);
         if (note && note.question === '' && note.answer === '') {
@@ -366,9 +412,15 @@ function App() {
     }, [notes, handleNoteDelete]);
 
     const handleViewerMouseUp = useCallback((event) => {
-        if (event.target.closest('.comment-popup') || event.target.closest('.note')) {
+        // Don't deselect if clicking on interactive elements
+        if (event.target.closest('.comment-popup') || 
+            event.target.closest('.note') || 
+            event.target.closest('.highlight')) {
             return;
         }
+        
+        // Deselect active note
+        setActiveNoteId(null);
         handleTextSelection();
     }, [handleTextSelection]);
 
@@ -380,8 +432,6 @@ function App() {
             }
         }
     }, []);
-
-    const getPageHeight = (index) => pageHeights.current[index] || (1188 * scale);
 
     return (
         <div className="App">
@@ -427,6 +477,10 @@ function App() {
                                     onNoteSave={handleNoteSave}
                                     onNoteCancel={handleNoteCancel}
                                     onNoteDelete={handleNoteDelete}
+                                    activeNoteId={activeNoteId}
+                                    onNoteClick={handleNoteClick}
+                                    onHighlightClick={handleHighlightClick}
+                                    noteRefs={noteRefs}
                                 />
                             )}
                         </List>
