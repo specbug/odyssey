@@ -30,7 +30,7 @@ const ContentEditable = memo(React.forwardRef(({ value, onChange, onKeyDown, onP
     return <div {...props} ref={r => { localRef.current = r; if (ref) ref.current = r; }} contentEditable onInput={handleInput} onKeyDown={onKeyDown} onPaste={onPaste}></div>;
 }));
 
-const NoteContent = memo(({ content }) => {
+const NoteContent = memo(({ content, className }) => {
     const renderLatex = (string) => {
         if (!string) return [];
         
@@ -79,7 +79,7 @@ const NoteContent = memo(({ content }) => {
         });
     };
 
-    return <div className="note-content">{renderLatex(content)}</div>;
+    return <div className={`note-content ${className}`}>{renderLatex(content)}</div>;
 });
 
 const Note = memo(({ note, onSave, onCancel }) => {
@@ -214,8 +214,8 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
                                />
                            ) : (
                             <div className="note">
-                                <NoteContent content={note.question} />
-                                <NoteContent content={note.answer} />
+                                <NoteContent content={note.question} className="note-question" />
+                                <NoteContent content={note.answer} className="note-answer" />
                                 <button className="delete-note-button" onClick={() => onNoteDelete(note.id)}>×</button>
                             </div>
                            )}

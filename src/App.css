@@ -106,7 +106,8 @@
 }
 
 .note-question {
-    font-weight: bold;
+    font-weight: 500;
+    color: #1a1a1a;
     margin: 0 0 10px 0;
 }
 
