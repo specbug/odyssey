@@ -1,3 +1,27 @@
+@font-face {
+  font-family: 'Dr';
+  src: url('./fonts/DrWeb-Regular-Trial.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Dr';
+  src: url('./fonts/DrWeb-Medium-Trial.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Dr';
+  src: url('./fonts/DrWeb-Bold-Trial.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 .App {
   display: flex;
   flex-direction: column;
@@ -138,12 +162,20 @@
 }
 
 .note-question {
+    font-family: 'Dr', serif;
     font-weight: 500;
+    font-size: 15px;
+    line-height: 1.4;
     color: #1a1a1a;
     margin: 0 0 10px 0;
 }
 
 .note-answer {
+    font-family: 'Dr', serif;
+    font-weight: 400;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #333;
     margin: 0;
 }
 
@@ -178,8 +210,9 @@
   margin-bottom: 10px;
   box-sizing: border-box;
   resize: vertical;
-  font-family: inherit;
+  font-family: 'Dr', serif;
   font-size: 14px;
+  line-height: 1.5;
   min-height: 50px;
 }
 
