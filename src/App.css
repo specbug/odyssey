@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 @font-face {
   font-family: 'Dr';
   src: url('./fonts/DrWeb-Regular-Trial.woff2') format('woff2');
@@ -162,7 +164,7 @@
 }
 
 .note-question {
-    font-family: 'Dr', serif;
+    font-family: 'Dr', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-weight: 500;
     font-size: 15px;
     line-height: 1.4;
@@ -171,7 +173,7 @@
 }
 
 .note-answer {
-    font-family: 'Dr', serif;
+    font-family: 'Dr', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     font-weight: 400;
     font-size: 14px;
     line-height: 1.5;
@@ -210,7 +212,7 @@
   margin-bottom: 10px;
   box-sizing: border-box;
   resize: vertical;
-  font-family: 'Dr', serif;
+  font-family: 'Dr', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   font-size: 14px;
   line-height: 1.5;
   min-height: 50px;
