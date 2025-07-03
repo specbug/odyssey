@@ -4,6 +4,7 @@ import { VariableSizeList as List } from 'react-window';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'katex/dist/katex.min.css';
+import './katex-fonts.css';
 import { InlineMath, BlockMath } from 'react-katex';
 import './App.css';
 
