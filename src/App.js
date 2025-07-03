@@ -178,7 +178,7 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
                 const noteHeight = noteElement.offsetHeight;
                 const highlightTop = highlight.rects[0].top;
                 
-                const top = Math.max(highlightTop, lastBottom + 10);
+                const top = Math.max(highlightTop, lastBottom + 5);
                 newPositions[note.id] = top;
                 lastBottom = top + noteHeight;
             });
