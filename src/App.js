@@ -98,7 +98,62 @@ const NoteContent = memo(({ content, className }) => {
     return <div className={`note-content ${className}`}>{renderLatex(content)}</div>;
 });
 
-const Note = memo(({ note, onSave, onCancel, isPositioned }) => {
+const NoteMenu = memo(({ noteId, onEdit, onDelete }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const menuRef = useRef(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setIsOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleMenuToggle = (e) => {
+        e.stopPropagation();
+        setIsOpen(!isOpen);
+    };
+
+    const handleEdit = (e) => {
+        e.stopPropagation();
+        onEdit(noteId);
+        setIsOpen(false);
+    };
+
+    const handleDelete = (e) => {
+        e.stopPropagation();
+        onDelete(noteId);
+        setIsOpen(false);
+    };
+
+    return (
+        <div className={`note-menu ${isOpen ? 'open' : ''}`} ref={menuRef}>
+            <button 
+                className="note-menu-button"
+                onClick={handleMenuToggle}
+                aria-label="Note options"
+            >
+                ⋯
+            </button>
+            {isOpen && (
+                <div className="note-menu-dropdown">
+                    <button className="note-menu-item" onClick={handleEdit}>
+                        ✏️ Edit
+                    </button>
+                    <button className="note-menu-item" onClick={handleDelete}>
+                        🗑️ Delete
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+});
+
+const Note = memo(({ note, onSave, onCancel, onEdit, onDelete, isPositioned }) => {
     const [question, setQuestion] = useState(note.question);
     const [answer, setAnswer] = useState(note.answer);
     const questionRef = useRef(null);
@@ -108,6 +163,14 @@ const Note = memo(({ note, onSave, onCancel, isPositioned }) => {
             questionRef.current.focus();
         }
     }, [note.isEditing, isPositioned]);
+
+    useEffect(() => {
+        // Reset state when entering edit mode
+        if (note.isEditing) {
+            setQuestion(note.question);
+            setAnswer(note.answer);
+        }
+    }, [note.isEditing, note.question, note.answer]);
 
     const handleKeyDown = (e) => {
         if (e.key === 'Escape') {
@@ -157,11 +220,16 @@ const Note = memo(({ note, onSave, onCancel, isPositioned }) => {
                 onPaste={handlePaste}
                 placeholder="Type a response here"
             />
+            <NoteMenu 
+                noteId={note.id}
+                onEdit={onEdit}
+                onDelete={onDelete}
+            />
         </div>
     );
 });
 
-const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, onPageRenderSuccess, notes, onNoteSave, onNoteCancel, onNoteDelete, activeNoteId, onNoteClick, onHighlightClick, noteRefs }) => {
+const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, onPageRenderSuccess, notes, onNoteSave, onNoteCancel, onNoteEdit, onNoteDelete, activeNoteId, onNoteClick, onHighlightClick, noteRefs }) => {
     const [notePositions, setNotePositions] = useState({});
     const [areNotesVisible, setAreNotesVisible] = useState(false);
 
@@ -267,13 +335,23 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
                                     note={note}
                                     onSave={onNoteSave}
                                     onCancel={onNoteCancel}
+                                    onEdit={onNoteEdit}
+                                    onDelete={onNoteDelete}
                                     isPositioned={notePositions[note.id] !== undefined}
                                />
                            ) : (
-                            <div className={`note ${note.id === activeNoteId ? 'active' : ''}`} onClick={(e) => { e.stopPropagation(); onNoteClick(note.id); }}>
+                            <div 
+                                className={`note ${note.id === activeNoteId ? 'active' : ''}`} 
+                                onClick={(e) => { e.stopPropagation(); onNoteClick(note.id); }}
+                                onDoubleClick={(e) => { e.stopPropagation(); onNoteEdit(note.id); }}
+                            >
                                 <NoteContent content={note.question} className="note-question" />
                                 <NoteContent content={note.answer} className="note-answer" />
-                                <button className="delete-note-button" onClick={(e) => { e.stopPropagation(); onNoteDelete(note.id); }}>×</button>
+                                <NoteMenu 
+                                    noteId={note.id}
+                                    onEdit={onNoteEdit}
+                                    onDelete={onNoteDelete}
+                                />
                             </div>
                            )}
                         </div>
@@ -919,6 +997,10 @@ function App() {
         }
     }, [notes, handleNoteDelete]);
 
+    const handleNoteEdit = useCallback((noteId) => {
+        setNotes(notes => notes.map(n => n.id === noteId ? { ...n, isEditing: true } : n));
+    }, []);
+
     const handleViewerMouseUp = useCallback((event) => {
         // Don't deselect if clicking on interactive elements
         if (event.target.closest('.comment-popup') || 
@@ -1040,6 +1122,7 @@ function App() {
                                         notes={notes}
                                         onNoteSave={handleNoteSave}
                                     onNoteCancel={handleNoteCancel}
+                                    onNoteEdit={handleNoteEdit}
                                     onNoteDelete={handleNoteDelete}
                                     activeNoteId={activeNoteId}
                                     onNoteClick={handleNoteClick}

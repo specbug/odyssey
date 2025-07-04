@@ -597,6 +597,21 @@
     0 12px 40px rgba(0, 0, 0, 0.05);
   border-left-color: rgba(255, 77, 6, 0.5);
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.97) 0%, rgba(255, 255, 255, 0.88) 100%);
+  cursor: pointer;
+}
+
+.note:hover:not(.active)::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 77, 6, 0.02) 0%, rgba(255, 77, 6, 0.01) 100%);
+  border-radius: inherit;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+  opacity: 1;
 }
 
 .note::before {
@@ -607,76 +622,154 @@
     font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-weight: 500;
     font-size: 15px;
-    line-height: 1.3;
+    line-height: 1.35;
     color: rgba(29, 29, 31, 0.98);
     margin: 0 0 calc(var(--orbit-grid) * 0.75) 0;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.005em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
 .note-answer {
     font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
-    font-weight: 400;
-    font-size: 14px;
+    font-weight: 450;
+    font-size: 15px;
     line-height: 1.35;
     color: rgba(60, 60, 67, 0.9);
     margin: 0;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.008em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
-.delete-note-button {
+.note-menu {
     position: absolute;
-    top: calc(var(--orbit-grid) * 0.75);
+    top: calc(var(--orbit-grid) * 1.5);
     right: calc(var(--orbit-grid) * 0.75);
+    z-index: 100;
+}
+
+.note-menu-button {
     background: transparent;
     border: none;
-    font-size: 12px;
-    color: rgba(142, 142, 147, 0.6);
+    font-size: 16px;
+    color: transparent;
     cursor: pointer;
     opacity: 0;
-    transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    transition: all 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94);
     width: calc(var(--orbit-grid) * 2.5);
     height: calc(var(--orbit-grid) * 2.5);
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%;
+    border-radius: 0;
     backdrop-filter: none;
     box-shadow: none;
+    font-family: 'Dr', -apple-system, BlinkMacSystemFont, sans-serif;
+    transform: rotate(90deg);
 }
 
-.note:hover .delete-note-button {
+.note:hover .note-menu-button {
     opacity: 1;
+    color: rgba(29, 29, 31, 0.95);
 }
 
-.delete-note-button:hover {
-    color: rgba(255, 59, 48, 0.8);
-    background: rgba(255, 255, 255, 0.7);
-    transform: scale(1.1);
+.note-menu-button:hover {
+    color: rgba(29, 29, 31, 1);
+    background: transparent;
+    transform: rotate(90deg) scale(1.05);
+}
+
+.note-menu-button:active,
+.note-menu.open .note-menu-button {
+    color: rgba(29, 29, 31, 1);
+    background: transparent;
+    transform: rotate(90deg) scale(1);
+}
+
+.note-menu-dropdown {
+    position: absolute;
+    top: 0;
+    left: 100%;
+    margin-left: calc(var(--orbit-grid) * 0.5);
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.55) 100%);
+    border: none;
+    border-radius: 0;
     box-shadow: 
-      0 1px 3px rgba(0, 0, 0, 0.08),
-      0 2px 6px rgba(0, 0, 0, 0.06);
+      0 1px 0 0 rgba(255, 255, 255, 0.4) inset,
+      0 1px 4px rgba(0, 0, 0, 0.06),
+      0 2px 8px rgba(0, 0, 0, 0.04),
+      0 4px 16px rgba(0, 0, 0, 0.03);
+    backdrop-filter: blur(30px) saturate(1.4);
+    padding: calc(var(--orbit-grid) * 0.3);
+    min-width: 90px;
+    animation: menuAppearRight 0.2s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+    z-index: 1000;
+}
+
+@keyframes menuAppearRight {
+    0% {
+        opacity: 0;
+        transform: translateX(-8px) scale(0.95);
+    }
+    100% {
+        opacity: 1;
+        transform: translateX(0) scale(1);
+    }
+}
+
+.note-menu-item {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--orbit-grid) * 0.5);
+    width: 100%;
+    padding: calc(var(--orbit-grid) * 0.5) calc(var(--orbit-grid) * 0.75);
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    color: rgba(29, 29, 31, 0.92);
+    font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    text-align: left;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.note-menu-item:hover {
+    transform: translateX(2px);
+}
+
+.note-menu-item:first-child:hover {
+    background: rgba(255, 77, 6, 0.08);
+    color: rgba(255, 77, 6, 0.95);
+}
+
+.note-menu-item:last-child:hover {
+    background: rgba(255, 59, 48, 0.08);
+    color: rgba(255, 59, 48, 0.95);
 }
 
 .editable-div {
   width: 100%;
   background-color: transparent;
-  color: rgba(29, 29, 31, 0.92);
+  color: rgba(29, 29, 31, 0.98);
   border: none;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  border-bottom: 0.5px solid rgba(0, 0, 0, 0.08);
   border-radius: 0;
   padding: calc(var(--orbit-grid) * 0.75) 0;
   margin-bottom: calc(var(--orbit-grid) * 0.5);
   box-sizing: border-box;
   resize: vertical;
   font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-size: 14px;
-  font-weight: 400;
+  font-size: 15px;
+  font-weight: 500;
   line-height: 1.35;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.005em;
   min-height: calc(var(--orbit-grid) * 2.5);
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   -webkit-font-smoothing: antialiased;
@@ -686,21 +779,21 @@
 
 .editable-div:focus {
   outline: none;
-  border-bottom-color: rgba(255, 77, 6, 0.4);
+  border-bottom-color: rgba(0, 0, 0, 0.15);
   background-color: transparent;
   color: rgba(29, 29, 31, 0.98);
-  box-shadow: 0 1px 0 0 rgba(255, 77, 6, 0.1);
+  box-shadow: 0 1px 0 0 rgba(0, 0, 0, 0.05);
 }
 
 .editable-div.empty::before {
   content: attr(data-placeholder);
   color: rgba(60, 60, 67, 0.6);
   font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  font-size: 14px;
+  font-size: 15px;
   font-style: normal;
-  font-weight: 400;
+  font-weight: 500;
   line-height: 1.35;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.005em;
   pointer-events: none;
   position: absolute;
   top: calc(var(--orbit-grid) * 0.75);
@@ -717,6 +810,18 @@
   border-bottom: none;
   margin-bottom: 0;
   padding-bottom: calc(var(--orbit-grid) * 0.5);
+  font-weight: 450;
+  letter-spacing: -0.008em;
+  color: rgba(60, 60, 67, 0.9);
+}
+
+.editable-div-last.empty::before {
+  font-weight: 450;
+  letter-spacing: -0.008em;
+}
+
+.editable-div-last:focus {
+  color: rgba(60, 60, 67, 0.95);
 }
 
 /* Add Note button - more subtle styling */
