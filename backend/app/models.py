@@ -1,5 +1,15 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Float, Boolean
+from sqlalchemy import (
+    Column,
+    Integer,
+    String,
+    DateTime,
+    Text,
+    Float,
+    Boolean,
+    ForeignKey,
+)
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from .database import Base
 
 
@@ -38,3 +48,92 @@ class Annotation(Base):
 
     def __repr__(self):
         return f"<Annotation(file_id={self.file_id}, page={self.page_index})>"
+
+
+class StudyCard(Base):
+    """A card that can be studied using spaced repetition."""
+
+    __tablename__ = "study_cards"
+
+    id = Column(Integer, primary_key=True, index=True)
+    annotation_id = Column(Integer, ForeignKey("annotations.id"), index=True)
+
+    # SM-2 Algorithm fields
+    easiness = Column(Float, default=2.5)  # Easiness factor (default 2.5)
+    interval = Column(Integer, default=1)  # Days until next review
+    repetitions = Column(Integer, default=0)  # Number of successful repetitions
+
+    # Card state
+    is_new = Column(Boolean, default=True)  # True if card hasn't been reviewed
+    is_learning = Column(Boolean, default=False)  # True if card is in learning phase
+    is_graduated = Column(
+        Boolean, default=False
+    )  # True if card has graduated from learning
+
+    # Timestamps
+    created_date = Column(DateTime(timezone=True), server_default=func.now())
+    last_review_date = Column(DateTime(timezone=True))
+    next_review_date = Column(DateTime(timezone=True))
+
+    # Relationships
+    annotation = relationship("Annotation", backref="study_cards")
+    reviews = relationship("CardReview", back_populates="card")
+
+    def __repr__(self):
+        return f"<StudyCard(id={self.id}, annotation_id={self.annotation_id}, interval={self.interval})>"
+
+
+class ReviewSession(Base):
+    """A review session containing multiple card reviews."""
+
+    __tablename__ = "review_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, index=True)  # For future user support
+    session_start = Column(DateTime(timezone=True), server_default=func.now())
+    session_end = Column(DateTime(timezone=True))
+    cards_reviewed = Column(Integer, default=0)
+
+    # Session statistics
+    correct_answers = Column(Integer, default=0)
+    incorrect_answers = Column(Integer, default=0)
+
+    # Relationships
+    reviews = relationship("CardReview", back_populates="session")
+
+    def __repr__(self):
+        return f"<ReviewSession(id={self.id}, cards_reviewed={self.cards_reviewed})>"
+
+
+class CardReview(Base):
+    """Individual card review with SM-2 algorithm data."""
+
+    __tablename__ = "card_reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    card_id = Column(Integer, ForeignKey("study_cards.id"), index=True)
+    session_id = Column(Integer, ForeignKey("review_sessions.id"), index=True)
+
+    # Review data
+    quality = Column(Integer)  # 0-5 quality rating from SM-2
+    review_date = Column(DateTime(timezone=True), server_default=func.now())
+
+    # SM-2 algorithm state before review
+    easiness_before = Column(Float)
+    interval_before = Column(Integer)
+    repetitions_before = Column(Integer)
+
+    # SM-2 algorithm state after review
+    easiness_after = Column(Float)
+    interval_after = Column(Integer)
+    repetitions_after = Column(Integer)
+
+    # Time tracking
+    time_taken = Column(Integer)  # Time taken in seconds
+
+    # Relationships
+    card = relationship("StudyCard", back_populates="reviews")
+    session = relationship("ReviewSession", back_populates="reviews")
+
+    def __repr__(self):
+        return f"<CardReview(id={self.id}, card_id={self.card_id}, quality={self.quality})>"

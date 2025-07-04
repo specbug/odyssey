@@ -10,14 +10,25 @@ from datetime import datetime
 from dotenv import load_dotenv
 
 from .database import SessionLocal, engine, get_db
-from .models import Base, PDFFile, Annotation
+from .models import Base, PDFFile, Annotation, StudyCard, CardReview, ReviewSession
 from .schemas import (
     PDFFileResponse,
     AnnotationCreate,
     AnnotationUpdate,
     AnnotationResponse,
     FileUploadResponse,
+    StudyCardCreate,
+    StudyCardResponse,
+    StudyCardUpdate,
+    CardReviewCreate,
+    CardReviewResponse,
+    CardReviewResult,
+    ReviewSessionCreate,
+    ReviewSessionResponse,
+    DueCardsResponse,
+    ReviewOptions,
 )
+from .spaced_repetition import SpacedRepetitionService
 from .utils import (
     calculate_file_hash_from_bytes,
     is_pdf_file,
@@ -341,6 +352,220 @@ async def delete_annotation(annotation_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "Annotation deleted successfully"}
+
+
+# Spaced Repetition Endpoints
+
+
+@app.post("/study-cards", response_model=StudyCardResponse)
+async def create_study_card(annotation_id: int, db: Session = Depends(get_db)):
+    """Create a study card from an annotation."""
+    try:
+        # Check if annotation exists
+        annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
+        if not annotation:
+            raise HTTPException(status_code=404, detail="Annotation not found")
+
+        study_card = SpacedRepetitionService.create_study_card(db, annotation_id)
+        return study_card
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error creating study card: {str(e)}"
+        )
+
+
+@app.get("/study-cards/due", response_model=DueCardsResponse)
+async def get_due_cards(limit: int = 50, db: Session = Depends(get_db)):
+    """Get cards that are due for review."""
+    try:
+        cards_data = SpacedRepetitionService.get_due_cards(db, limit)
+
+        return DueCardsResponse(
+            due_cards=cards_data["due_cards"],
+            new_cards=cards_data["new_cards"],
+            total_due=len(cards_data["due_cards"]),
+            total_new=len(cards_data["new_cards"]),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error getting due cards: {str(e)}"
+        )
+
+
+@app.get("/study-cards/{card_id}/options", response_model=ReviewOptions)
+async def get_review_options(card_id: int, db: Session = Depends(get_db)):
+    """Get review options for a card."""
+    try:
+        card = db.query(StudyCard).filter(StudyCard.id == card_id).first()
+        if not card:
+            raise HTTPException(status_code=404, detail="Study card not found")
+
+        options = SpacedRepetitionService.get_review_options(card)
+        return ReviewOptions(card_id=card_id, options=options)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error getting review options: {str(e)}"
+        )
+
+
+@app.post("/study-cards/{card_id}/review", response_model=CardReviewResult)
+async def review_card(
+    card_id: int, review_data: CardReviewCreate, db: Session = Depends(get_db)
+):
+    """Review a card using SM-2 algorithm."""
+    try:
+        # Validate quality rating
+        if review_data.quality < 0 or review_data.quality > 5:
+            raise HTTPException(
+                status_code=400, detail="Quality rating must be between 0 and 5"
+            )
+
+        result = SpacedRepetitionService.review_card(
+            db=db,
+            card_id=card_id,
+            quality=review_data.quality,
+            time_taken=review_data.time_taken,
+            session_id=review_data.session_id,
+        )
+
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error reviewing card: {str(e)}")
+
+
+@app.get("/study-cards", response_model=List[StudyCardResponse])
+async def get_study_cards(
+    skip: int = 0, limit: int = 100, db: Session = Depends(get_db)
+):
+    """Get all study cards."""
+    try:
+        cards = db.query(StudyCard).offset(skip).limit(limit).all()
+        return cards
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error getting study cards: {str(e)}"
+        )
+
+
+@app.get("/study-cards/{card_id}", response_model=StudyCardResponse)
+async def get_study_card(card_id: int, db: Session = Depends(get_db)):
+    """Get a specific study card."""
+    try:
+        card = db.query(StudyCard).filter(StudyCard.id == card_id).first()
+        if not card:
+            raise HTTPException(status_code=404, detail="Study card not found")
+        return card
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error getting study card: {str(e)}"
+        )
+
+
+@app.put("/study-cards/{card_id}", response_model=StudyCardResponse)
+async def update_study_card(
+    card_id: int, card_update: StudyCardUpdate, db: Session = Depends(get_db)
+):
+    """Update a study card."""
+    try:
+        card = db.query(StudyCard).filter(StudyCard.id == card_id).first()
+        if not card:
+            raise HTTPException(status_code=404, detail="Study card not found")
+
+        # Update fields if provided
+        update_data = card_update.dict(exclude_unset=True)
+        for field, value in update_data.items():
+            setattr(card, field, value)
+
+        db.commit()
+        db.refresh(card)
+        return card
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error updating study card: {str(e)}"
+        )
+
+
+@app.delete("/study-cards/{card_id}")
+async def delete_study_card(card_id: int, db: Session = Depends(get_db)):
+    """Delete a study card."""
+    try:
+        card = db.query(StudyCard).filter(StudyCard.id == card_id).first()
+        if not card:
+            raise HTTPException(status_code=404, detail="Study card not found")
+
+        # Delete associated reviews
+        db.query(CardReview).filter(CardReview.card_id == card_id).delete()
+
+        # Delete the card
+        db.delete(card)
+        db.commit()
+
+        return {"message": "Study card deleted successfully"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error deleting study card: {str(e)}"
+        )
+
+
+# Review Session Endpoints
+
+
+@app.post("/review-sessions", response_model=ReviewSessionResponse)
+async def create_review_session(
+    session_data: ReviewSessionCreate, db: Session = Depends(get_db)
+):
+    """Create a new review session."""
+    try:
+        session = SpacedRepetitionService.create_review_session(
+            db, session_data.user_id
+        )
+        return session
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error creating review session: {str(e)}"
+        )
+
+
+@app.put("/review-sessions/{session_id}/end", response_model=ReviewSessionResponse)
+async def end_review_session(session_id: int, db: Session = Depends(get_db)):
+    """End a review session."""
+    try:
+        session = SpacedRepetitionService.end_review_session(db, session_id)
+        return session
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error ending review session: {str(e)}"
+        )
+
+
+@app.get("/review-sessions/{session_id}", response_model=ReviewSessionResponse)
+async def get_review_session(session_id: int, db: Session = Depends(get_db)):
+    """Get a review session."""
+    try:
+        session = db.query(ReviewSession).filter(ReviewSession.id == session_id).first()
+        if not session:
+            raise HTTPException(status_code=404, detail="Review session not found")
+        return session
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error getting review session: {str(e)}"
+        )
+
+
+@app.get("/study-stats")
+async def get_study_stats(db: Session = Depends(get_db)):
+    """Get overall study statistics."""
+    try:
+        stats = SpacedRepetitionService.get_study_stats(db)
+        return stats
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error getting study stats: {str(e)}"
+        )
 
 
 @app.get("/health")

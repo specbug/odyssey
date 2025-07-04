@@ -1,4 +1,4 @@
-from pydantic import BaseModel, computed_field
+from pydantic import BaseModel, computed_field, Field
 from datetime import datetime
 from typing import Optional, List
 
@@ -69,3 +69,119 @@ class FileUploadResponse(BaseModel):
     message: str
     file_data: Optional[PDFFileResponse] = None
     is_duplicate: bool = False
+
+
+# Spaced Repetition Schemas
+
+
+class StudyCardBase(BaseModel):
+    annotation_id: int
+    easiness: float = 2.5
+    interval: int = 1
+    repetitions: int = 0
+    is_new: bool = True
+    is_learning: bool = False
+    is_graduated: bool = False
+
+
+class StudyCardCreate(StudyCardBase):
+    pass
+
+
+class StudyCardUpdate(BaseModel):
+    easiness: Optional[float] = None
+    interval: Optional[int] = None
+    repetitions: Optional[int] = None
+    is_new: Optional[bool] = None
+    is_learning: Optional[bool] = None
+    is_graduated: Optional[bool] = None
+    last_review_date: Optional[datetime] = None
+    next_review_date: Optional[datetime] = None
+
+
+class StudyCardResponse(StudyCardBase):
+    id: int
+    created_date: datetime
+    last_review_date: Optional[datetime] = None
+    next_review_date: Optional[datetime] = None
+    annotation: Optional[AnnotationResponse] = None
+
+    class Config:
+        from_attributes = True
+
+
+class ReviewSessionBase(BaseModel):
+    user_id: Optional[str] = None
+    cards_reviewed: int = 0
+    correct_answers: int = 0
+    incorrect_answers: int = 0
+
+
+class ReviewSessionCreate(ReviewSessionBase):
+    pass
+
+
+class ReviewSessionUpdate(BaseModel):
+    session_end: Optional[datetime] = None
+    cards_reviewed: Optional[int] = None
+    correct_answers: Optional[int] = None
+    incorrect_answers: Optional[int] = None
+
+
+class ReviewSessionResponse(ReviewSessionBase):
+    id: int
+    session_start: datetime
+    session_end: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CardReviewBase(BaseModel):
+    card_id: int
+    quality: int = Field(..., ge=0, le=5, description="SM-2 quality rating (0-5)")
+    time_taken: Optional[int] = None  # Time in seconds
+
+
+class CardReviewCreate(CardReviewBase):
+    session_id: Optional[int] = None
+
+
+class CardReviewResponse(CardReviewBase):
+    id: int
+    session_id: Optional[int] = None
+    review_date: datetime
+    easiness_before: Optional[float] = None
+    interval_before: Optional[int] = None
+    repetitions_before: Optional[int] = None
+    easiness_after: Optional[float] = None
+    interval_after: Optional[int] = None
+    repetitions_after: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
+class CardReviewResult(BaseModel):
+    """Result of reviewing a card with SM-2 algorithm."""
+
+    card: StudyCardResponse
+    review: CardReviewResponse
+    next_review_date: datetime
+    message: str
+
+
+class DueCardsResponse(BaseModel):
+    """Response for getting due cards."""
+
+    due_cards: List[StudyCardResponse]
+    new_cards: List[StudyCardResponse]
+    total_due: int
+    total_new: int
+
+
+class ReviewOptions(BaseModel):
+    """Options for reviewing a card based on SM-2 algorithm."""
+
+    card_id: int
+    options: List[dict]  # List of quality options with preview data
