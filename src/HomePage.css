@@ -3,7 +3,7 @@
     min-height: 100vh;
     background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
     padding: 2rem;
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
 }
 
 /* Header Section */
@@ -65,9 +65,9 @@
 }
 
 .count-number {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'R Plex Mono', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     font-size: 4rem;
-    font-weight: 200;
+    font-weight: 300;
     background: linear-gradient(135deg, #ff4d06 0%, #ff6b35 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -98,7 +98,7 @@
 }
 
 .primary-label {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     font-size: 1.125rem;
     font-weight: 500;
     color: #1d1d1f;
@@ -108,7 +108,7 @@
 }
 
 .secondary-label {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     font-size: 0.875rem;
     font-weight: 400;
     color: #86868b;
@@ -160,7 +160,7 @@
 }
 
 .loading-state p {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     color: #86868b;
     font-size: 1rem;
 }
@@ -179,7 +179,7 @@
 }
 
 .error-state h3 {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     color: #1d1d1f;
     font-size: 1.25rem;
     font-weight: 600;
@@ -187,13 +187,13 @@
 }
 
 .error-state p {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     color: #86868b;
     margin: 0 0 1.5rem 0;
 }
 
 .retry-button {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     background: #007aff;
     color: white;
     border: none;
@@ -225,7 +225,7 @@
 }
 
 .empty-state h2 {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     font-size: 1.5rem;
     font-weight: 600;
     color: #1d1d1f;
@@ -233,7 +233,7 @@
 }
 
 .empty-state p {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     color: #86868b;
     font-size: 1rem;
     margin: 0 0 2rem 0;
@@ -241,7 +241,7 @@
 }
 
 .upload-prompt {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -339,7 +339,7 @@
 }
 
 .file-card .file-name {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'IBM Plex Sans', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     font-size: 1rem;
     font-weight: 600;
     color: #1d1d1f;
@@ -378,7 +378,7 @@
 
 .file-size,
 .file-date {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'R Plex Mono', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     font-size: 0.875rem;
     color: #86868b;
     padding: 0.25rem 0.5rem;
@@ -407,7 +407,7 @@
 }
 
 .annotation-count {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'R Plex Mono', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     font-size: 0.875rem;
     font-weight: 700;
     color: #ffffff;
@@ -416,7 +416,7 @@
 }
 
 .annotation-label {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     font-size: 0.75rem;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.8);

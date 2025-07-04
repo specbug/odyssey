@@ -42,7 +42,7 @@
   display: flex;
   flex-direction: column;
   height: 100vh;
-  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   background-color: #faf9f7;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -51,7 +51,7 @@
 
 /* Ensure Dr font loads properly */
 * {
-  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
 .toolbar {
@@ -109,7 +109,7 @@
   font-size: 11px;
   font-weight: 500;
   opacity: 0.85;
-  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
   letter-spacing: -0.01em;
 }
 
@@ -118,7 +118,7 @@
   font-size: 11px;
   font-weight: 500;
   opacity: 0.85;
-  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
   letter-spacing: -0.01em;
 }
 
@@ -184,7 +184,7 @@
 }
 
 .file-name {
-  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  font-family: 'IBM Plex Sans', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
   font-weight: 500;
   font-size: 20px;
   color: rgba(29, 29, 31, 0.85);
@@ -306,7 +306,7 @@
   padding: 6px 10px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
-  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  font-family: 'R Plex Mono', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
   font-weight: 500;
   font-size: 13px;
   line-height: 1;
@@ -328,7 +328,7 @@
 .zoom-controls span {
   font-weight: 500;
   color: rgba(29, 29, 31, 0.8);
-  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  font-family: 'R Plex Mono', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
   padding: 0 8px;
   letter-spacing: -0.01em;
@@ -404,7 +404,7 @@
 }
 
 .review-text {
-  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
   font-size: 17px;
   font-weight: 600;
   color: rgba(29, 29, 31, 0.9);
@@ -732,25 +732,21 @@
 }
 
 .note-question {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-weight: 500;
     font-size: 15px;
-    line-height: 1.35;
     color: rgba(29, 29, 31, 0.98);
     margin: 0 0 calc(var(--orbit-grid) * 0.75) 0;
-    letter-spacing: -0.005em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
 .note-answer {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
     font-weight: 450;
     font-size: 15px;
-    line-height: 1.35;
     color: rgba(60, 60, 67, 0.9);
     margin: 0;
-    letter-spacing: -0.008em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -778,7 +774,7 @@
     border-radius: 0;
     backdrop-filter: none;
     box-shadow: none;
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, sans-serif;
     transform: rotate(90deg);
 }
 
@@ -841,7 +837,7 @@
     border: none;
     border-radius: 0;
     color: rgba(29, 29, 31, 0.92);
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
     font-size: 13px;
     font-weight: 500;
     line-height: 1.2;
@@ -878,7 +874,7 @@
   margin-bottom: calc(var(--orbit-grid) * 0.5);
   box-sizing: border-box;
   resize: vertical;
-  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 15px;
   font-weight: 500;
   line-height: 1.35;
@@ -901,7 +897,7 @@
 .editable-div.empty::before {
   content: attr(data-placeholder);
   color: rgba(60, 60, 67, 0.6);
-  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
   font-size: 15px;
   font-style: normal;
   font-weight: 500;
@@ -960,7 +956,7 @@
     0 8px 32px rgba(0, 0, 0, 0.08);
   font-size: 14px;
   font-weight: 500;
-  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Helvetica Neue", Helvetica, Arial, sans-serif;
   letter-spacing: -0.022em;
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   backdrop-filter: blur(20px) saturate(1.2);
@@ -997,7 +993,7 @@
 }
 
 .empty-state-title {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-weight: 600;
     font-size: 18px;
     color: rgba(0,0,0,0.6);
@@ -1005,7 +1001,7 @@
 }
 
 .empty-state-subtitle {
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     font-weight: 400;
     font-size: 14px;
     color: rgba(0,0,0,0.4);
