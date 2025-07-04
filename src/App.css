@@ -243,8 +243,7 @@
   transition: all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
-.toolbar-button.home-button,
-.toolbar-button.upload-button {
+.toolbar-button.home-button {
   margin-left: 8px;
   width: 40px;
   height: 40px;
@@ -256,14 +255,59 @@
     0 1px 3px rgba(255, 77, 6, 0.05);
 }
 
-.toolbar-button.home-button .material-icons,
-.toolbar-button.upload-button .material-icons {
+.toolbar-button.upload-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-left: 8px;
+  width: auto;
+  height: 40px;
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.8) 0%, rgba(0, 0, 0, 0.6) 100%);
+  border: 0.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
+    0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+  cursor: pointer !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.toolbar-button.upload-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border-radius: 12px;
+  opacity: 0;
+  transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.toolbar-button.upload-button:hover::before {
+  opacity: 1;
+}
+
+.toolbar-button.home-button .material-icons {
   color: #ff4d06;
   font-size: 20px !important;
 }
 
-.toolbar-button.home-button:hover,
-.toolbar-button.upload-button:hover {
+.toolbar-button.upload-button .material-icons {
+  color: #ff4d06;
+  font-size: 20px !important;
+  font-weight: 500;
+  text-shadow: 0 0 4px rgba(255, 77, 6, 0.1);
+  transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+  z-index: 1;
+  position: relative;
+}
+
+.toolbar-button.home-button:hover {
   background: linear-gradient(135deg, rgba(255, 77, 6, 0.12) 0%, rgba(255, 107, 53, 0.08) 100%);
   border-color: rgba(255, 77, 6, 0.18);
   transform: translateY(-1px) scale(1.02);
@@ -272,17 +316,53 @@
     0 3px 12px rgba(255, 77, 6, 0.08);
 }
 
-.toolbar-button.home-button:hover .material-icons,
-.toolbar-button.upload-button:hover .material-icons {
+.toolbar-button.upload-button:hover {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.7) 100%);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.15) inset,
+    0 4px 12px rgba(0, 0, 0, 0.25),
+    0 6px 24px rgba(0, 0, 0, 0.15);
+}
+
+.toolbar-button.home-button:hover .material-icons {
   color: #e8440a;
   text-shadow: 0 0 8px rgba(255, 77, 6, 0.2);
 }
 
-.toolbar-button.home-button:active,
-.toolbar-button.upload-button:active {
+.toolbar-button.upload-button:hover .material-icons {
+  color: #e8440a;
+  text-shadow: 0 0 8px rgba(255, 77, 6, 0.2);
+  transform: scale(1.05);
+}
+
+.toolbar-button.home-button:active {
   transform: translateY(0) scale(0.98);
   background: linear-gradient(135deg, rgba(255, 77, 6, 0.15) 0%, rgba(255, 107, 53, 0.1) 100%);
   transition: all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.toolbar-button.upload-button:active {
+  transform: translateY(0) scale(0.98);
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.75) 100%);
+  transition: all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.upload-text {
+  font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: -0.01em;
+  transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+  z-index: 1;
+  position: relative;
+}
+
+.toolbar-button.upload-button:hover .upload-text {
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.05);
 }
 
 .zoom-controls {
@@ -433,6 +513,19 @@
   .toolbar-button.review-button .material-icons {
     font-size: 23px !important;
   }
+  
+  .toolbar-button.upload-button {
+    padding: 8px 10px;
+    margin-left: 8px;
+  }
+  
+  .upload-text {
+    font-size: 16px;
+  }
+  
+  .toolbar-button.upload-button .material-icons {
+    font-size: 23px !important;
+  }
 }
 
 /* Ultra-compact for very small screens */
@@ -446,13 +539,24 @@
   .review-text {
     display: none;
   }
+  
+  .toolbar-button.upload-button {
+    padding: 8px;
+    width: 40px;
+    gap: 0;
+  }
+  
+  .upload-text {
+    display: none;
+  }
 }
 
 .file-input-container {
   position: relative;
-  cursor: pointer;
+  cursor: pointer !important;
   border-radius: 12px;
   overflow: hidden;
+  display: inline-block;
 }
 
 .file-input-container input[type="file"] {
@@ -463,7 +567,8 @@
   height: 100%;
   opacity: 0;
   cursor: pointer !important;
-  z-index: 3;
+  z-index: 10;
+  border-radius: 12px;
 }
 
 .file-input-container .toolbar-button {
@@ -474,6 +579,43 @@
 .file-input-container .toolbar-button * {
   pointer-events: none;
   cursor: pointer;
+}
+
+/* Hover effects for file input container */
+.file-input-container:hover .toolbar-button.upload-button {
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.85) 0%, rgba(0, 0, 0, 0.7) 100%);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.15) inset,
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 4px 12px rgba(0, 0, 0, 0.15),
+    0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.file-input-container:hover .toolbar-button.upload-button::before {
+  opacity: 1;
+}
+
+.file-input-container:hover .toolbar-button.upload-button .material-icons {
+  color: #e8440a;
+  text-shadow: 0 0 8px rgba(255, 77, 6, 0.2);
+  transform: scale(1.05);
+}
+
+.file-input-container:hover .toolbar-button.upload-button .upload-text {
+  color: rgba(255, 255, 255, 0.95);
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.05);
+}
+
+.file-input-container:active .toolbar-button.upload-button {
+  transform: translateY(0) scale(0.98);
+  background: linear-gradient(135deg, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.75) 100%);
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
+    0 1px 2px rgba(0, 0, 0, 0.15),
+    0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
 .toolbar-button .material-symbols-outlined,

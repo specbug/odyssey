@@ -1044,6 +1044,7 @@ function App() {
                                               <span className={`material-icons ${isUploading ? 'loading' : ''}`}>
                         {isUploading ? 'sync' : 'upload_file'}
                       </span>
+                      <span className="upload-text">Upload</span>
                       </button>
                       <input
                         type="file"
