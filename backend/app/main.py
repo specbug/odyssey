@@ -95,18 +95,16 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
     """
     try:
         # Validate file type
+        print(f"🔍 Validating file: {file.filename}")
         if not is_pdf_file(file.filename):
+            print(f"❌ File rejected: Not a PDF file")
             raise HTTPException(status_code=400, detail="Only PDF files are allowed")
 
         # Read file content
         file_content = await file.read()
 
-        # Validate file size
-        if not validate_file_size(len(file_content), MAX_FILE_SIZE):
-            raise HTTPException(
-                status_code=400,
-                detail=f"File size exceeds maximum limit of {MAX_FILE_SIZE} bytes",
-            )
+        # File size validation removed - allow any size
+        print(f"📄 File info: {file.filename}, size: {len(file_content)} bytes")
 
         # Calculate file hash
         file_hash = calculate_file_hash_from_bytes(file_content)
@@ -153,8 +151,21 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
             is_duplicate=False,
         )
 
+    except HTTPException as http_exc:
+        # Re-raise HTTPException (validation errors, etc.) as-is
+        print(f"🚨 HTTPException caught: {http_exc.status_code} - {http_exc.detail}")
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")
+        import traceback
+
+        error_msg = str(e)
+        error_traceback = traceback.format_exc()
+        print(f"❌ Upload error: {error_msg}")
+        print(f"❌ Full traceback: {error_traceback}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error uploading file: {error_msg if error_msg else 'Unknown error'}",
+        )
 
 
 @app.get("/files", response_model=List[PDFFileResponse])
