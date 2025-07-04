@@ -108,89 +108,165 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
     return (
         <div className="review-modal-overlay" onClick={onClose}>
             <div className="review-modal" onClick={(e) => e.stopPropagation()}>
+                {/* Premium Header */}
                 <div className="review-modal-header">
-                    <div className="review-progress">
-                        <span className="memory-icon">⭐</span>
-                        <div className="review-stats">
-                            <span className="stat-item">Due: {dueCards.length}</span>
-                            <span className="stat-item">New: {newCards.length}</span>
-                            <span className="stat-item">Today: {sessionStats.total}</span>
+                    <div className="header-content">
+                        <div className="brand-section">
+                            <div className="brand-text">
+                            <span className="material-icons infinity-icon">all_inclusive</span>
+                                <p className="tagline">Spaced Repetition</p>
+                            </div>
                         </div>
+                        
+                        <div className="stats-section">
+                            <div className="stat-grid">
+                                <div className="stat-card due">
+                                    <span className="stat-number">{dueCards.length}</span>
+                                    <span className="stat-label">Due</span>
+                                </div>
+                                <div className="stat-card new">
+                                    <span className="stat-number">{newCards.length}</span>
+                                    <span className="stat-label">New</span>
+                                </div>
+                                <div className="stat-card today">
+                                    <span className="stat-number">{sessionStats.total}</span>
+                                    <span className="stat-label">Today</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button className="close-button" onClick={onClose}>
+                            <span className="material-symbols-outlined">close</span>
+                        </button>
                     </div>
-                    <button className="exit-review-button" onClick={onClose}>
-                        <span className="material-symbols-outlined">close</span>
-                        <span>Exit Review</span>
-                    </button>
                 </div>
 
+                {/* Content Area */}
                 <div className="review-content">
                     {loading && !currentCard ? (
-                        <div className="review-loading">
-                            <div className="loading-spinner"></div>
-                            <p>Loading your study cards...</p>
+                        <div className="loading-state">
+                            <div className="loading-animation">
+                                <div className="loading-spinner"></div>
+                            </div>
+                            <h3>Preparing your cards</h3>
+                            <p>Setting up your personalized review session...</p>
                         </div>
                     ) : reviewComplete ? (
-                        <div className="review-complete">
-                            <div className="completion-icon">⭐</div>
-                            <h2>Review complete</h2>
-                            <div className="session-summary">
-                                <p>Great job! You reviewed {sessionStats.total} cards</p>
-                                <p>Accuracy: {sessionStats.total > 0 ? Math.round((sessionStats.correct / sessionStats.total) * 100) : 0}%</p>
+                        <div className="completion-state">
+                            <div className="completion-visual">
+                                <div className="success-icon-container">
+                                    <span className="material-icons success-icon">all_inclusive</span>
+                                </div>
+                                <div className="completion-rings"></div>
                             </div>
-                            <button className="return-button" onClick={handleReturnToBook}>
-                                Return to Book
+                            <h2>Session Complete</h2>
+                            <div className="completion-stats">
+                                <div className="completion-summary">
+                                    <span className="cards-reviewed">{sessionStats.total}</span>
+                                    <span className="cards-label">cards reviewed</span>
+                                </div>
+                                <div className="accuracy-display">
+                                    <span className="accuracy-percentage">
+                                        {sessionStats.total > 0 ? Math.round((sessionStats.correct / sessionStats.total) * 100) : 0}%
+                                    </span>
+                                    <span className="accuracy-label">accuracy</span>
+                                </div>
+                            </div>
+                            <button className="primary-button" onClick={handleReturnToBook}>
+                                <span>Continue Reading</span>
+                                <span className="material-symbols-outlined">arrow_forward</span>
                             </button>
                         </div>
                     ) : currentCard ? (
-                        <div className="study-card">
-                            <div className="card-question">
-                                <p>{currentCard.annotation?.question || 'No question available'}</p>
+                        <div className="study-session">
+                            <div className="card-container">
+                                <div className="card-progress">
+                                    <div className="progress-indicator">
+                                        <span className="current-position">{sessionStats.total + 1}</span>
+                                        <span className="separator">of</span>
+                                        <span className="total-cards">{dueCards.length + newCards.length}</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="flashcard">
+                                    <div className="card-question-area">
+                                        <div className="question-indicator">
+                                            <span className="material-symbols-outlined">help</span>
+                                            <span>Question</span>
+                                        </div>
+                                        <div className="question-content">
+                                            {currentCard.annotation?.question || 'No question available'}
+                                        </div>
+                                    </div>
+                                    
+                                    {!showAnswer ? (
+                                        <div className="reveal-section">
+                                            <button className="reveal-button" onClick={handleShowAnswer}>
+                                                <span className="material-symbols-outlined">visibility</span>
+                                                <span>Show Answer</span>
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="card-answer-area">
+                                                <div className="answer-indicator">
+                                                    <span className="material-symbols-outlined">lightbulb</span>
+                                                    <span>Answer</span>
+                                                </div>
+                                                <div className="answer-content">
+                                                    {currentCard.annotation?.answer || 'No answer available'}
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="review-section">
+                                                <p className="review-prompt">How well did you remember this?</p>
+                                                <div className="review-buttons">
+                                                    <button 
+                                                        className="difficulty-button hard"
+                                                        onClick={() => handleReview(1)}
+                                                        disabled={loading}
+                                                    >
+                                                        <span className="material-symbols-outlined">close</span>
+                                                        <span>Forgot</span>
+                                                        <span className="next-review">1 min</span>
+                                                    </button>
+                                                    <button 
+                                                        className="difficulty-button easy"
+                                                        onClick={() => handleReview(4)}
+                                                        disabled={loading}
+                                                    >
+                                                        <span className="material-symbols-outlined">check</span>
+                                                        <span>Remembered</span>
+                                                        <span className="next-review">4 days</span>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                                
+                                {showAnswer && (
+                                    <div className="source-link">
+                                        <button className="source-button">
+                                            <span>View in Document</span>
+                                            <span className="material-symbols-outlined">arrow_outward</span>
+                                        </button>
+                                    </div>
+                                )}
                             </div>
-                            
-                            {!showAnswer ? (
-                                <button className="show-answer-button" onClick={handleShowAnswer}>
-                                    <span className="material-symbols-outlined">visibility</span>
-                                    Show Answer
-                                </button>
-                            ) : (
-                                <>
-                                    <div className="card-answer">
-                                        <p>{currentCard.annotation?.answer || 'No answer available'}</p>
-                                    </div>
-                                    
-                                    <div className="review-actions">
-                                        <button 
-                                            className="review-button forgotten"
-                                            onClick={() => handleReview(1)}
-                                            disabled={loading}
-                                        >
-                                            <span className="material-symbols-outlined">close</span>
-                                            Forgotten
-                                        </button>
-                                        <button 
-                                            className="review-button remembered"
-                                            onClick={() => handleReview(4)}
-                                            disabled={loading}
-                                        >
-                                            <span className="material-symbols-outlined">check</span>
-                                            Remembered
-                                        </button>
-                                    </div>
-                                    
-                                    <div className="view-source">
-                                        <span>View Source</span>
-                                        <span className="material-symbols-outlined">arrow_forward</span>
-                                    </div>
-                                </>
-                            )}
                         </div>
                     ) : (
-                        <div className="no-cards">
-                            <div className="empty-icon">📚</div>
-                            <h2>No cards to review</h2>
-                            <p>Create some annotations to start studying!</p>
-                            <button className="return-button" onClick={handleReturnToBook}>
-                                Return to Book
+                        <div className="empty-state">
+                            <div className="empty-visual">
+                                <div className="empty-icon-container">
+                                    <span className="material-symbols-outlined">school</span>
+                                </div>
+                            </div>
+                            <h2>Ready to Learn</h2>
+                            <p>Create annotations in your document to generate study cards automatically.</p>
+                            <button className="primary-button" onClick={handleReturnToBook}>
+                                <span>Return to Book</span>
+                                <span className="material-symbols-outlined">arrow_forward</span>
                             </button>
                         </div>
                     )}
