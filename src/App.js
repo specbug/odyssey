@@ -947,9 +947,9 @@ function App() {
                         title="Upload PDF"
                         disabled={isUploading}
                       >
-                        <span className="material-symbols-outlined">
-                          {isUploading ? 'hourglass_empty' : 'file_open'}
-                        </span>
+                                              <span className={`material-icons ${isUploading ? 'loading' : ''}`}>
+                        {isUploading ? 'sync' : 'upload_file'}
+                      </span>
                       </button>
                       <input
                         type="file"
