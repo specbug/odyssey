@@ -60,7 +60,6 @@ const HomePage = ({ onFileSelect }) => {
         return (
             <div className="home-page">
                 <div className="home-header">
-                    <p className="home-subtitle">Organize, annotate, and study your documents</p>
                 </div>
                 <div className="loading-state">
                     <div className="loading-spinner"></div>
@@ -74,7 +73,6 @@ const HomePage = ({ onFileSelect }) => {
         return (
             <div className="home-page">
                 <div className="home-header">
-                    <p className="home-subtitle">Organize, annotate, and study your documents</p>
                 </div>
                 <div className="error-state">
                     <div className="error-icon">⚠️</div>
@@ -91,12 +89,14 @@ const HomePage = ({ onFileSelect }) => {
     return (
         <div className="home-page">
             <div className="home-header">
-                <p className="home-subtitle">Organize, annotate, and study your documents</p>
-                <div className="stats">
-                    <span className="stat-item">
-                        <span className="stat-number">{files.length}</span>
-                        <span className="stat-label">document{files.length !== 1 ? 's' : ''}</span>
-                    </span>
+                <div className="library-overview">
+                    <div className="library-count">
+                        <span className="count-number">{files.length}</span>
+                    </div>
+                    <div className="library-label">
+                        <span className="primary-label">Document{files.length !== 1 ? 's' : ''}</span>
+                        <span className="secondary-label">in your library</span>
+                    </div>
                 </div>
             </div>
 
