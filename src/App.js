@@ -7,6 +7,7 @@ import 'katex/dist/katex.min.css';
 import './katex-fonts.css';
 import { InlineMath, BlockMath } from 'react-katex';
 import './App.css';
+import apiService from './api';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -274,29 +275,99 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
 
 function App() {
     const [file, setFile] = useState(null);
+    const [fileMetadata, setFileMetadata] = useState(null);
     const [numPages, setNumPages] = useState(null);
     const [notes, setNotes] = useState([]);
     const [scale, setScale] = useState(1.2);
     const [highlights, setHighlights] = useState([]);
     const [pendingHighlight, setPendingHighlight] = useState(null);
     const [activeNoteId, setActiveNoteId] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadError, setUploadError] = useState(null);
+    const [isLoadingAnnotations, setIsLoadingAnnotations] = useState(false);
     const listRef = useRef();
     const pageHeights = useRef({});
     const viewerRef = useRef(null);
     const noteRefs = useRef({});
 
-    const onFileChange = (event) => {
-        setFile(event.target.files[0]);
-        setHighlights([]);
-        setNotes([]);
-        setPendingHighlight(null);
-        setActiveNoteId(null);
-        pageHeights.current = {};
-        noteRefs.current = {};
+    const onFileChange = async (event) => {
+        const selectedFile = event.target.files[0];
+        if (!selectedFile) return;
+
+        setIsUploading(true);
+        setUploadError(null);
+        
+        try {
+            // Upload file to backend
+            const response = await apiService.uploadFile(selectedFile);
+            
+            if (response.success) {
+                setFileMetadata(response.file_data);
+                
+                // For displaying the PDF, we need to create a blob URL from the original file
+                setFile(selectedFile);
+                
+                // Load existing annotations if this is a duplicate file
+                if (response.is_duplicate) {
+                    await loadAnnotations(response.file_data.id);
+                } else {
+                    // New file, clear annotations
+                    setHighlights([]);
+                    setNotes([]);
+                }
+                
+                // Reset UI state
+                setPendingHighlight(null);
+                setActiveNoteId(null);
+                pageHeights.current = {};
+                noteRefs.current = {};
+                
+                console.log(response.is_duplicate ? 'Opened existing file' : 'Uploaded new file', response.file_data);
+            }
+        } catch (error) {
+            setUploadError(error.message);
+            console.error('Upload failed:', error);
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const onDocumentLoadSuccess = useCallback(({ numPages }) => {
         setNumPages(numPages);
+    }, []);
+
+    const loadAnnotations = useCallback(async (fileId) => {
+        if (!fileId) return;
+        
+        setIsLoadingAnnotations(true);
+        try {
+            const annotations = await apiService.getAnnotations(fileId);
+            
+            // Convert backend annotations to frontend format
+            const frontendNotes = annotations.map(annotation => ({
+                id: annotation.annotation_id,
+                question: annotation.question,
+                answer: annotation.answer,
+                highlightedText: annotation.highlighted_text,
+                isEditing: false,
+                backendId: annotation.id // Store backend ID for updates
+            }));
+            
+            const frontendHighlights = annotations.map(annotation => ({
+                id: annotation.annotation_id,
+                pageIndex: annotation.page_index,
+                rects: JSON.parse(annotation.position_data)
+            }));
+            
+            setNotes(frontendNotes);
+            setHighlights(frontendHighlights);
+            
+            console.log(`Loaded ${annotations.length} annotations`);
+        } catch (error) {
+            console.error('Failed to load annotations:', error);
+        } finally {
+            setIsLoadingAnnotations(false);
+        }
     }, []);
 
     const startNewNote = useCallback(() => {
@@ -354,14 +425,70 @@ function App() {
         selection.removeAllRanges();
     }, []);
 
-    const handleNoteDelete = useCallback((noteId) => {
+    const handleNoteDelete = useCallback(async (noteId) => {
+        const note = notes.find(n => n.id === noteId);
+        
+        // If the note has a backend ID, delete it from the backend
+        if (note && note.backendId) {
+            try {
+                await apiService.deleteAnnotation(note.backendId);
+                console.log('Deleted annotation from backend');
+            } catch (error) {
+                console.error('Failed to delete annotation from backend:', error);
+                // Continue with frontend deletion even if backend fails
+            }
+        }
+        
         setNotes(notes => notes.filter(n => n.id !== noteId));
         setHighlights(highlights => highlights.filter(h => h.id !== noteId));
-    }, []);
+    }, [notes]);
 
-    const handleNoteSave = useCallback((updatedNote) => {
+    const handleNoteSave = useCallback(async (updatedNote) => {
+        if (!fileMetadata) {
+            console.error('No file metadata available');
+            return;
+        }
+
+        const highlight = highlights.find(h => h.id === updatedNote.id);
+        if (!highlight) {
+            console.error('No highlight found for note');
+            return;
+        }
+
+        try {
+            if (updatedNote.backendId) {
+                // Update existing annotation
+                const annotationData = {
+                    question: updatedNote.question,
+                    answer: updatedNote.answer,
+                    highlighted_text: updatedNote.highlightedText,
+                    position_data: JSON.stringify(highlight.rects)
+                };
+                
+                await apiService.updateAnnotation(updatedNote.backendId, annotationData);
+                console.log('Updated annotation in backend');
+            } else {
+                // Create new annotation
+                const annotationData = {
+                    annotation_id: updatedNote.id,
+                    page_index: highlight.pageIndex,
+                    question: updatedNote.question,
+                    answer: updatedNote.answer,
+                    highlighted_text: updatedNote.highlightedText,
+                    position_data: JSON.stringify(highlight.rects)
+                };
+                
+                const response = await apiService.createAnnotation(fileMetadata.id, annotationData);
+                updatedNote.backendId = response.id;
+                console.log('Created annotation in backend');
+            }
+        } catch (error) {
+            console.error('Failed to save annotation to backend:', error);
+            // Continue with frontend save even if backend fails
+        }
+        
         setNotes(notes => notes.map(n => n.id === updatedNote.id ? updatedNote : n));
-    }, []);
+    }, [fileMetadata, highlights]);
 
     const handleNoteClick = useCallback((noteId) => {
         setActiveNoteId(noteId);
@@ -439,20 +566,39 @@ function App() {
             <div className="toolbar">
               <div className="toolbar-left">
                 <div className="file-name">
-                  {file ? file.name : "No file selected"}
+                  {isUploading ? "Uploading..." : 
+                   fileMetadata ? fileMetadata.original_filename : 
+                   "No file selected"}
                 </div>
+                {uploadError && (
+                  <div className="error-message" style={{ color: 'red', fontSize: '12px' }}>
+                    Error: {uploadError}
+                  </div>
+                )}
+                {isLoadingAnnotations && (
+                  <div className="loading-message" style={{ color: 'blue', fontSize: '12px' }}>
+                    Loading annotations...
+                  </div>
+                )}
               </div>
               
               <div className="toolbar-right">
                 {/* Upload button */}
                 <div className="file-input-container">
-                  <button className="toolbar-button" title="Upload PDF">
-                    <span className="material-symbols-outlined">file_open</span>
+                  <button 
+                    className="toolbar-button" 
+                    title="Upload PDF"
+                    disabled={isUploading}
+                  >
+                    <span className="material-symbols-outlined">
+                      {isUploading ? 'hourglass_empty' : 'file_open'}
+                    </span>
                   </button>
                   <input
                     type="file"
                     accept=".pdf"
                     onChange={onFileChange}
+                    disabled={isUploading}
                   />
                 </div>
                 
