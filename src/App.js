@@ -8,6 +8,7 @@ import './katex-fonts.css';
 import { InlineMath, BlockMath } from 'react-katex';
 import './App.css';
 import apiService from './api';
+import HomePage from './HomePage';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -285,6 +286,7 @@ function App() {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadError, setUploadError] = useState(null);
     const [isLoadingAnnotations, setIsLoadingAnnotations] = useState(false);
+    const [showHomePage, setShowHomePage] = useState(true);
     const listRef = useRef();
     const pageHeights = useRef({});
     const viewerRef = useRef(null);
@@ -294,42 +296,68 @@ function App() {
         const selectedFile = event.target.files[0];
         if (!selectedFile) return;
 
+        await handleFileSelection(selectedFile);
+    };
+
+    const handleFileSelection = async (selectedFile, existingMetadata = null) => {
         setIsUploading(true);
         setUploadError(null);
         
         try {
-            // Upload file to backend
-            const response = await apiService.uploadFile(selectedFile);
+            let fileData = existingMetadata;
             
-            if (response.success) {
-                setFileMetadata(response.file_data);
-                
-                // For displaying the PDF, we need to create a blob URL from the original file
-                setFile(selectedFile);
-                
-                // Load existing annotations if this is a duplicate file
-                if (response.is_duplicate) {
-                    await loadAnnotations(response.file_data.id);
+            // If no existing metadata, upload the file
+            if (!existingMetadata) {
+                const response = await apiService.uploadFile(selectedFile);
+                if (response.success) {
+                    fileData = response.file_data;
+                    console.log(response.is_duplicate ? 'Opened existing file' : 'Uploaded new file', response.file_data);
                 } else {
-                    // New file, clear annotations
-                    setHighlights([]);
-                    setNotes([]);
+                    throw new Error('Upload failed');
                 }
-                
-                // Reset UI state
-                setPendingHighlight(null);
-                setActiveNoteId(null);
-                pageHeights.current = {};
-                noteRefs.current = {};
-                
-                console.log(response.is_duplicate ? 'Opened existing file' : 'Uploaded new file', response.file_data);
             }
+            
+            // Set file metadata and switch to PDF viewer
+            setFileMetadata(fileData);
+            setFile(selectedFile);
+            setShowHomePage(false);
+            
+            // Load existing annotations
+            if (fileData) {
+                await loadAnnotations(fileData.id);
+            } else {
+                // New file, clear annotations
+                setHighlights([]);
+                setNotes([]);
+            }
+            
+            // Reset UI state
+            setPendingHighlight(null);
+            setActiveNoteId(null);
+            pageHeights.current = {};
+            noteRefs.current = {};
+            
         } catch (error) {
             setUploadError(error.message);
-            console.error('Upload failed:', error);
+            console.error('File selection failed:', error);
         } finally {
             setIsUploading(false);
         }
+    };
+
+    const handleHomePageFileSelect = async (file, metadata) => {
+        await handleFileSelection(file, metadata);
+    };
+
+    const goToHomePage = () => {
+        setShowHomePage(true);
+        setFile(null);
+        setFileMetadata(null);
+        setNotes([]);
+        setHighlights([]);
+        setPendingHighlight(null);
+        setActiveNoteId(null);
+        setUploadError(null);
     };
 
     const onDocumentLoadSuccess = useCallback(({ numPages }) => {
@@ -903,48 +931,66 @@ function App() {
         }
     }, []);
 
+    if (showHomePage) {
+        return (
+            <div className="App">
+                <div className="toolbar">
+                  <div className="toolbar-left">
+                    <div className="app-title clickable-title" onClick={goToHomePage}>odyssey</div>
+                  </div>
+                  
+                  <div className="toolbar-right">
+                    {/* Upload button */}
+                    <div className="file-input-container">
+                      <button 
+                        className="toolbar-button upload-button" 
+                        title="Upload PDF"
+                        disabled={isUploading}
+                      >
+                        <span className="material-symbols-outlined">
+                          {isUploading ? 'hourglass_empty' : 'file_open'}
+                        </span>
+                      </button>
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={onFileChange}
+                        disabled={isUploading}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <HomePage onFileSelect={handleHomePageFileSelect} />
+            </div>
+        );
+    }
+
     return (
         <div className="App">
             <div className="toolbar">
               <div className="toolbar-left">
-                <div className="file-name">
-                  {isUploading ? "Uploading..." : 
-                   fileMetadata ? fileMetadata.original_filename : 
-                   "No file selected"}
+                <div className="app-title clickable-title" onClick={goToHomePage}>odyssey</div>
+                
+                <div className="file-info-container">
+                  <div className="file-name">
+                    {isUploading ? "Uploading..." : 
+                     fileMetadata ? fileMetadata.original_filename : 
+                     "No file selected"}
+                  </div>
+                  {uploadError && (
+                    <div className="error-message">
+                      Error: {uploadError}
+                    </div>
+                  )}
+                  {isLoadingAnnotations && (
+                    <div className="loading-message">
+                      Loading annotations...
+                    </div>
+                  )}
                 </div>
-                {uploadError && (
-                  <div className="error-message" style={{ color: 'red', fontSize: '12px' }}>
-                    Error: {uploadError}
-                  </div>
-                )}
-                {isLoadingAnnotations && (
-                  <div className="loading-message" style={{ color: 'blue', fontSize: '12px' }}>
-                    Loading annotations...
-                  </div>
-                )}
               </div>
               
               <div className="toolbar-right">
-                {/* Upload button */}
-                <div className="file-input-container">
-                  <button 
-                    className="toolbar-button" 
-                    title="Upload PDF"
-                    disabled={isUploading}
-                  >
-                    <span className="material-symbols-outlined">
-                      {isUploading ? 'hourglass_empty' : 'file_open'}
-                    </span>
-                  </button>
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    onChange={onFileChange}
-                    disabled={isUploading}
-                  />
-                </div>
-                
-
                 {/* Zoom controls */}
                 <div className="zoom-controls">
                   <button onClick={() => setScale(s => s > 0.5 ? s - 0.1 : s)}>-</button>

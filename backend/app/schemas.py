@@ -20,6 +20,7 @@ class PDFFileResponse(PDFFileBase):
     file_hash: str
     upload_date: datetime
     last_accessed: datetime
+    annotation_count: Optional[int] = 0
 
     class Config:
         from_attributes = True

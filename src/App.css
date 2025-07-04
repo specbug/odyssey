@@ -49,6 +49,11 @@
   text-rendering: optimizeLegibility;
 }
 
+/* Ensure Dr font loads properly */
+* {
+  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
 .toolbar {
   display: flex;
   justify-content: space-between;
@@ -61,11 +66,36 @@
   z-index: 10;
   flex-shrink: 0;
   box-shadow: none;
+  min-height: 60px;
 }
 
 .toolbar-left {
   display: flex;
   align-items: center;
+  flex: 1;
+  min-width: 0; /* Allow text truncation */
+}
+
+.file-info-container {
+  display: flex;
+  flex-direction: column;
+  min-width: 0; /* Allow text truncation */
+  gap: 2px;
+  justify-content: center;
+}
+
+.error-message {
+  color: #ff3b30;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.9;
+}
+
+.loading-message {
+  color: #007aff;
+  font-size: 11px;
+  font-weight: 500;
+  opacity: 0.9;
 }
 
 .toolbar-right {
@@ -74,12 +104,42 @@
   gap: calc(var(--orbit-grid) * 1);
 }
 
+.app-title {
+  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  color: #ff4d06;
+  letter-spacing: -0.5px;
+  display: flex;
+  align-items: center;
+  margin-right: calc(var(--orbit-grid) * 2);
+}
+
+.app-title.clickable-title {
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+  border-radius: 6px;
+  padding: 4px 8px;
+  margin-right: calc(var(--orbit-grid) * 1.5);
+  margin-left: -8px;
+}
+
+.app-title.clickable-title:hover {
+  background-color: rgba(255, 77, 6, 0.1);
+  color: #e8440a;
+  transform: translateY(-1px);
+}
+
 .file-name {
   font-family: 'Dr', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-weight: 600;
   font-size: 16px;
   color: var(--orbit-ink);
   letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
 }
 
 .toolbar-button {
@@ -105,6 +165,31 @@
 .toolbar-button:active {
   transform: translateY(0);
   background: rgba(0,0,0,0.12);
+}
+
+.toolbar-button.home-button,
+.toolbar-button.upload-button {
+  margin-right: calc(var(--orbit-grid) * 1);
+  color: #ff4d06;
+  font-weight: 500;
+  width: 36px;
+  height: 36px;
+  background: rgba(255, 77, 6, 0.1);
+  border: 1px solid rgba(255, 77, 6, 0.2);
+}
+
+.toolbar-button.home-button:hover,
+.toolbar-button.upload-button:hover {
+  background: rgba(255, 77, 6, 0.15);
+  color: #e8440a;
+  border-color: rgba(255, 77, 6, 0.3);
+  transform: translateY(-1px);
+}
+
+.toolbar-button.home-button:active,
+.toolbar-button.upload-button:active {
+  transform: translateY(0);
+  background: rgba(255, 77, 6, 0.2);
 }
 
 .zoom-controls {

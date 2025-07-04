@@ -159,9 +159,20 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
 
 @app.get("/files", response_model=List[PDFFileResponse])
 async def list_files(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """List all uploaded PDF files."""
+    """List all uploaded PDF files with annotation counts."""
     files = db.query(PDFFile).offset(skip).limit(limit).all()
-    return files
+
+    # Add annotation count to each file
+    files_with_counts = []
+    for file in files:
+        file_dict = PDFFileResponse.from_orm(file).dict()
+        annotation_count = (
+            db.query(Annotation).filter(Annotation.file_id == file.id).count()
+        )
+        file_dict["annotation_count"] = annotation_count
+        files_with_counts.append(file_dict)
+
+    return files_with_counts
 
 
 @app.get("/files/{file_id}", response_model=PDFFileResponse)
