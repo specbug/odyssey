@@ -130,19 +130,21 @@ const HomePage = ({ onFileSelect }) => {
                                         {file.display_name}
                                     </h3>
                                     
-                                    <div className="file-meta">
-                                        <span className="file-size">
-                                            {formatFileSize(file.file_size)}
-                                        </span>
-                                        <span className="file-date">
-                                            {formatDate(file.upload_date)}
-                                        </span>
-                                    </div>
-                                    
-                                    <div className="file-actions">
-                                        <div className="annotation-badge">
-                                            <span className="annotation-count">{file.annotation_count || 0}</span>
-                                            <span className="annotation-label">note{(file.annotation_count || 0) !== 1 ? 's' : ''}</span>
+                                    <div className="file-bottom-section">
+                                        <div className="file-meta">
+                                            <span className="file-size">
+                                                {formatFileSize(file.file_size)}
+                                            </span>
+                                            <span className="file-date">
+                                                {formatDate(file.upload_date)}
+                                            </span>
+                                        </div>
+                                        
+                                        <div className="file-actions">
+                                            <div className="annotation-badge">
+                                                <span className="annotation-count">{file.annotation_count || 0}</span>
+                                                <span className="annotation-label">note{(file.annotation_count || 0) !== 1 ? 's' : ''}</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
