@@ -186,14 +186,14 @@
 .file-name {
   font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
   font-weight: 500;
-  font-size: 15px;
+  font-size: 20px;
   color: rgba(29, 29, 31, 0.85);
-  letter-spacing: -0.008em;
+  letter-spacing: 0.05em;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
   max-width: 450px;
   transition: color 0.2s ease;
+  text-transform: uppercase;
 }
 
 .toolbar-button {
