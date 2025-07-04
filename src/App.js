@@ -17,7 +17,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 
 const MemoizedPage = memo(Page);
 
-const ContentEditable = memo(React.forwardRef(({ value, onChange, onKeyDown, onPaste, ...props }, ref) => {
+const ContentEditable = memo(React.forwardRef(({ value, onChange, onKeyDown, onPaste, placeholder, ...props }, ref) => {
     const localRef = useRef(null);
 
     useEffect(() => {
@@ -30,7 +30,20 @@ const ContentEditable = memo(React.forwardRef(({ value, onChange, onKeyDown, onP
         onChange(e.currentTarget.innerHTML);
     };
 
-    return <div {...props} ref={r => { localRef.current = r; if (ref) ref.current = r; }} contentEditable onInput={handleInput} onKeyDown={onKeyDown} onPaste={onPaste}></div>;
+    const isEmpty = !value || value.trim() === '';
+
+    return (
+        <div 
+            {...props} 
+            ref={r => { localRef.current = r; if (ref) ref.current = r; }} 
+            contentEditable 
+            onInput={handleInput} 
+            onKeyDown={onKeyDown} 
+            onPaste={onPaste}
+            data-placeholder={placeholder}
+            className={`${props.className || ''} ${isEmpty ? 'empty' : ''}`}
+        ></div>
+    );
 }));
 
 const NoteContent = memo(({ content, className }) => {
@@ -134,19 +147,16 @@ const Note = memo(({ note, onSave, onCancel, isPositioned }) => {
                 onChange={setQuestion}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
-                placeholder="Question"
+                placeholder="Type a prompt here"
             />
             <ContentEditable
-                className="editable-div"
+                className="editable-div editable-div-last"
                 value={answer}
                 onChange={setAnswer}
                 onKeyDown={handleKeyDown}
                 onPaste={handlePaste}
-                placeholder="Answer"
+                placeholder="Type a response here"
             />
-            <div className="note-actions">
-                <button onClick={() => onCancel(note.id)}>Cancel</button>
-            </div>
         </div>
     );
 });
