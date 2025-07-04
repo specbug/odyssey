@@ -974,7 +974,7 @@ function App() {
                 <div className="file-info-container">
                   <div className="file-name">
                     {isUploading ? "Uploading..." : 
-                     fileMetadata ? fileMetadata.original_filename : 
+                     fileMetadata ? fileMetadata.display_name : 
                      "No file selected"}
                   </div>
                   {uploadError && (

@@ -126,8 +126,8 @@ const HomePage = ({ onFileSelect }) => {
                                 </div>
                                 
                                 <div className="file-info">
-                                    <h3 className="file-name" title={file.original_filename}>
-                                        {file.original_filename}
+                                    <h3 className="file-name" title={file.display_name}>
+                                        {file.display_name}
                                     </h3>
                                     
                                     <div className="file-meta">

@@ -26,6 +26,7 @@ from .utils import (
     save_uploaded_file,
     validate_file_size,
     ensure_upload_dir,
+    strip_file_extension,
 )
 
 load_dotenv()

@@ -71,3 +71,24 @@ def delete_file_if_exists(file_path: str) -> bool:
 def validate_file_size(file_size: int, max_size: int = 50 * 1024 * 1024) -> bool:
     """Validate file size (default 50MB)."""
     return file_size <= max_size
+
+
+def strip_file_extension(filename: str, extensions: list = None) -> str:
+    """Strip file extension from filename for display purposes.
+
+    Args:
+        filename: The filename to strip extension from
+        extensions: List of extensions to strip (default: ['.pdf'])
+
+    Returns:
+        Filename without extension
+    """
+    if extensions is None:
+        extensions = [".pdf"]
+
+    filename_lower = filename.lower()
+    for ext in extensions:
+        if filename_lower.endswith(ext.lower()):
+            return filename[: -len(ext)]
+
+    return filename

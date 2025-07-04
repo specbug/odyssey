@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 from datetime import datetime
 from typing import Optional, List
 
@@ -21,6 +21,14 @@ class PDFFileResponse(PDFFileBase):
     upload_date: datetime
     last_accessed: datetime
     annotation_count: Optional[int] = 0
+
+    @computed_field
+    @property
+    def display_name(self) -> str:
+        """Return the original filename without the .pdf extension for display purposes."""
+        from .utils import strip_file_extension
+
+        return strip_file_extension(self.original_filename)
 
     class Config:
         from_attributes = True
