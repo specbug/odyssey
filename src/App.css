@@ -335,6 +335,119 @@
   font-feature-settings: 'tnum' 1;
 }
 
+/* Review Button - Apple-worthy design */
+.toolbar-button.review-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-right: 12px;
+  width: auto;
+  height: 40px;
+  background: linear-gradient(135deg, rgba(255, 77, 6, 0.08) 0%, rgba(255, 107, 53, 0.05) 100%);
+  border: 0.5px solid rgba(255, 77, 6, 0.12);
+  border-radius: 12px;
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.5) inset,
+    0 1px 3px rgba(255, 77, 6, 0.05);
+  transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.toolbar-button.review-button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 77, 6, 0.06) 0%, rgba(255, 107, 53, 0.03) 100%);
+  border-radius: 12px;
+  opacity: 0;
+  transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.toolbar-button.review-button:hover::before {
+  opacity: 1;
+}
+
+.toolbar-button.review-button:hover {
+  background: linear-gradient(135deg, rgba(255, 77, 6, 0.12) 0%, rgba(255, 107, 53, 0.08) 100%);
+  border-color: rgba(255, 77, 6, 0.18);
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 
+    0 1px 0 0 rgba(255, 255, 255, 0.6) inset,
+    0 3px 12px rgba(255, 77, 6, 0.08),
+    0 6px 24px rgba(255, 77, 6, 0.04);
+}
+
+.toolbar-button.review-button:active {
+  transform: translateY(0) scale(0.98);
+  background: linear-gradient(135deg, rgba(255, 77, 6, 0.15) 0%, rgba(255, 107, 53, 0.1) 100%);
+  transition: all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.toolbar-button.review-button .material-icons {
+  font-size: 25px !important;
+  color: #ff4d06;
+  font-weight: 500;
+  text-shadow: 0 0 4px rgba(255, 77, 6, 0.1);
+  transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.toolbar-button.review-button:hover .material-icons {
+  color: #e8440a;
+  text-shadow: 0 0 8px rgba(255, 77, 6, 0.2);
+  transform: scale(1.05);
+}
+
+.review-text {
+  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: rgba(29, 29, 31, 0.9);
+  letter-spacing: -0.01em;
+  transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+  z-index: 1;
+  position: relative;
+}
+
+.toolbar-button.review-button:hover .review-text {
+  color: rgba(29, 29, 31, 0.95);
+  text-shadow: 0 0 4px rgba(255, 77, 6, 0.05);
+}
+
+/* Compact design for smaller screens */
+@media (max-width: 768px) {
+  .toolbar-button.review-button {
+    padding: 8px 10px;
+    margin-right: 8px;
+  }
+  
+  .review-text {
+    font-size: 16px;
+  }
+  
+  .toolbar-button.review-button .material-icons {
+    font-size: 23px !important;
+  }
+}
+
+/* Ultra-compact for very small screens */
+@media (max-width: 480px) {
+  .toolbar-button.review-button {
+    padding: 8px;
+    width: 40px;
+    gap: 0;
+  }
+  
+  .review-text {
+    display: none;
+  }
+}
+
 .file-input-container {
   position: relative;
   cursor: pointer;

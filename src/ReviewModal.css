@@ -1,0 +1,489 @@
+/* Apple-inspired Review Modal Design */
+.review-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    animation: overlayFadeIn 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+@keyframes overlayFadeIn {
+    from {
+        opacity: 0;
+        backdrop-filter: blur(0px);
+        -webkit-backdrop-filter: blur(0px);
+    }
+    to {
+        opacity: 1;
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+    }
+}
+
+.review-modal {
+    width: 90%;
+    max-width: 480px;
+    max-height: 90vh;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(40px) saturate(180%);
+    -webkit-backdrop-filter: blur(40px) saturate(180%);
+    border-radius: 20px;
+    border: 0.5px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 
+        0 0 0 0.5px rgba(0, 0, 0, 0.04) inset,
+        0 4px 60px rgba(0, 0, 0, 0.12),
+        0 12px 80px rgba(0, 0, 0, 0.08);
+    display: flex;
+    flex-direction: column;
+    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    overflow: hidden;
+    transform: scale(0.9) translateY(10px);
+    animation: modalSlideIn 0.4s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+@keyframes modalSlideIn {
+    to {
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Header */
+.review-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 24px 28px 20px 28px;
+    border-bottom: 0.5px solid rgba(0, 0, 0, 0.06);
+    background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.8) 0%,
+        rgba(255, 255, 255, 0.4) 100%
+    );
+}
+
+.review-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.memory-icon {
+    font-size: 24px;
+    background: linear-gradient(135deg, #ff4d06 0%, #ff6b35 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 8px rgba(255, 77, 6, 0.2));
+}
+
+.review-stats {
+    display: flex;
+    gap: 16px;
+}
+
+.stat-item {
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(29, 29, 31, 0.7);
+    padding: 4px 8px;
+    background: rgba(0, 0, 0, 0.04);
+    border-radius: 6px;
+    letter-spacing: -0.01em;
+}
+
+.exit-review-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    background: rgba(255, 77, 6, 0.08);
+    border: 0.5px solid rgba(255, 77, 6, 0.15);
+    border-radius: 10px;
+    color: #ff4d06;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+.exit-review-button:hover {
+    background: rgba(255, 77, 6, 0.12);
+    border-color: rgba(255, 77, 6, 0.25);
+    transform: translateY(-0.5px);
+    box-shadow: 0 2px 8px rgba(255, 77, 6, 0.1);
+}
+
+.exit-review-button .material-symbols-outlined {
+    font-size: 16px;
+}
+
+/* Content */
+.review-content {
+    flex: 1;
+    padding: 32px 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+}
+
+/* Loading State */
+.review-loading {
+    text-align: center;
+    color: rgba(29, 29, 31, 0.7);
+}
+
+.loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid rgba(0, 0, 0, 0.1);
+    border-top: 2px solid #ff4d06;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px auto;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+.review-loading p {
+    font-size: 15px;
+    font-weight: 400;
+    margin: 0;
+}
+
+/* Study Card */
+.study-card {
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+}
+
+.card-question {
+    margin-bottom: 32px;
+    padding: 24px;
+    background: linear-gradient(135deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0.01) 100%);
+    border-radius: 16px;
+    border: 0.5px solid rgba(0, 0, 0, 0.06);
+}
+
+.card-question p {
+    font-size: 18px;
+    font-weight: 500;
+    color: rgba(29, 29, 31, 0.9);
+    margin: 0;
+    line-height: 1.4;
+    letter-spacing: -0.01em;
+}
+
+.card-answer {
+    margin-bottom: 32px;
+    padding: 24px;
+    background: linear-gradient(135deg, rgba(255, 77, 6, 0.03) 0%, rgba(255, 107, 53, 0.01) 100%);
+    border-radius: 16px;
+    border: 0.5px solid rgba(255, 77, 6, 0.08);
+    animation: answerSlideIn 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+@keyframes answerSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.card-answer p {
+    font-size: 16px;
+    font-weight: 400;
+    color: rgba(29, 29, 31, 0.85);
+    margin: 0;
+    line-height: 1.5;
+}
+
+/* Show Answer Button */
+.show-answer-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    max-width: 200px;
+    padding: 16px 24px;
+    background: linear-gradient(135deg, #ff4d06 0%, #ff6b35 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    box-shadow: 0 2px 12px rgba(255, 77, 6, 0.2);
+    letter-spacing: -0.01em;
+    margin: 0 auto;
+}
+
+.show-answer-button:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 4px 20px rgba(255, 77, 6, 0.3);
+    background: linear-gradient(135deg, #e8440a 0%, #f55a2f 100%);
+}
+
+.show-answer-button:active {
+    transform: translateY(0) scale(0.98);
+    transition: all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.show-answer-button .material-symbols-outlined {
+    font-size: 18px;
+}
+
+/* Review Actions */
+.review-actions {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    justify-content: center;
+}
+
+.review-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    min-width: 120px;
+}
+
+.review-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.review-button.forgotten {
+    background: rgba(255, 69, 58, 0.1);
+    color: #ff453a;
+    border: 0.5px solid rgba(255, 69, 58, 0.2);
+}
+
+.review-button.forgotten:hover:not(:disabled) {
+    background: rgba(255, 69, 58, 0.15);
+    border-color: rgba(255, 69, 58, 0.3);
+    transform: translateY(-0.5px);
+    box-shadow: 0 2px 8px rgba(255, 69, 58, 0.1);
+}
+
+.review-button.remembered {
+    background: rgba(52, 199, 89, 0.1);
+    color: #34c759;
+    border: 0.5px solid rgba(52, 199, 89, 0.2);
+}
+
+.review-button.remembered:hover:not(:disabled) {
+    background: rgba(52, 199, 89, 0.15);
+    border-color: rgba(52, 199, 89, 0.3);
+    transform: translateY(-0.5px);
+    box-shadow: 0 2px 8px rgba(52, 199, 89, 0.1);
+}
+
+.review-button .material-symbols-outlined {
+    font-size: 16px;
+}
+
+/* View Source */
+.view-source {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: rgba(29, 29, 31, 0.6);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    padding: 8px;
+    border-radius: 8px;
+}
+
+.view-source:hover {
+    color: #ff4d06;
+    background: rgba(255, 77, 6, 0.05);
+}
+
+.view-source .material-symbols-outlined {
+    font-size: 14px;
+}
+
+/* Review Complete */
+.review-complete {
+    text-align: center;
+    max-width: 320px;
+}
+
+.completion-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+    background: linear-gradient(135deg, #ff4d06 0%, #ff6b35 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    filter: drop-shadow(0 0 12px rgba(255, 77, 6, 0.2));
+}
+
+.review-complete h2 {
+    font-size: 24px;
+    font-weight: 600;
+    color: rgba(29, 29, 31, 0.9);
+    margin: 0 0 16px 0;
+    letter-spacing: -0.02em;
+}
+
+.session-summary {
+    margin-bottom: 32px;
+}
+
+.session-summary p {
+    font-size: 15px;
+    color: rgba(29, 29, 31, 0.7);
+    margin: 4px 0;
+    line-height: 1.4;
+}
+
+/* Return Button */
+.return-button {
+    padding: 14px 28px;
+    background: linear-gradient(135deg, #ff4d06 0%, #ff6b35 100%);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    box-shadow: 0 2px 12px rgba(255, 77, 6, 0.2);
+    letter-spacing: -0.01em;
+}
+
+.return-button:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 4px 20px rgba(255, 77, 6, 0.3);
+    background: linear-gradient(135deg, #e8440a 0%, #f55a2f 100%);
+}
+
+.return-button:active {
+    transform: translateY(0) scale(0.98);
+    transition: all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+/* No Cards State */
+.no-cards {
+    text-align: center;
+    max-width: 320px;
+}
+
+.empty-icon {
+    font-size: 48px;
+    margin-bottom: 20px;
+    opacity: 0.6;
+}
+
+.no-cards h2 {
+    font-size: 22px;
+    font-weight: 600;
+    color: rgba(29, 29, 31, 0.9);
+    margin: 0 0 12px 0;
+    letter-spacing: -0.01em;
+}
+
+.no-cards p {
+    font-size: 15px;
+    color: rgba(29, 29, 31, 0.7);
+    margin: 0 0 32px 0;
+    line-height: 1.4;
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+    .review-modal {
+        width: 95%;
+        max-height: 95vh;
+        border-radius: 16px;
+    }
+    
+    .review-modal-header {
+        padding: 20px 24px 16px 24px;
+    }
+    
+    .review-content {
+        padding: 24px 20px;
+        min-height: 320px;
+    }
+    
+    .review-stats {
+        gap: 12px;
+    }
+    
+    .stat-item {
+        font-size: 12px;
+        padding: 3px 6px;
+    }
+    
+    .card-question,
+    .card-answer {
+        padding: 20px;
+    }
+    
+    .card-question p {
+        font-size: 16px;
+    }
+    
+    .card-answer p {
+        font-size: 15px;
+    }
+    
+    .review-actions {
+        gap: 12px;
+    }
+    
+    .review-button {
+        min-width: 100px;
+        padding: 10px 16px;
+        font-size: 13px;
+    }
+}
+
+@media (max-width: 480px) {
+    .review-modal-header {
+        flex-direction: column;
+        gap: 16px;
+        align-items: flex-start;
+    }
+    
+    .exit-review-button {
+        align-self: flex-end;
+    }
+} 

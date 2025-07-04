@@ -165,6 +165,155 @@ class ApiService {
             throw error;
         }
     }
+
+    // Spaced Repetition API Methods
+
+    async createStudyCard(annotationId) {
+        try {
+            const response = await fetch(`${this.baseUrl}/study-cards?annotation_id=${annotationId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create study card');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Create study card error:', error);
+            throw error;
+        }
+    }
+
+    async getDueCards(limit = 50) {
+        try {
+            const response = await fetch(`${this.baseUrl}/study-cards/due?limit=${limit}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch due cards');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Get due cards error:', error);
+            throw error;
+        }
+    }
+
+    async getStudyCards(skip = 0, limit = 100) {
+        try {
+            const response = await fetch(`${this.baseUrl}/study-cards?skip=${skip}&limit=${limit}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch study cards');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Get study cards error:', error);
+            throw error;
+        }
+    }
+
+    async getStudyCard(cardId) {
+        try {
+            const response = await fetch(`${this.baseUrl}/study-cards/${cardId}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch study card');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Get study card error:', error);
+            throw error;
+        }
+    }
+
+    async reviewCard(cardId, reviewData) {
+        try {
+            const response = await fetch(`${this.baseUrl}/study-cards/${cardId}/review`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(reviewData),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to review card');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Review card error:', error);
+            throw error;
+        }
+    }
+
+    async getReviewOptions(cardId) {
+        try {
+            const response = await fetch(`${this.baseUrl}/study-cards/${cardId}/options`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch review options');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Get review options error:', error);
+            throw error;
+        }
+    }
+
+    async createReviewSession(sessionData = {}) {
+        try {
+            const response = await fetch(`${this.baseUrl}/review-sessions`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(sessionData),
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to create review session');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('Create review session error:', error);
+            throw error;
+        }
+    }
+
+    async endReviewSession(sessionId) {
+        try {
+            const response = await fetch(`${this.baseUrl}/review-sessions/${sessionId}/end`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to end review session');
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('End review session error:', error);
+            throw error;
+        }
+    }
+
+    async getStudyStats() {
+        try {
+            const response = await fetch(`${this.baseUrl}/study-stats`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch study stats');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Get study stats error:', error);
+            throw error;
+        }
+    }
 }
 
 export default new ApiService(); 

@@ -9,6 +9,7 @@ import { InlineMath, BlockMath } from 'react-katex';
 import './App.css';
 import apiService from './api';
 import HomePage from './HomePage';
+import ReviewModal from './ReviewModal';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -375,6 +376,7 @@ function App() {
     const [uploadError, setUploadError] = useState(null);
     const [isLoadingAnnotations, setIsLoadingAnnotations] = useState(false);
     const [showHomePage, setShowHomePage] = useState(true);
+    const [showReviewModal, setShowReviewModal] = useState(false);
     const listRef = useRef();
     const pageHeights = useRef({});
     const viewerRef = useRef(null);
@@ -1083,6 +1085,16 @@ function App() {
               </div>
               
               <div className="toolbar-right">
+                {/* Review button */}
+                <button 
+                  className="toolbar-button review-button" 
+                  onClick={() => setShowReviewModal(true)}
+                  title="Review Cards"
+                >
+                  <span className="material-icons">memory</span>
+                  <span className="review-text">Review</span>
+                </button>
+                
                 {/* Zoom controls */}
                 <div className="zoom-controls">
                   <button onClick={() => setScale(s => s > 0.5 ? s - 0.1 : s)}>-</button>
@@ -1143,6 +1155,13 @@ function App() {
                     </div>
                 )}
             </div>
+            
+            {/* Review Modal */}
+            <ReviewModal 
+                isOpen={showReviewModal}
+                onClose={() => setShowReviewModal(false)}
+                fileId={fileMetadata?.id}
+            />
         </div>
     );
 }
