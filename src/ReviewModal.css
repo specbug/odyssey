@@ -83,10 +83,40 @@
 
 .infinity-icon {
     font-size: 30px !important;
-    color: #ff4d06;
+    background: linear-gradient(
+        45deg,
+        #ff4d06 0%,
+        #ff6b35 25%,
+        #ff8c42 50%,
+        #ff6b35 75%,
+        #ff4d06 100%
+    );
+    background-size: 200% 200%;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
     text-shadow: 0 0 8px rgba(255, 77, 6, 0.2);
     font-family: 'Material Icons' !important;
     text-align: center;
+    animation: infinityFlow 3s ease-in-out infinite;
+}
+
+@keyframes infinityFlow {
+    0% {
+        background-position: 0% 0%;
+    }
+    25% {
+        background-position: 100% 50%;
+    }
+    50% {
+        background-position: 200% 100%;
+    }
+    75% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 0%;
+    }
 }
 
 .brand-text {
