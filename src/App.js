@@ -456,11 +456,7 @@ function App() {
                   />
                 </div>
                 
-                {/* Find button */}
-                <button className="toolbar-button" title="Find">
-                  <span className="material-symbols-outlined">search</span>
-                </button>
-                
+
                 {/* Zoom controls */}
                 <div className="zoom-controls">
                   <button onClick={() => setScale(s => s > 0.5 ? s - 0.1 : s)}>-</button>
