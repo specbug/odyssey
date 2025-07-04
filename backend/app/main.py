@@ -1,6 +1,8 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, status
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, status, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.exceptions import RequestValidationError
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import os
@@ -52,6 +54,32 @@ MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "50000000"))  # 50MB
 
 # Ensure upload directory exists
 ensure_upload_dir(UPLOAD_DIR)
+
+
+# Custom exception handlers for better debugging
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    print(f"❌ Validation error on {request.method} {request.url}")
+    print(f"   Errors: {exc.errors()}")
+    print(f"   Body: {await request.body()}")
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": exc.errors(),
+            "body": exc.body,
+            "message": "Validation failed - check request data format",
+        },
+    )
+
+
+@app.exception_handler(ValidationError)
+async def pydantic_validation_exception_handler(request: Request, exc: ValidationError):
+    print(f"❌ Pydantic validation error on {request.method} {request.url}")
+    print(f"   Errors: {exc.errors()}")
+    return JSONResponse(
+        status_code=422,
+        content={"detail": exc.errors(), "message": "Data validation failed"},
+    )
 
 
 @app.get("/")
@@ -191,27 +219,53 @@ async def create_annotation(
     file_id: int, annotation: AnnotationCreate, db: Session = Depends(get_db)
 ):
     """Create a new annotation for a file."""
-    # Check if file exists
-    file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
-    if not file:
-        raise HTTPException(status_code=404, detail="File not found")
+    try:
+        # Log the incoming annotation data for debugging
+        print(f"📝 Creating annotation for file {file_id}:")
+        print(f"  annotation_id: {annotation.annotation_id}")
+        print(f"  page_index: {annotation.page_index}")
+        print(
+            f"  question: {annotation.question[:50] if annotation.question else 'None'}..."
+        )
+        print(f"  answer: {annotation.answer[:50] if annotation.answer else 'None'}...")
+        print(
+            f"  highlighted_text: {annotation.highlighted_text[:50] if annotation.highlighted_text else 'None'}..."
+        )
+        print(
+            f"  position_data length: {len(annotation.position_data) if annotation.position_data else 0}"
+        )
 
-    # Create annotation
-    db_annotation = Annotation(
-        file_id=file_id,
-        annotation_id=annotation.annotation_id,
-        page_index=annotation.page_index,
-        question=annotation.question,
-        answer=annotation.answer,
-        highlighted_text=annotation.highlighted_text,
-        position_data=annotation.position_data,
-    )
+        # Check if file exists
+        file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
+        if not file:
+            raise HTTPException(status_code=404, detail="File not found")
 
-    db.add(db_annotation)
-    db.commit()
-    db.refresh(db_annotation)
+        # Create annotation
+        db_annotation = Annotation(
+            file_id=file_id,
+            annotation_id=annotation.annotation_id,
+            page_index=annotation.page_index,
+            question=annotation.question,
+            answer=annotation.answer,
+            highlighted_text=annotation.highlighted_text,
+            position_data=annotation.position_data,
+        )
 
-    return db_annotation
+        db.add(db_annotation)
+        db.commit()
+        db.refresh(db_annotation)
+
+        print(f"✅ Successfully created annotation with ID: {db_annotation.id}")
+        return db_annotation
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Error creating annotation: {str(e)}")
+        print(f"   Error type: {type(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Error creating annotation: {str(e)}"
+        )
 
 
 @app.get("/files/{file_id}/annotations", response_model=List[AnnotationResponse])

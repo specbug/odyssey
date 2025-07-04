@@ -35,7 +35,7 @@ class AnnotationBase(BaseModel):
 
 
 class AnnotationCreate(AnnotationBase):
-    file_id: int
+    pass  # file_id is passed as path parameter, not in request body
 
 
 class AnnotationUpdate(BaseModel):

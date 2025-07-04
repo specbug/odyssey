@@ -343,7 +343,7 @@ function App() {
         try {
             const annotations = await apiService.getAnnotations(fileId);
             
-            // Convert backend annotations to frontend format
+            // Convert backend annotations to frontend format with fallback chain
             const frontendNotes = annotations.map(annotation => ({
                 id: annotation.annotation_id,
                 question: annotation.question,
@@ -353,21 +353,110 @@ function App() {
                 backendId: annotation.id // Store backend ID for updates
             }));
             
-            const frontendHighlights = annotations.map(annotation => ({
-                id: annotation.annotation_id,
-                pageIndex: annotation.page_index,
-                rects: JSON.parse(annotation.position_data)
+            const frontendHighlights = await Promise.all(annotations.map(async (annotation) => {
+                const highlight = await resolveAnnotationLocation(annotation);
+                return {
+                    id: annotation.annotation_id,
+                    pageIndex: annotation.page_index,
+                    rects: highlight.rects,
+                    normalizedRects: highlight.normalizedRects,
+                    textAnchor: highlight.textAnchor,
+                    resolutionMethod: highlight.resolutionMethod // For debugging
+                };
             }));
             
             setNotes(frontendNotes);
             setHighlights(frontendHighlights);
             
-            console.log(`Loaded ${annotations.length} annotations`);
+                    console.log(`✅ Loaded ${annotations.length} annotations with resolution methods:`, 
+            frontendHighlights.map(h => `${h.id}: ${h.resolutionMethod}`));
+        
+        // Debug: Show detailed resolution info
+        frontendHighlights.forEach(h => {
+            console.log(`📍 Annotation ${h.id}: ${h.resolutionMethod}`, {
+                rects: h.rects.length,
+                normalizedRects: h.normalizedRects?.length || 0,
+                textAnchor: h.textAnchor?.selected_text || 'none'
+            });
+        });
         } catch (error) {
             console.error('Failed to load annotations:', error);
         } finally {
             setIsLoadingAnnotations(false);
         }
+    }, []);
+
+    // Resolve annotation location using fallback chain
+    const resolveAnnotationLocation = useCallback(async (annotation) => {
+        let positionData;
+        
+        try {
+            positionData = JSON.parse(annotation.position_data);
+        } catch (error) {
+            console.warn('Failed to parse position data, using fallback:', error);
+            // Fallback to treating as legacy pixel coordinates
+            positionData = { pixel_rects: annotation.position_data };
+        }
+
+        // Method 1: Try text anchoring first (most reliable)
+        if (positionData.text_anchor && positionData.text_anchor.selected_text) {
+            const textMatch = await findTextAnchorMatch(
+                annotation.page_index,
+                positionData.text_anchor
+            );
+            if (textMatch) {
+                return {
+                    rects: textMatch.rects,
+                    normalizedRects: textMatch.normalizedRects,
+                    textAnchor: positionData.text_anchor,
+                    resolutionMethod: 'text_anchor'
+                };
+            }
+        }
+
+        // Method 2: Try normalized coordinates (scale-independent)
+        if (positionData.normalized_rects && positionData.normalized_rects.length > 0) {
+            const normalizedMatch = convertNormalizedToPixel(
+                annotation.page_index,
+                positionData.normalized_rects
+            );
+            if (normalizedMatch) {
+                return {
+                    rects: normalizedMatch.rects,
+                    normalizedRects: positionData.normalized_rects,
+                    textAnchor: positionData.text_anchor,
+                    resolutionMethod: 'normalized_coords'
+                };
+            }
+        }
+
+        // Method 3: Fallback to legacy pixel coordinates
+        if (positionData.pixel_rects) {
+            return {
+                rects: positionData.pixel_rects,
+                normalizedRects: positionData.normalized_rects || [],
+                textAnchor: positionData.text_anchor,
+                resolutionMethod: 'pixel_coords_legacy'
+            };
+        }
+
+        // Method 4: Last resort - try to parse as legacy array
+        if (Array.isArray(positionData)) {
+            return {
+                rects: positionData,
+                normalizedRects: [],
+                textAnchor: null,
+                resolutionMethod: 'legacy_array'
+            };
+        }
+
+        console.warn('Could not resolve annotation location for:', annotation.annotation_id);
+        return {
+            rects: [],
+            normalizedRects: [],
+            textAnchor: null,
+            resolutionMethod: 'failed'
+        };
     }, []);
 
     const startNewNote = useCallback(() => {
@@ -377,6 +466,9 @@ function App() {
             id: `highlight-${Date.now()}`,
             pageIndex: pendingHighlight.pageIndex,
             rects: pendingHighlight.rects,
+            normalizedRects: pendingHighlight.normalizedRects,
+            textAnchor: pendingHighlight.textAnchor,
+            locationData: pendingHighlight.locationData
         };
 
         const newNote = {
@@ -407,22 +499,246 @@ function App() {
 
         const viewerRect = viewerRef.current.getBoundingClientRect();
         const selectionRect = range.getBoundingClientRect();
+        const pageRect = pageElement.getBoundingClientRect();
+
+        // Get selected text and page text for anchoring
+        const selectedText = selection.toString();
+        const fullPageText = pageElement.textContent || '';
+        const selectionStart = fullPageText.indexOf(selectedText);
+
+        // Create text anchor data
+        const textAnchor = {
+            selected_text: selectedText,
+            prefix: selectionStart > 0 ? fullPageText.substring(Math.max(0, selectionStart - 20), selectionStart) : '',
+            suffix: selectionStart >= 0 ? fullPageText.substring(selectionStart + selectedText.length, selectionStart + selectedText.length + 20) : '',
+            char_start: selectionStart,
+            char_end: selectionStart + selectedText.length,
+            page_text_hash: hashString(fullPageText) // Simple hash for page text
+        };
+
+        // Convert pixel coordinates to normalized coordinates
+        const clientRects = Array.from(range.getClientRects());
+        const normalizedRects = clientRects.map(rect => ({
+            x: (rect.left - pageRect.left) / pageRect.width,
+            y: (rect.top - pageRect.top) / pageRect.height,
+            width: rect.width / pageRect.width,
+            height: rect.height / pageRect.height
+        }));
+
+        // Keep pixel coordinates for display (relative to page)
+        const pixelRects = clientRects.map(rect => ({
+            top: rect.top - pageRect.top,
+            left: rect.left - pageRect.left,
+            width: rect.width,
+            height: rect.height,
+        }));
 
         const newPendingHighlight = {
             top: selectionRect.top - viewerRect.top + viewerRef.current.scrollTop,
             left: selectionRect.left - viewerRect.left,
-            highlightedText: selection.toString(),
+            highlightedText: selectedText,
             pageIndex: parseInt(pageElement.dataset.pageNumber, 10) - 1,
-            rects: Array.from(range.getClientRects()).map(rect => ({
-                top: rect.top - pageElement.getBoundingClientRect().top,
-                left: rect.left - pageElement.getBoundingClientRect().left,
-                width: rect.width,
-                height: rect.height,
-            })),
+            rects: pixelRects,
+            normalizedRects: normalizedRects,
+            textAnchor: textAnchor,
+            locationData: {
+                normalized_rects: normalizedRects,
+                text_anchor: textAnchor,
+                metadata: {
+                    page_text_hash: textAnchor.page_text_hash,
+                    selection_timestamp: new Date().toISOString(),
+                    scale: scale
+                }
+            }
         };
 
         setPendingHighlight(newPendingHighlight);
         selection.removeAllRanges();
+        
+        // Debug logging
+        console.log('🎯 New selection captured:', {
+            text: selectedText.substring(0, 50) + (selectedText.length > 50 ? '...' : ''),
+            normalizedRects: normalizedRects.length,
+            textAnchor: textAnchor.selected_text.length > 0,
+            prefix: textAnchor.prefix,
+            suffix: textAnchor.suffix
+        });
+    }, [scale]);
+
+    // Simple hash function for page text
+    const hashString = (str) => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32-bit integer
+        }
+        return hash.toString(16);
+    };
+
+    // Find text anchor match using prefix/suffix matching
+    const findTextAnchorMatch = useCallback(async (pageIndex, textAnchor) => {
+        // Wait for page to be rendered
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const pageElements = document.querySelectorAll('.react-pdf__Page');
+        const pageElement = pageElements[pageIndex];
+        
+        if (!pageElement) {
+            console.warn(`Page ${pageIndex} not found`);
+            return null;
+        }
+
+        const pageText = pageElement.textContent || '';
+        const { selected_text, prefix, suffix } = textAnchor;
+
+        // Method 1: Try exact prefix + text + suffix match
+        const exactPattern = prefix + selected_text + suffix;
+        let matchIndex = pageText.indexOf(exactPattern);
+        
+        if (matchIndex >= 0) {
+            return findTextBounds(pageElement, selected_text, matchIndex + prefix.length);
+        }
+
+        // Method 2: Try text + suffix match
+        const textSuffixPattern = selected_text + suffix;
+        matchIndex = pageText.indexOf(textSuffixPattern);
+        
+        if (matchIndex >= 0) {
+            return findTextBounds(pageElement, selected_text, matchIndex);
+        }
+
+        // Method 3: Try prefix + text match
+        const prefixTextPattern = prefix + selected_text;
+        matchIndex = pageText.indexOf(prefixTextPattern);
+        
+        if (matchIndex >= 0) {
+            return findTextBounds(pageElement, selected_text, matchIndex + prefix.length);
+        }
+
+        // Method 4: Try just the selected text (could be multiple matches)
+        matchIndex = pageText.indexOf(selected_text);
+        
+        if (matchIndex >= 0) {
+            return findTextBounds(pageElement, selected_text, matchIndex);
+        }
+
+        console.warn('Text anchor match failed for:', selected_text);
+        return null;
+    }, []);
+
+    // Find text bounds and convert to coordinates
+    const findTextBounds = useCallback((pageElement, text, startIndex) => {
+        try {
+            const pageRect = pageElement.getBoundingClientRect();
+            const textNodes = getTextNodes(pageElement);
+            
+            let currentIndex = 0;
+            let startNode = null;
+            let startOffset = 0;
+            let endNode = null;
+            let endOffset = 0;
+
+            // Find start and end nodes
+            for (let node of textNodes) {
+                const nodeText = node.textContent || '';
+                const nodeLength = nodeText.length;
+                
+                if (currentIndex + nodeLength > startIndex && !startNode) {
+                    startNode = node;
+                    startOffset = startIndex - currentIndex;
+                }
+                
+                if (currentIndex + nodeLength >= startIndex + text.length && !endNode) {
+                    endNode = node;
+                    endOffset = startIndex + text.length - currentIndex;
+                    break;
+                }
+                
+                currentIndex += nodeLength;
+            }
+
+            if (!startNode || !endNode) {
+                console.warn('Could not find text nodes for bounds');
+                return null;
+            }
+
+            // Create range and get bounding rects
+            const range = document.createRange();
+            range.setStart(startNode, startOffset);
+            range.setEnd(endNode, endOffset);
+            
+            const clientRects = Array.from(range.getClientRects());
+            
+            // Convert to pixel coordinates (relative to page)
+            const pixelRects = clientRects.map(rect => ({
+                top: rect.top - pageRect.top,
+                left: rect.left - pageRect.left,
+                width: rect.width,
+                height: rect.height
+            }));
+
+            // Convert to normalized coordinates
+            const normalizedRects = clientRects.map(rect => ({
+                x: (rect.left - pageRect.left) / pageRect.width,
+                y: (rect.top - pageRect.top) / pageRect.height,
+                width: rect.width / pageRect.width,
+                height: rect.height / pageRect.height
+            }));
+
+            return {
+                rects: pixelRects,
+                normalizedRects: normalizedRects
+            };
+        } catch (error) {
+            console.warn('Error finding text bounds:', error);
+            return null;
+        }
+    }, []);
+
+    // Get all text nodes from an element
+    const getTextNodes = (element) => {
+        const textNodes = [];
+        const walker = document.createTreeWalker(
+            element,
+            NodeFilter.SHOW_TEXT,
+            null,
+            false
+        );
+
+        let node;
+        while (node = walker.nextNode()) {
+            if (node.textContent.trim()) {
+                textNodes.push(node);
+            }
+        }
+
+        return textNodes;
+    };
+
+    // Convert normalized coordinates to current pixel coordinates
+    const convertNormalizedToPixel = useCallback((pageIndex, normalizedRects) => {
+        const pageElements = document.querySelectorAll('.react-pdf__Page');
+        const pageElement = pageElements[pageIndex];
+        
+        if (!pageElement) {
+            console.warn(`Page ${pageIndex} not found for coordinate conversion`);
+            return null;
+        }
+
+        const pageRect = pageElement.getBoundingClientRect();
+        
+        const pixelRects = normalizedRects.map(normalized => ({
+            top: normalized.y * pageRect.height,
+            left: normalized.x * pageRect.width,
+            width: normalized.width * pageRect.width,
+            height: normalized.height * pageRect.height
+        }));
+
+        return {
+            rects: pixelRects,
+            normalizedRects: normalizedRects
+        };
     }, []);
 
     const handleNoteDelete = useCallback(async (noteId) => {
@@ -456,17 +772,43 @@ function App() {
         }
 
         try {
+            // Prepare enriched position data
+            const enrichedPositionData = {
+                // Legacy pixel coordinates for backward compatibility
+                pixel_rects: highlight.rects,
+                
+                // New normalized coordinates
+                normalized_rects: highlight.normalizedRects || [],
+                
+                // Text anchoring data
+                text_anchor: highlight.textAnchor || {
+                    selected_text: updatedNote.highlightedText,
+                    prefix: '',
+                    suffix: '',
+                    char_start: -1,
+                    char_end: -1
+                },
+                
+                // Metadata
+                metadata: {
+                    page_text_hash: highlight.textAnchor?.page_text_hash || '',
+                    selection_timestamp: new Date().toISOString(),
+                    scale: scale,
+                    version: '1.0'
+                }
+            };
+
             if (updatedNote.backendId) {
                 // Update existing annotation
                 const annotationData = {
                     question: updatedNote.question,
                     answer: updatedNote.answer,
                     highlighted_text: updatedNote.highlightedText,
-                    position_data: JSON.stringify(highlight.rects)
+                    position_data: JSON.stringify(enrichedPositionData)
                 };
                 
                 await apiService.updateAnnotation(updatedNote.backendId, annotationData);
-                console.log('Updated annotation in backend');
+                console.log('Updated annotation in backend with enriched data');
             } else {
                 // Create new annotation
                 const annotationData = {
@@ -475,12 +817,12 @@ function App() {
                     question: updatedNote.question,
                     answer: updatedNote.answer,
                     highlighted_text: updatedNote.highlightedText,
-                    position_data: JSON.stringify(highlight.rects)
+                    position_data: JSON.stringify(enrichedPositionData)
                 };
                 
                 const response = await apiService.createAnnotation(fileMetadata.id, annotationData);
                 updatedNote.backendId = response.id;
-                console.log('Created annotation in backend');
+                console.log('Created annotation in backend with enriched data');
             }
         } catch (error) {
             console.error('Failed to save annotation to backend:', error);
@@ -488,7 +830,7 @@ function App() {
         }
         
         setNotes(notes => notes.map(n => n.id === updatedNote.id ? updatedNote : n));
-    }, [fileMetadata, highlights]);
+    }, [fileMetadata, highlights, scale]);
 
     const handleNoteClick = useCallback((noteId) => {
         setActiveNoteId(noteId);
