@@ -437,15 +437,37 @@ function App() {
     return (
         <div className="App">
             <div className="toolbar">
+              <div className="toolbar-left">
+                <div className="file-name">
+                  {file ? file.name : "No file selected"}
+                </div>
+              </div>
+              
+              <div className="toolbar-right">
+                {/* Upload button */}
                 <div className="file-input-container">
-                    <label htmlFor="file-input">Select PDF:</label>
-                    <input type="file" id="file-input" onChange={onFileChange} accept=".pdf" />
+                  <button className="toolbar-button" title="Upload PDF">
+                    <span className="material-symbols-outlined">file_open</span>
+                  </button>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={onFileChange}
+                  />
                 </div>
+                
+                {/* Find button */}
+                <button className="toolbar-button" title="Find">
+                  <span className="material-symbols-outlined">search</span>
+                </button>
+                
+                {/* Zoom controls */}
                 <div className="zoom-controls">
-                    <button onClick={() => setScale(s => s > 0.5 ? s - 0.1 : s)}>-</button>
-                    <span>{Math.round(scale * 100)}%</span>
-                    <button onClick={() => setScale(s => s < 3 ? s + 0.1 : s)}>+</button>
+                  <button onClick={() => setScale(s => s > 0.5 ? s - 0.1 : s)}>-</button>
+                  <span>{Math.round(scale * 100)}%</span>
+                  <button onClick={() => setScale(s => s < 3 ? s + 0.1 : s)}>+</button>
                 </div>
+              </div>
             </div>
             <div className="viewer-scroll-container" ref={viewerRef} onMouseUp={handleViewerMouseUp}>
                 {pendingHighlight && (
@@ -457,25 +479,26 @@ function App() {
                         Add Note
                     </div>
                 )}
-                <Document file={file} onLoadSuccess={onDocumentLoadSuccess}>
-                    {numPages && (
-                        <List
-                            ref={listRef}
-                            height={viewerRef.current ? viewerRef.current.offsetHeight : 0}
-                            itemCount={numPages}
-                            itemSize={getPageHeight}
-                            width="100%"
-                        >
-                            {({ index, style }) => (
-                                <PageRenderer
-                                    index={index}
-                                    style={style}
-                                    scale={scale}
-                                    highlights={highlights}
-                                    pendingHighlight={pendingHighlight}
-                                    onPageRenderSuccess={onPageRenderSuccess}
-                                    notes={notes}
-                                    onNoteSave={handleNoteSave}
+                {file ? (
+                    <Document file={file} onLoadSuccess={onDocumentLoadSuccess}>
+                        {numPages && (
+                            <List
+                                ref={listRef}
+                                height={viewerRef.current ? viewerRef.current.offsetHeight : 0}
+                                itemCount={numPages}
+                                itemSize={getPageHeight}
+                                width="100%"
+                            >
+                                {({ index, style }) => (
+                                    <PageRenderer
+                                        index={index}
+                                        style={style}
+                                        scale={scale}
+                                        highlights={highlights}
+                                        pendingHighlight={pendingHighlight}
+                                        onPageRenderSuccess={onPageRenderSuccess}
+                                        notes={notes}
+                                        onNoteSave={handleNoteSave}
                                     onNoteCancel={handleNoteCancel}
                                     onNoteDelete={handleNoteDelete}
                                     activeNoteId={activeNoteId}
@@ -487,6 +510,15 @@ function App() {
                         </List>
                     )}
                 </Document>
+                ) : (
+                    <div className="empty-state">
+                        <div className="empty-state-icon">📄</div>
+                        <div className="empty-state-title">No PDF Selected</div>
+                        <div className="empty-state-subtitle">
+                            Choose a PDF file to start reading and taking notes
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

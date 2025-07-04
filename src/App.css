@@ -1,4 +1,5 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&icon_names=file_open,search');
 
 @font-face {
   font-family: 'Dr';
@@ -50,46 +51,131 @@
 
 .toolbar {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  padding: calc(var(--orbit-grid) * 2) calc(var(--orbit-grid) * 3);
-  background-color: var(--orbit-white);
+  padding: calc(var(--orbit-grid) * 1.5) calc(var(--orbit-grid) * 3);
+  background-color: rgba(250, 134, 61, 0.05);
+  backdrop-filter: blur(20px);
   color: var(--orbit-ink);
   border-bottom: 1px solid rgba(0,0,0,0.06);
   z-index: 10;
   flex-shrink: 0;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02);
+  box-shadow: none;
 }
 
-.file-input-container {
-    position: absolute;
-    left: calc(var(--orbit-grid) * 3);
+.toolbar-left {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--orbit-grid) * 1);
+}
+
+.file-name {
+  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--orbit-ink);
+  letter-spacing: -0.01em;
+}
+
+.toolbar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(0,0,0,0.04);
+  border: none;
+  border-radius: calc(var(--orbit-border-radius) - 2px);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+  font-size: 14px;
+  color: var(--orbit-ink);
+}
+
+.toolbar-button:hover {
+  background: rgba(0,0,0,0.08);
+  transform: translateY(-1px);
+}
+
+.toolbar-button:active {
+  transform: translateY(0);
+  background: rgba(0,0,0,0.12);
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--orbit-grid) * 1);
+  background: rgba(0,0,0,0.04);
+  border-radius: calc(var(--orbit-border-radius) - 1px);
+  padding: 2px;
 }
 
 .zoom-controls button {
-    background: var(--orbit-white);
-    color: var(--orbit-ink);
-    border: 1px solid rgba(0,0,0,0.12);
-    border-radius: calc(var(--orbit-border-radius) / 2);
-    padding: calc(var(--orbit-grid) * 1) calc(var(--orbit-grid) * 2);
-    cursor: pointer;
-    transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-weight: 500;
-    font-size: 14px;
+  background: transparent;
+  color: var(--orbit-ink);
+  border: none;
+  border-radius: calc(var(--orbit-border-radius) - 2px);
+  padding: 6px 10px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
+  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1;
 }
 
 .zoom-controls button:hover {
-    background: #f8f9fa;
-    border-color: rgba(0,0,0,0.16);
-    transform: translateY(-1px);
+  background: rgba(0,0,0,0.08);
 }
 
 .zoom-controls span {
-    margin: 0 calc(var(--orbit-grid) * 2);
-    font-weight: 600;
-    color: var(--orbit-ink);
-    font-family: 'Dr', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-weight: 600;
+  color: var(--orbit-ink);
+  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  padding: 0 6px;
+}
+
+.file-input-container {
+  position: relative;
+}
+
+.file-input-container input[type="file"] {
+  position: absolute;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+/* Material Symbols styling for iOS-like aesthetics */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: 400;
+  font-style: normal;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  
+  /* iOS-like settings */
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
 }
 
 .viewer-scroll-container {
@@ -364,4 +450,39 @@
     border-radius: var(--orbit-border-radius);
     margin: calc(var(--orbit-grid) * 2) 0;
     box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Empty state styling */
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: calc(var(--orbit-grid) * 6);
+    color: rgba(0,0,0,0.4);
+    text-align: center;
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: calc(var(--orbit-grid) * 2);
+    opacity: 0.6;
+}
+
+.empty-state-title {
+    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 600;
+    font-size: 18px;
+    color: rgba(0,0,0,0.6);
+    margin-bottom: calc(var(--orbit-grid) * 1);
+}
+
+.empty-state-subtitle {
+    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-weight: 400;
+    font-size: 14px;
+    color: rgba(0,0,0,0.4);
+    max-width: 300px;
+    line-height: 1.5;
 }
