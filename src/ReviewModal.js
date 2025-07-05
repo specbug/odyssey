@@ -1,6 +1,61 @@
 import React, { useState, useEffect } from 'react';
 import apiService from './api';
 import './ReviewModal.css';
+import 'katex/dist/katex.min.css';
+import { InlineMath, BlockMath } from 'react-katex';
+
+// Import the sophisticated note content component from App.js
+const NoteContent = React.memo(({ content, className }) => {
+    const renderLatex = (string) => {
+        if (!string) return [];
+        
+        const processedString = string.replace(/<div>/g, ' ').replace(/<\/div>/g, ' ');
+
+        const latexRegex = /(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$|\\[[\s\S]*?\\\]|\\\(.*?\\\)|\\begin\{equation\}[\s\S]*?\\end\{equation\})/g;
+        const parts = processedString.split(latexRegex);
+
+        return parts.map((part, index) => {
+            if (!part) {
+                return null;
+            }
+
+            const match = part.match(latexRegex);
+            if (match && match[0] === part) {
+                let isBlock = false;
+                let katexString = '';
+
+                if (part.startsWith('$$')) {
+                    isBlock = true;
+                    katexString = part.substring(2, part.length - 2);
+                } else if (part.startsWith('\\[')) {
+                    isBlock = true;
+                    katexString = part.substring(2, part.length - 2);
+                } else if (part.startsWith('\\begin{equation}')) {
+                    isBlock = true;
+                    katexString = part.substring(16, part.length - 14);
+                } else if (part.startsWith('$')) {
+                    isBlock = false;
+                    katexString = part.substring(1, part.length - 1);
+                } else if (part.startsWith('\\(')) {
+                    isBlock = false;
+                    katexString = part.substring(2, part.length - 2);
+                }
+                
+                if (katexString) {
+                    if (isBlock) {
+                        return <BlockMath key={index} math={katexString} />;
+                    } else {
+                        return <InlineMath key={index} math={katexString} />;
+                    }
+                }
+            }
+            
+            return <span key={index} dangerouslySetInnerHTML={{ __html: part }}></span>;
+        });
+    };
+
+    return <div className={`note-content ${className}`}>{renderLatex(content)}</div>;
+});
 
 const ReviewModal = ({ isOpen, onClose, fileId }) => {
     const [currentCard, setCurrentCard] = useState(null);
@@ -9,6 +64,7 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
     const [reviewComplete, setReviewComplete] = useState(false);
     const [dueCards, setDueCards] = useState([]);
     const [newCards, setNewCards] = useState([]);
+    const [learningCards, setLearningCards] = useState([]);
     const [reviewedToday, setReviewedToday] = useState(0);
     const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 });
 
@@ -43,11 +99,18 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
             
             // Now get the due cards
             const cardsData = await apiService.getDueCards();
-            setDueCards(cardsData.due_cards || []);
-            setNewCards(cardsData.new_cards || []);
+            const allCards = [...(cardsData.due_cards || []), ...(cardsData.new_cards || [])];
+            
+            // Categorize cards properly
+            const newCards = allCards.filter(card => card.is_new);
+            const learningCards = allCards.filter(card => !card.is_new && card.is_learning);
+            const dueCards = allCards.filter(card => !card.is_new && !card.is_learning);
+            
+            setNewCards(newCards);
+            setLearningCards(learningCards);
+            setDueCards(dueCards);
             
             // Start with the first available card
-            const allCards = [...(cardsData.due_cards || []), ...(cardsData.new_cards || [])];
             if (allCards.length > 0) {
                 setCurrentCard(allCards[0]);
             } else {
@@ -82,7 +145,7 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
             }));
             
             // Move to next card
-            const allCards = [...dueCards, ...newCards];
+            const allCards = [...newCards, ...learningCards, ...dueCards];
             const currentIndex = allCards.findIndex(card => card.id === currentCard.id);
             const remainingCards = allCards.slice(currentIndex + 1);
             
@@ -129,46 +192,27 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
         }, 100);
     };
 
-    // Render content with HTML support for images
-    const renderContent = (content) => {
-        if (!content) return 'No content available';
-        
-        // Check if content contains HTML (like images)
-        if (content.includes('<img') || content.includes('<br>')) {
-            return <div dangerouslySetInnerHTML={{ __html: content }} />;
-        }
-        
-        return content;
-    };
-
     if (!isOpen) return null;
 
     return (
         <div className="review-modal-overlay" onClick={onClose}>
             <div className="review-modal" onClick={(e) => e.stopPropagation()}>
-                {/* Premium Header */}
+                {/* Simplified Header */}
                 <div className="review-modal-header">
                     <div className="header-content">
-                        <div className="brand-section">
-                            <div className="brand-text">
-                            <span className="material-icons infinity-icon">all_inclusive</span>
-                                <p className="tagline">Spaced Repetition</p>
-                            </div>
-                        </div>
-                        
                         <div className="stats-section">
                             <div className="stat-grid">
-                                <div className="stat-card due">
-                                    <span className="stat-number">{dueCards.length}</span>
-                                    <span className="stat-label">Due</span>
-                                </div>
                                 <div className="stat-card new">
                                     <span className="stat-number">{newCards.length}</span>
                                     <span className="stat-label">New</span>
                                 </div>
-                                <div className="stat-card today">
-                                    <span className="stat-number">{sessionStats.total}</span>
-                                    <span className="stat-label">Today</span>
+                                <div className="stat-card learning">
+                                    <span className="stat-number">{learningCards.length}</span>
+                                    <span className="stat-label">Learning</span>
+                                </div>
+                                <div className="stat-card due">
+                                    <span className="stat-number">{dueCards.length}</span>
+                                    <span className="stat-label">Due</span>
                                 </div>
                             </div>
                         </div>
@@ -222,15 +266,16 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                                     <div className="progress-indicator">
                                         <span className="current-position">{sessionStats.total + 1}</span>
                                         <span className="separator">of</span>
-                                        <span className="total-cards">{dueCards.length + newCards.length}</span>
+                                        <span className="total-cards">{newCards.length + learningCards.length + dueCards.length}</span>
                                     </div>
                                 </div>
                                 
                                 <div className="flashcard">
                                     <div className="card-question-area">
-                                        <div className="question-content">
-                                            {renderContent(currentCard.annotation?.question)}
-                                        </div>
+                                        <NoteContent 
+                                            content={currentCard.annotation?.question || 'No question available'} 
+                                            className="question-content" 
+                                        />
                                     </div>
                                     
                                     {!showAnswer ? (
@@ -243,9 +288,10 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                                     ) : (
                                         <>
                                             <div className="card-answer-area">
-                                                <div className="answer-content">
-                                                    {renderContent(currentCard.annotation?.answer)}
-                                                </div>
+                                                <NoteContent 
+                                                    content={currentCard.annotation?.answer || 'No answer available'} 
+                                                    className="answer-content" 
+                                                />
                                             </div>
                                             
                                             <div className="review-section">
