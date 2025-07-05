@@ -69,6 +69,9 @@ class StudyCard(Base):
     is_graduated = Column(
         Boolean, default=False
     )  # True if card has graduated from learning
+    learning_step = Column(
+        Integer, default=0
+    )  # Track which learning step for failed cards
 
     # Timestamps
     created_date = Column(DateTime(timezone=True), server_default=func.now())

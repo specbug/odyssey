@@ -1,4 +1,4 @@
-from pydantic import BaseModel, computed_field, Field
+from pydantic import BaseModel, computed_field, Field, validator
 from datetime import datetime
 from typing import Optional, List
 
@@ -101,10 +101,24 @@ class StudyCardUpdate(BaseModel):
 
 class StudyCardResponse(StudyCardBase):
     id: int
+    annotation_id: Optional[int] = None  # Allow None for cards without annotations
+    easiness: float = 2.5
+    interval: int = 1
+    repetitions: int = 0
+    is_new: bool = True
+    is_learning: bool = False
+    is_graduated: bool = False
     created_date: datetime
     last_review_date: Optional[datetime] = None
     next_review_date: Optional[datetime] = None
     annotation: Optional[AnnotationResponse] = None
+
+    @validator("interval", pre=True)
+    def convert_interval_to_int(cls, v):
+        """Convert float interval to int."""
+        if isinstance(v, float):
+            return int(round(v))
+        return v
 
     class Config:
         from_attributes = True
@@ -176,8 +190,10 @@ class DueCardsResponse(BaseModel):
 
     due_cards: List[StudyCardResponse]
     new_cards: List[StudyCardResponse]
+    learning_cards: List[StudyCardResponse]
     total_due: int
     total_new: int
+    total_learning: int
 
 
 class ReviewOptions(BaseModel):

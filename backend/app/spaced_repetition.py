@@ -1,5 +1,5 @@
 """
-Spaced Repetition Logic using SM-2 Algorithm
+Spaced Repetition Logic using Modified SM-2 Algorithm with Immediate Feedback
 """
 
 from datetime import datetime, timedelta
@@ -12,7 +12,10 @@ from .schemas import StudyCardResponse, CardReviewCreate, CardReviewResult
 
 
 class SpacedRepetitionService:
-    """Service class for handling spaced repetition logic."""
+    """Service class for handling spaced repetition logic with immediate feedback."""
+
+    # Learning intervals for failed cards (in minutes)
+    LEARNING_INTERVALS = [1, 10, 1440]  # 1 min, 10 min, 1 day
 
     @staticmethod
     def create_study_card(db: Session, annotation_id: int) -> StudyCard:
@@ -34,7 +37,8 @@ class SpacedRepetitionService:
             is_new=True,
             is_learning=False,
             is_graduated=False,
-            next_review_date=datetime.utcnow() + timedelta(days=1),
+            next_review_date=datetime.utcnow(),  # New cards available immediately
+            learning_step=0,  # Track which learning step we're on
         )
 
         db.add(study_card)
@@ -45,28 +49,46 @@ class SpacedRepetitionService:
 
     @staticmethod
     def get_due_cards(db: Session, limit: int = 50) -> Dict[str, List[StudyCard]]:
-        """Get cards that are due for review."""
+        """Get cards that are due for review, properly categorized."""
         now = datetime.utcnow()
 
-        # Get cards that are due for review (not new) with annotation relationship loaded
-        due_cards = (
+        # Get all cards that are due for review (including those without annotations)
+        all_due_cards = (
             db.query(StudyCard)
-            .join(Annotation, StudyCard.annotation_id == Annotation.id)
-            .filter(StudyCard.next_review_date <= now, StudyCard.is_new == False)
+            .filter(StudyCard.next_review_date <= now)
             .limit(limit)
             .all()
         )
 
-        # Get new cards with annotation relationship loaded
-        new_cards = (
-            db.query(StudyCard)
-            .join(Annotation, StudyCard.annotation_id == Annotation.id)
-            .filter(StudyCard.is_new == True)
-            .limit(limit)
-            .all()
-        )
+        # Load annotations for cards that have them
+        for card in all_due_cards:
+            if card.annotation_id:
+                try:
+                    annotation = (
+                        db.query(Annotation)
+                        .filter(Annotation.id == card.annotation_id)
+                        .first()
+                    )
+                    if annotation:
+                        card.annotation = annotation
+                except Exception:
+                    # If annotation loading fails, continue without it
+                    pass
 
-        return {"due_cards": due_cards, "new_cards": new_cards}
+        # Categorize cards
+        new_cards = [card for card in all_due_cards if card.is_new]
+        learning_cards = [
+            card for card in all_due_cards if not card.is_new and card.is_learning
+        ]
+        due_cards = [
+            card for card in all_due_cards if not card.is_new and not card.is_learning
+        ]
+
+        return {
+            "due_cards": due_cards,
+            "new_cards": new_cards,
+            "learning_cards": learning_cards,
+        }
 
     @staticmethod
     def review_card(
@@ -76,53 +98,42 @@ class SpacedRepetitionService:
         time_taken: Optional[int] = None,
         session_id: Optional[int] = None,
     ) -> CardReviewResult:
-        """Review a card using SM-2 algorithm."""
-        # Get the card
+        """Review a card using modified SM-2 algorithm with immediate feedback."""
+        # Get the card first
         card = db.query(StudyCard).filter(StudyCard.id == card_id).first()
         if not card:
             raise ValueError("Card not found")
+
+        # Try to load annotation relationship if it exists
+        if card.annotation_id:
+            try:
+                # Load the annotation relationship
+                annotation = (
+                    db.query(Annotation)
+                    .filter(Annotation.id == card.annotation_id)
+                    .first()
+                )
+                if annotation:
+                    card.annotation = annotation
+            except Exception:
+                # If annotation loading fails, continue without it
+                pass
 
         # Store pre-review state
         easiness_before = card.easiness
         interval_before = card.interval
         repetitions_before = card.repetitions
+        was_new = card.is_new
+        was_learning = card.is_learning
 
-        # Calculate new values using SM-2
-        if card.is_new:
-            # First review
-            result = first_review(quality, datetime.utcnow())
-        else:
-            # Subsequent reviews
-            result = review(
-                quality=quality,
-                easiness=card.easiness,
-                interval=card.interval,
-                repetitions=card.repetitions,
-                review_datetime=datetime.utcnow(),
-            )
-
-        # Update card with new values
-        card.easiness = result["easiness"]
-        card.interval = result["interval"]
-        card.repetitions = result["repetitions"]
+        # Update last review date
         card.last_review_date = datetime.utcnow()
 
-        # Convert string datetime to datetime object if needed
-        if isinstance(result["review_datetime"], str):
-            from dateutil.parser import parse
-
-            card.next_review_date = parse(result["review_datetime"])
-        else:
-            card.next_review_date = result["review_datetime"]
-
-        # Update card state
-        card.is_new = False
-        if quality >= 3:
-            card.is_learning = False
-            card.is_graduated = True
-        else:
-            card.is_learning = True
-            card.is_graduated = False
+        # Handle review based on quality
+        if quality >= 3:  # Successful review (3-5)
+            SpacedRepetitionService._handle_successful_review(card, quality)
+        else:  # Failed review (0-2)
+            SpacedRepetitionService._handle_failed_review(card, quality)
 
         # Create review record
         review_record = CardReview(
@@ -144,12 +155,7 @@ class SpacedRepetitionService:
         db.refresh(review_record)
 
         # Generate result message
-        if quality >= 4:
-            message = f"Great! Next review in {card.interval} days."
-        elif quality >= 3:
-            message = f"Good! Next review in {card.interval} days."
-        else:
-            message = f"Keep practicing! Next review in {card.interval} days."
+        message = SpacedRepetitionService._generate_review_message(card, quality)
 
         return CardReviewResult(
             card=StudyCardResponse.from_orm(card),
@@ -159,49 +165,157 @@ class SpacedRepetitionService:
         )
 
     @staticmethod
+    def _handle_successful_review(card: StudyCard, quality: int):
+        """Handle successful review (quality >= 3)."""
+        if card.is_new:
+            # First successful review of a new card
+            card.is_new = False
+            card.is_learning = True
+            card.is_graduated = False
+            card.learning_step = 0
+            card.repetitions = 1
+            card.interval = 1  # Start with 1 day
+            card.next_review_date = datetime.utcnow() + timedelta(days=1)
+        elif card.is_learning:
+            # Successful review of a learning card
+            if quality >= 4:  # Easy - graduate the card
+                card.is_learning = False
+                card.is_graduated = True
+                card.learning_step = 0
+                # Use SM-2 for the first graduated interval
+                card.repetitions = 2
+                card.interval = 4  # Standard SM-2 second interval
+                card.next_review_date = datetime.utcnow() + timedelta(days=4)
+            else:  # Good - continue learning
+                card.learning_step += 1
+                if card.learning_step >= len(
+                    SpacedRepetitionService.LEARNING_INTERVALS
+                ):
+                    # Graduate after completing all learning steps
+                    card.is_learning = False
+                    card.is_graduated = True
+                    card.learning_step = 0
+                    card.repetitions = 2
+                    card.interval = 4
+                    card.next_review_date = datetime.utcnow() + timedelta(days=4)
+                else:
+                    # Continue with next learning step
+                    interval_minutes = SpacedRepetitionService.LEARNING_INTERVALS[
+                        card.learning_step
+                    ]
+                    card.next_review_date = datetime.utcnow() + timedelta(
+                        minutes=interval_minutes
+                    )
+        else:
+            # Graduated card - use SM-2 algorithm
+            result = review(
+                quality=quality,
+                easiness=card.easiness,
+                interval=card.interval,
+                repetitions=card.repetitions,
+                review_datetime=datetime.utcnow(),
+            )
+
+            card.easiness = result["easiness"]
+            card.interval = result["interval"]
+            card.repetitions = result["repetitions"]
+
+            # Convert string datetime to datetime object if needed
+            if isinstance(result["review_datetime"], str):
+                # Parse ISO format datetime string manually
+                from datetime import datetime as dt
+
+                card.next_review_date = dt.fromisoformat(
+                    result["review_datetime"].replace("Z", "+00:00")
+                )
+            else:
+                card.next_review_date = result["review_datetime"]
+
+    @staticmethod
+    def _handle_failed_review(card: StudyCard, quality: int):
+        """Handle failed review (quality < 3)."""
+        # All failed cards go to learning state
+        card.is_new = False
+        card.is_learning = True
+        card.is_graduated = False
+        card.learning_step = 0
+        card.repetitions = 0
+
+        # Reset interval to first learning step - store as minutes for learning cards
+        card.interval = SpacedRepetitionService.LEARNING_INTERVALS[
+            0
+        ]  # Store as minutes
+        card.next_review_date = datetime.utcnow() + timedelta(
+            minutes=SpacedRepetitionService.LEARNING_INTERVALS[0]
+        )
+
+        # Reduce easiness for supermemo2 algorithm
+        if card.easiness > 1.3:
+            card.easiness = max(1.3, card.easiness - 0.2)
+
+    @staticmethod
+    def _generate_review_message(card: StudyCard, quality: int) -> str:
+        """Generate appropriate message based on review outcome."""
+        if quality >= 4:
+            if card.is_graduated:
+                return f"Excellent! Next review in {card.interval} days."
+            else:
+                interval_minutes = (
+                    SpacedRepetitionService.LEARNING_INTERVALS[card.learning_step]
+                    if card.learning_step
+                    < len(SpacedRepetitionService.LEARNING_INTERVALS)
+                    else 1440
+                )
+                if interval_minutes < 60:
+                    return f"Great! Next review in {interval_minutes} minutes."
+                elif interval_minutes < 1440:
+                    return f"Great! Next review in {interval_minutes // 60} hours."
+                else:
+                    return f"Great! Next review in {interval_minutes // 1440} days."
+        elif quality >= 3:
+            if card.is_graduated:
+                return f"Good! Next review in {card.interval} days."
+            else:
+                interval_minutes = (
+                    SpacedRepetitionService.LEARNING_INTERVALS[card.learning_step]
+                    if card.learning_step
+                    < len(SpacedRepetitionService.LEARNING_INTERVALS)
+                    else 1440
+                )
+                if interval_minutes < 60:
+                    return f"Good! Next review in {interval_minutes} minutes."
+                elif interval_minutes < 1440:
+                    return f"Good! Next review in {interval_minutes // 60} hours."
+                else:
+                    return f"Good! Next review in {interval_minutes // 1440} days."
+        else:
+            return "Keep practicing! This card will reappear in 1 minute."
+
+    @staticmethod
     def get_review_options(card: StudyCard) -> List[Dict]:
         """Get preview of review options for a card."""
         options = []
 
-        # Quality ratings and their descriptions
+        # Simplified quality options for UI
         quality_options = [
-            (0, "Complete blackout", "I had no idea"),
-            (1, "Incorrect but recognized", "I remembered something but got it wrong"),
+            (1, "Wrong", "I got it wrong", "1 min"),
             (
-                2,
-                "Incorrect but familiar",
-                "The answer seemed familiar but I got it wrong",
+                4,
+                "Remembered",
+                "I got it right",
+                "4 days" if card.is_graduated else "1 day",
             ),
-            (3, "Correct with difficulty", "I got it right but struggled"),
-            (4, "Correct with hesitation", "I got it right after thinking"),
-            (5, "Perfect recall", "I knew it immediately"),
         ]
 
-        for quality, short_desc, long_desc in quality_options:
-            # Calculate what would happen with this quality
-            if card.is_new:
-                result = first_review(quality, datetime.utcnow())
-            else:
-                result = review(
-                    quality=quality,
-                    easiness=card.easiness,
-                    interval=card.interval,
-                    repetitions=card.repetitions,
-                    review_datetime=datetime.utcnow(),
-                )
-
-            options.append(
-                {
-                    "quality": quality,
-                    "short_description": short_desc,
-                    "long_description": long_desc,
-                    "next_interval": result["interval"],
-                    "next_review_date": result["review_datetime"],
-                    "new_easiness": result["easiness"],
-                }
-            )
-
-        return options
+        return [
+            {
+                "quality": quality,
+                "short_description": short_desc,
+                "long_description": long_desc,
+                "next_interval_text": interval_text,
+            }
+            for quality, short_desc, long_desc, interval_text in quality_options
+        ]
 
     @staticmethod
     def create_review_session(

@@ -354,6 +354,65 @@ async def delete_annotation(annotation_id: int, db: Session = Depends(get_db)):
     return {"message": "Annotation deleted successfully"}
 
 
+@app.delete("/files/{file_id}/annotations")
+async def delete_all_annotations(file_id: int, db: Session = Depends(get_db)):
+    """Delete all annotations for a specific file."""
+    try:
+        # Check if file exists
+        file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
+        if not file:
+            raise HTTPException(status_code=404, detail="File not found")
+
+        # Get all annotations for this file
+        annotations = db.query(Annotation).filter(Annotation.file_id == file_id).all()
+
+        if not annotations:
+            return {
+                "message": "No annotations found for this file",
+                "deleted_annotations": 0,
+                "deleted_study_cards": 0,
+            }
+
+        # Delete associated study cards first
+        annotation_ids = [annotation.id for annotation in annotations]
+        deleted_study_cards = 0
+
+        if annotation_ids:
+            # Delete study cards linked to these annotations
+            study_cards = (
+                db.query(StudyCard)
+                .filter(StudyCard.annotation_id.in_(annotation_ids))
+                .all()
+            )
+            deleted_study_cards = len(study_cards)
+
+            for card in study_cards:
+                # Delete associated card reviews first
+                db.query(CardReview).filter(CardReview.card_id == card.id).delete()
+                # Delete the study card
+                db.delete(card)
+
+        # Delete all annotations for this file
+        deleted_annotations = len(annotations)
+        db.query(Annotation).filter(Annotation.file_id == file_id).delete()
+
+        db.commit()
+
+        return {
+            "message": f"Successfully deleted all annotations for file {file_id}",
+            "deleted_annotations": deleted_annotations,
+            "deleted_study_cards": deleted_study_cards,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Error deleting annotations: {str(e)}"
+        )
+
+
 # Spaced Repetition Endpoints
 
 
@@ -387,16 +446,22 @@ async def get_due_cards(limit: int = 50, db: Session = Depends(get_db)):
         new_cards_response = [
             StudyCardResponse.from_orm(card) for card in cards_data["new_cards"]
         ]
+        learning_cards_response = [
+            StudyCardResponse.from_orm(card) for card in cards_data["learning_cards"]
+        ]
 
         return DueCardsResponse(
             due_cards=due_cards_response,
             new_cards=new_cards_response,
+            learning_cards=learning_cards_response,
             total_due=len(cards_data["due_cards"]),
             total_new=len(cards_data["new_cards"]),
+            total_learning=len(cards_data["learning_cards"]),
         )
+
     except Exception as e:
         raise HTTPException(
-            status_code=500, detail=f"Error getting due cards: {str(e)}"
+            status_code=500, detail=f"Failed to get due cards: {str(e)}"
         )
 
 

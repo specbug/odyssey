@@ -99,12 +99,19 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
             
             // Now get the due cards
             const cardsData = await apiService.getDueCards();
-            const allCards = [...(cardsData.due_cards || []), ...(cardsData.new_cards || [])];
+            console.log('Cards data received:', cardsData); // Debug log
+            
+            // Handle the updated response structure
+            const allCards = [
+                ...(cardsData.due_cards || []), 
+                ...(cardsData.new_cards || []),
+                ...(cardsData.learning_cards || [])
+            ];
             
             // Categorize cards properly
-            const newCards = allCards.filter(card => card.is_new);
-            const learningCards = allCards.filter(card => !card.is_new && card.is_learning);
-            const dueCards = allCards.filter(card => !card.is_new && !card.is_learning);
+            const newCards = cardsData.new_cards || [];
+            const learningCards = cardsData.learning_cards || [];
+            const dueCards = cardsData.due_cards || [];
             
             setNewCards(newCards);
             setLearningCards(learningCards);
