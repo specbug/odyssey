@@ -48,17 +48,22 @@ class SpacedRepetitionService:
         """Get cards that are due for review."""
         now = datetime.utcnow()
 
-        # Get cards that are due for review (not new)
+        # Get cards that are due for review (not new) with annotation relationship loaded
         due_cards = (
             db.query(StudyCard)
+            .join(Annotation, StudyCard.annotation_id == Annotation.id)
             .filter(StudyCard.next_review_date <= now, StudyCard.is_new == False)
             .limit(limit)
             .all()
         )
 
-        # Get new cards
+        # Get new cards with annotation relationship loaded
         new_cards = (
-            db.query(StudyCard).filter(StudyCard.is_new == True).limit(limit).all()
+            db.query(StudyCard)
+            .join(Annotation, StudyCard.annotation_id == Annotation.id)
+            .filter(StudyCard.is_new == True)
+            .limit(limit)
+            .all()
         )
 
         return {"due_cards": due_cards, "new_cards": new_cards}
@@ -101,10 +106,11 @@ class SpacedRepetitionService:
         card.interval = result["interval"]
         card.repetitions = result["repetitions"]
         card.last_review_date = datetime.utcnow()
-        
+
         # Convert string datetime to datetime object if needed
         if isinstance(result["review_datetime"], str):
             from dateutil.parser import parse
+
             card.next_review_date = parse(result["review_datetime"])
         else:
             card.next_review_date = result["review_datetime"]

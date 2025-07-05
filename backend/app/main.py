@@ -380,9 +380,17 @@ async def get_due_cards(limit: int = 50, db: Session = Depends(get_db)):
     try:
         cards_data = SpacedRepetitionService.get_due_cards(db, limit)
 
+        # Convert StudyCard objects to StudyCardResponse objects
+        due_cards_response = [
+            StudyCardResponse.from_orm(card) for card in cards_data["due_cards"]
+        ]
+        new_cards_response = [
+            StudyCardResponse.from_orm(card) for card in cards_data["new_cards"]
+        ]
+
         return DueCardsResponse(
-            due_cards=cards_data["due_cards"],
-            new_cards=cards_data["new_cards"],
+            due_cards=due_cards_response,
+            new_cards=new_cards_response,
             total_due=len(cards_data["due_cards"]),
             total_new=len(cards_data["new_cards"]),
         )

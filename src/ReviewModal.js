@@ -103,6 +103,44 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
         onClose();
     };
 
+    const handleViewInDocument = () => {
+        if (!currentCard?.annotation) return;
+        
+        // Close the modal first
+        onClose();
+        
+        // Try to scroll to the annotation after a short delay
+        setTimeout(() => {
+            const annotationId = currentCard.annotation.annotation_id;
+            const element = document.querySelector(`[data-annotation-id="${annotationId}"]`);
+            if (element) {
+                element.scrollIntoView({ 
+                    behavior: 'smooth', 
+                    block: 'center',
+                    inline: 'nearest'
+                });
+                // Briefly highlight the annotation
+                element.style.transition = 'background-color 0.3s ease';
+                element.style.backgroundColor = 'rgba(255, 77, 6, 0.2)';
+                setTimeout(() => {
+                    element.style.backgroundColor = '';
+                }, 2000);
+            }
+        }, 100);
+    };
+
+    // Render content with HTML support for images
+    const renderContent = (content) => {
+        if (!content) return 'No content available';
+        
+        // Check if content contains HTML (like images)
+        if (content.includes('<img') || content.includes('<br>')) {
+            return <div dangerouslySetInnerHTML={{ __html: content }} />;
+        }
+        
+        return content;
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -190,12 +228,8 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                                 
                                 <div className="flashcard">
                                     <div className="card-question-area">
-                                        <div className="question-indicator">
-                                            <span className="material-symbols-outlined">help</span>
-                                            <span>Question</span>
-                                        </div>
                                         <div className="question-content">
-                                            {currentCard.annotation?.question || 'No question available'}
+                                            {renderContent(currentCard.annotation?.question)}
                                         </div>
                                     </div>
                                     
@@ -209,17 +243,12 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                                     ) : (
                                         <>
                                             <div className="card-answer-area">
-                                                <div className="answer-indicator">
-                                                    <span className="material-symbols-outlined">lightbulb</span>
-                                                    <span>Answer</span>
-                                                </div>
                                                 <div className="answer-content">
-                                                    {currentCard.annotation?.answer || 'No answer available'}
+                                                    {renderContent(currentCard.annotation?.answer)}
                                                 </div>
                                             </div>
                                             
                                             <div className="review-section">
-                                                <p className="review-prompt">How well did you remember this?</p>
                                                 <div className="review-buttons">
                                                     <button 
                                                         className="difficulty-button hard"
@@ -247,7 +276,7 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                                 
                                 {showAnswer && (
                                     <div className="source-link">
-                                        <button className="source-button">
+                                        <button className="source-button" onClick={handleViewInDocument}>
                                             <span>View in Document</span>
                                             <span className="material-symbols-outlined">arrow_outward</span>
                                         </button>

@@ -295,6 +295,7 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
                                     key={i}
                                     onClick={(e) => { e.stopPropagation(); onHighlightClick(h.id); }}
                                     className={`highlight ${h.id === activeNoteId ? 'active' : ''}`}
+                                    data-annotation-id={h.id}
                                     style={{
                                         position: 'absolute',
                                         top: `${rect.top}px`,
