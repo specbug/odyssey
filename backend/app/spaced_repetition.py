@@ -19,7 +19,16 @@ class SpacedRepetitionService:
 
     @staticmethod
     def create_study_card(db: Session, annotation_id: int) -> StudyCard:
-        """Create a new study card from an annotation."""
+        """Create a new study card from an annotation.
+
+        Due to 1:1 constraint, each annotation can have exactly one study card.
+        If a study card already exists for this annotation, returns the existing one.
+        """
+        # Validate that annotation exists
+        annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
+        if not annotation:
+            raise ValueError(f"Annotation with ID {annotation_id} not found")
+
         # Check if study card already exists for this annotation
         existing_card = (
             db.query(StudyCard).filter(StudyCard.annotation_id == annotation_id).first()
@@ -28,24 +37,40 @@ class SpacedRepetitionService:
         if existing_card:
             return existing_card
 
-        # Create new study card
-        study_card = StudyCard(
-            annotation_id=annotation_id,
-            easiness=2.5,
-            interval=1,
-            repetitions=0,
-            is_new=True,
-            is_learning=False,
-            is_graduated=False,
-            next_review_date=datetime.utcnow(),  # New cards available immediately
-            learning_step=0,  # Track which learning step we're on
-        )
+        # Create new study card with required annotation_id
+        try:
+            study_card = StudyCard(
+                annotation_id=annotation_id,  # Now required (NOT NULL)
+                easiness=2.5,
+                interval=1,
+                repetitions=0,
+                is_new=True,
+                is_learning=False,
+                is_graduated=False,
+                next_review_date=datetime.utcnow(),  # New cards available immediately
+                learning_step=0,  # Track which learning step we're on
+            )
 
-        db.add(study_card)
-        db.commit()
-        db.refresh(study_card)
+            db.add(study_card)
+            db.commit()
+            db.refresh(study_card)
 
-        return study_card
+            return study_card
+
+        except Exception as e:
+            db.rollback()
+            # Check if it's a constraint violation (another card was created concurrently)
+            existing_card = (
+                db.query(StudyCard)
+                .filter(StudyCard.annotation_id == annotation_id)
+                .first()
+            )
+            if existing_card:
+                return existing_card
+            else:
+                raise ValueError(
+                    f"Failed to create study card for annotation {annotation_id}: {str(e)}"
+                )
 
     @staticmethod
     def get_due_cards(db: Session, limit: int = 50) -> Dict[str, List[StudyCard]]:

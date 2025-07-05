@@ -51,12 +51,22 @@ class Annotation(Base):
 
 
 class StudyCard(Base):
-    """A card that can be studied using spaced repetition."""
+    """A card that can be studied using spaced repetition.
+
+    Each study card has a 1:1 relationship with an annotation.
+    When an annotation is deleted, its study card is automatically deleted (CASCADE).
+    """
 
     __tablename__ = "study_cards"
 
     id = Column(Integer, primary_key=True, index=True)
-    annotation_id = Column(Integer, ForeignKey("annotations.id"), index=True)
+    annotation_id = Column(
+        Integer,
+        ForeignKey("annotations.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
 
     # SM-2 Algorithm fields
     easiness = Column(Float, default=2.5)  # Easiness factor (default 2.5)
@@ -79,8 +89,13 @@ class StudyCard(Base):
     next_review_date = Column(DateTime(timezone=True))
 
     # Relationships
-    annotation = relationship("Annotation", backref="study_cards")
-    reviews = relationship("CardReview", back_populates="card")
+    annotation = relationship("Annotation", backref="study_card")  # Changed to singular
+    reviews = relationship(
+        "CardReview",
+        back_populates="card",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
     def __repr__(self):
         return f"<StudyCard(id={self.id}, annotation_id={self.annotation_id}, interval={self.interval})>"
@@ -114,8 +129,12 @@ class CardReview(Base):
     __tablename__ = "card_reviews"
 
     id = Column(Integer, primary_key=True, index=True)
-    card_id = Column(Integer, ForeignKey("study_cards.id"), index=True)
-    session_id = Column(Integer, ForeignKey("review_sessions.id"), index=True)
+    card_id = Column(
+        Integer, ForeignKey("study_cards.id", ondelete="CASCADE"), index=True
+    )
+    session_id = Column(
+        Integer, ForeignKey("review_sessions.id", ondelete="CASCADE"), index=True
+    )
 
     # Review data
     quality = Column(Integer)  # 0-5 quality rating from SM-2

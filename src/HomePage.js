@@ -103,12 +103,7 @@ const HomePage = ({ onFileSelect }) => {
             {files.length === 0 ? (
                 <div className="empty-state">
                     <div className="empty-icon">📄</div>
-                    <h2>No PDFs yet</h2>
-                    <p>Upload your first PDF to get started with annotations and note-taking</p>
-                    <div className="upload-prompt">
-                        <div className="upload-icon">⬆️</div>
-                        <span>Use the upload button in the toolbar above</span>
-                    </div>
+                    <h2>Nothing here</h2>
                 </div>
             ) : (
                 <div className="files-grid">
