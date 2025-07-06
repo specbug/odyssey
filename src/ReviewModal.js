@@ -264,6 +264,16 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                         <div className="brand-section">
                             {currentCard && !reviewComplete && (() => {
                                 const allCards = [...newCards, ...learningCards, ...dueCards];
+                                
+                                // Only show asterisk if there are actually cards to review
+                                if (allCards.length === 0) {
+                                    return (
+                                        <div className="header-logo">
+                                            <img src="/logo.svg" alt="Odyssey Logo" className="logo-svg" />
+                                        </div>
+                                    );
+                                }
+                                
                                 const currentIndex = allCards.findIndex(card => card.id === currentCard.id);
                                 const currentStep = currentIndex + 1;
                                 
@@ -278,8 +288,10 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                                     />
                                 );
                             })()}
-                            {!currentCard && !reviewComplete && (
-                                <span className="material-icons infinity-icon">all_inclusive</span>
+                            {(!currentCard && !reviewComplete) && (
+                                <div className="header-logo">
+                                    <img src="/logo.svg" alt="Odyssey Logo" className="logo-svg" />
+                                </div>
                             )}
                         </div>
                         
@@ -325,16 +337,30 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                         </div>
                     ) : reviewComplete ? (
                         <div className="completion-state">
-                            <div className="completion-asterisk">
-                                <AsteriskProgressBar 
-                                    totalSteps={Math.max(1, newCards.length + learningCards.length + dueCards.length)}
-                                    currentStep={Math.max(1, newCards.length + learningCards.length + dueCards.length)}
-                                    size={100}
-                                    activeColor="rgba(255, 77, 6, 0.7)"
-                                    inactiveColor="rgba(0, 0, 0, 0.05)"
-                                    className="completion-asterisk-element"
-                                />
-                            </div>
+                            {(() => {
+                                const totalCards = newCards.length + learningCards.length + dueCards.length;
+                                
+                                if (totalCards === 0) {
+                                    return (
+                                        <div className="completion-logo">
+                                            <img src="/logo.svg" alt="Odyssey Logo" className="logo-svg-large" />
+                                        </div>
+                                    );
+                                }
+                                
+                                return (
+                                    <div className="completion-asterisk">
+                                        <AsteriskProgressBar 
+                                            totalSteps={totalCards}
+                                            currentStep={totalCards}
+                                            size={100}
+                                            activeColor="rgba(255, 77, 6, 0.7)"
+                                            inactiveColor="rgba(0, 0, 0, 0.05)"
+                                            className="completion-asterisk-element"
+                                        />
+                                    </div>
+                                );
+                            })()}
                             <h2>Review Complete</h2>
                             <div className="completion-stats">
                                 <div className="completion-summary">

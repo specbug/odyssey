@@ -88,6 +88,19 @@
     padding: 0;
 }
 
+.header-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.logo-svg {
+    width: 35px;
+    height: 35px;
+    display: block;
+}
+
 .infinity-icon {
     font-size: 18px !important;
     color: #ff4d06;
@@ -413,6 +426,32 @@
     height: 100px;
 }
 
+.completion-logo {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 24px;
+    height: 100px;
+}
+
+.logo-svg-large {
+    width: 100px;
+    height: 100px;
+    display: block;
+    animation: logoAppear 0.8s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+@keyframes logoAppear {
+    from {
+        transform: scale(0.8);
+        opacity: 0.7;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
 .completion-asterisk-element {
     animation: asteriskTravel 0.8s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
 }
@@ -719,6 +758,11 @@
         transform: scale(0.9);
     }
 
+    .header-logo .logo-svg {
+        width: 32px;
+        height: 32px;
+    }
+
     .brand-tagline {
         font-size: 10px;
     }
@@ -793,6 +837,16 @@
         margin-bottom: 20px;
     }
 
+    .completion-logo {
+        height: 80px;
+        margin-bottom: 20px;
+    }
+
+    .logo-svg-large {
+        width: 80px;
+        height: 80px;
+    }
+
     @keyframes asteriskTravel {
         from {
             transform: translate(-200px, -140px) scale(0.32);
@@ -816,6 +870,11 @@
 
     .header-asterisk {
         transform: scale(0.8);
+    }
+
+    .header-logo .logo-svg {
+        width: 28px;
+        height: 28px;
     }
 
     .close-button {
@@ -888,6 +947,16 @@
     .completion-asterisk {
         height: 70px;
         margin-bottom: 16px;
+    }
+
+    .completion-logo {
+        height: 70px;
+        margin-bottom: 16px;
+    }
+
+    .logo-svg-large {
+        width: 70px;
+        height: 70px;
     }
 
     @keyframes asteriskTravel {
