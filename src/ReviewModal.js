@@ -237,7 +237,7 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                 </div>
 
                 {/* Static Progress at Top */}
-                {currentCard && (
+                {currentCard && !reviewComplete && (
                     <div className="modal-progress-section">
                         <div className="card-progress-timeline">
                             <div className="progress-dots">
