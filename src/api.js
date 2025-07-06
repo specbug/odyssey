@@ -261,6 +261,32 @@ class ApiService {
         }
     }
 
+    async getCardTimeline(cardId) {
+        try {
+            const response = await fetch(`${this.baseUrl}/study-cards/${cardId}/timeline`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch card timeline');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Get card timeline error:', error);
+            throw error;
+        }
+    }
+
+    async getCardProgression(cardId, steps = 4) {
+        try {
+            const response = await fetch(`${this.baseUrl}/study-cards/${cardId}/progression?steps=${steps}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch card progression');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Get card progression error:', error);
+            throw error;
+        }
+    }
+
     async createReviewSession(sessionData = {}) {
         try {
             const response = await fetch(`${this.baseUrl}/review-sessions`, {

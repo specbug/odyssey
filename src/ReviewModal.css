@@ -39,7 +39,7 @@
     border: 1px solid rgba(255, 255, 255, 0.8);
     display: flex;
     flex-direction: column;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     overflow: hidden;
     transform: scale(0.95) translateY(10px);
     animation: modalSlideIn 0.4s ease-out forwards;
@@ -58,6 +58,10 @@
     background: #faf9f7;
 }
 
+.review-modal-header.compact {
+    padding: 8px 16px;
+}
+
 .header-content {
     display: flex;
     align-items: center;
@@ -68,13 +72,22 @@
 .brand-section {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .infinity-icon {
-    font-size: 22px !important;
+    font-size: 18px !important;
     color: #ff4d06;
     font-family: 'Material Icons' !important;
+}
+
+.brand-tagline {
+    font-size: 11px;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 .brand-text {
@@ -91,6 +104,141 @@
     letter-spacing: 0.5px;
 }
 
+/* Timeline Visualization */
+.timeline-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    max-width: 180px;
+    padding: 0 12px;
+}
+
+.timeline-container.loading {
+    opacity: 0.5;
+}
+
+.timeline-dots {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
+    padding: 0 8px;
+}
+
+.timeline-dot {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    position: relative;
+}
+
+
+
+.dot-marker {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.2);
+    position: relative;
+    z-index: 1;
+}
+
+.loading-dot .dot-marker {
+    background: rgba(0, 0, 0, 0.1);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 0.2; }
+    50% { opacity: 0.6; }
+}
+
+.dot-label {
+    font-size: 10px;
+    font-weight: 300;
+    color: rgba(0, 0, 0, 0.6);
+    font-feature-settings: 'tnum' 1;
+    white-space: nowrap;
+    letter-spacing: 0.2px;
+    font-family: 'R Plex Mono', monospace;
+}
+
+.loading-dot .dot-label {
+    background: rgba(0, 0, 0, 0.05);
+    color: transparent;
+    border-radius: 3px;
+    width: 20px;
+    height: 12px;
+}
+
+/* Remove old timeline styles */
+.timeline-placeholder,
+.timeline-loading,
+.timeline-header,
+.timeline-title,
+.timeline-points,
+.timeline-point,
+.timeline-interval,
+.timeline-label,
+.timeline-separator {
+    display: none;
+}
+
+/* Header Right Section */
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+}
+
+/* Compact Stats */
+.stats-compact {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.stat-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    min-width: 20px;
+}
+
+.stat-value {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1;
+    font-feature-settings: 'tnum' 1;
+    font-family: 'R Plex Mono', monospace;
+}
+
+.stat-item.due .stat-value {
+    color: #ff4d06;
+}
+
+.stat-item.learning .stat-value {
+    color: #007aff;
+}
+
+.stat-item.new .stat-value {
+    color: #34c759;
+}
+
+.stat-name {
+    font-size: 8px;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.4);
+    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    font-family: 'Dr', sans-serif;
+}
+
+/* Legacy stats section for backwards compatibility */
 .stats-section {
     display: flex;
     gap: 20px;
@@ -115,6 +263,7 @@
     color: rgba(0, 0, 0, 0.9);
     line-height: 1;
     font-feature-settings: 'tnum' 1;
+    font-family: 'R Plex Mono', monospace;
 }
 
 .stat-card.due .stat-number {
@@ -138,16 +287,17 @@
 }
 
 .close-button {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     background: none;
     border: none;
-    border-radius: 8px;
+    border-radius: 6px;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     transition: all 0.2s ease-out;
+    flex-shrink: 0;
 }
 
 .close-button:hover {
@@ -155,7 +305,7 @@
 }
 
 .close-button .material-symbols-outlined {
-    font-size: 20px;
+    font-size: 18px;
     color: rgba(0, 0, 0, 0.6);
 }
 
@@ -207,16 +357,19 @@
     font-size: 14px;
     font-weight: 500;
     color: rgba(0, 0, 0, 0.5);
+    font-family: 'Dr', sans-serif;
 }
 
 .current-position {
     color: #ff4d06;
     font-weight: 600;
     font-feature-settings: 'tnum' 1;
+    font-family: 'R Plex Mono', monospace;
 }
 
 .total-cards {
     font-feature-settings: 'tnum' 1;
+    font-family: 'R Plex Mono', monospace;
 }
 
 /* Content Area */
@@ -306,6 +459,7 @@
     color: rgba(0, 0, 0, 0.9);
     line-height: 1;
     font-feature-settings: 'tnum' 1;
+    font-family: 'R Plex Mono', monospace;
 }
 
 .cards-label,
@@ -531,50 +685,98 @@
 @media (max-width: 600px) {
     .review-modal {
         width: 95%;
-        max-width: none;
+        max-height: 95vh;
     }
-    
+
     .review-modal-header {
-        padding: 20px 24px;
+        padding: 8px 12px;
     }
-    
+
+    .review-modal-header.compact {
+        padding: 6px 12px;
+    }
+
     .modal-progress-section {
-        padding: 16px 24px;
+        padding: 16px 20px;
     }
-    
+
     .header-content {
-        gap: 16px;
+        gap: 12px;
     }
-    
+
     .brand-section {
-        gap: 8px;
+        gap: 6px;
     }
-    
+
+    .infinity-icon {
+        font-size: 16px !important;
+    }
+
+    .brand-tagline {
+        font-size: 10px;
+    }
+
+    /* Timeline responsive adjustments */
+    .timeline-container {
+        max-width: 160px;
+        padding: 0 10px;
+    }
+
+    .timeline-dots {
+        padding: 0 6px;
+    }
+
+    .dot-marker {
+        width: 5px;
+        height: 5px;
+    }
+
+    .dot-label {
+        font-size: 10px;
+    }
+
+    .loading-dot .dot-label {
+        width: 16px;
+        height: 10px;
+    }
+
+    /* Compact stats responsive */
+    .stats-compact {
+        gap: 6px;
+    }
+
+    .stat-value {
+        font-size: 12px;
+    }
+
+    .stat-name {
+        font-size: 7px;
+    }
+
     .stat-grid {
-        gap: 16px;
+        gap: 12px;
     }
-    
+
     .stat-number {
-        font-size: 20px;
+        font-size: 18px;
     }
-    
+
     .review-content {
-        padding: 32px 24px;
-        min-height: 300px;
+        padding: 16px;
     }
-    
+
     .question-content {
         font-size: 20px;
     }
-    
+
     .answer-content {
         font-size: 18px;
     }
-    
+
     .card-actions {
         gap: 24px;
     }
-    
+
     .completion-stats {
         gap: 24px;
     }
@@ -582,33 +784,73 @@
 
 @media (max-width: 480px) {
     .header-content {
-        flex-direction: column;
-        align-items: center;
-        gap: 12px;
+        gap: 8px;
     }
-    
-    .close-button {
-        position: absolute;
-        top: 20px;
-        right: 20px;
-    }
-    
+
     .brand-section {
-        justify-content: center;
+        gap: 4px;
     }
-    
+
+    .close-button {
+        width: 24px;
+        height: 24px;
+    }
+
+    .close-button .material-symbols-outlined {
+        font-size: 16px;
+    }
+
+    /* Timeline mobile adjustments */
+    .timeline-container {
+        max-width: 140px;
+        padding: 0 8px;
+    }
+
+    .timeline-dots {
+        padding: 0 4px;
+    }
+
+    .dot-marker {
+        width: 4px;
+        height: 4px;
+    }
+
+    .dot-label {
+        font-size: 9px;
+    }
+
+    .loading-dot .dot-label {
+        width: 14px;
+        height: 9px;
+    }
+
+    /* Compact stats mobile */
+    .stats-compact {
+        gap: 4px;
+    }
+
+    .stat-value {
+        font-size: 11px;
+    }
+
+    .stat-name {
+        font-size: 6px;
+    }
+
+    .header-right {
+        gap: 8px;
+    }
+
     .stats-section {
-        width: 100%;
-        justify-content: center;
+        display: none; /* Hide legacy stats on very small screens */
     }
-    
+
     .card-actions {
-        flex-direction: column;
         gap: 20px;
     }
-    
+
     .card-actions .action-text-button,
     .card-actions .source-text-button {
-        justify-content: center;
+        font-size: 14px;
     }
 } 

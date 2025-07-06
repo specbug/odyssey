@@ -348,7 +348,9 @@ async def update_annotation(
 async def delete_annotation(annotation_id: int, db: Session = Depends(get_db)):
     """Delete an annotation and its associated study card."""
     try:
-        db_annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
+        db_annotation = (
+            db.query(Annotation).filter(Annotation.id == annotation_id).first()
+        )
         if not db_annotation:
             raise HTTPException(status_code=404, detail="Annotation not found")
 
@@ -374,7 +376,7 @@ async def delete_annotation(annotation_id: int, db: Session = Depends(get_db)):
             message += " (associated study card also deleted)"
 
         return {"message": message}
-    
+
     except HTTPException:
         raise
     except Exception as e:
@@ -521,18 +523,40 @@ async def get_card_timeline(card_id: int, db: Session = Depends(get_db)):
 
         # Get timeline data from the service
         timeline_data = SpacedRepetitionService.get_card_timeline(card)
-        
+
         # Create timeline response
         timeline = CardTimeline(**timeline_data)
-        
+
         return TimelineResponse(
-            success=True,
-            timeline=timeline,
-            message="Timeline generated successfully"
+            success=True, timeline=timeline, message="Timeline generated successfully"
         )
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error generating timeline: {str(e)}"
+        )
+
+
+@app.get("/study-cards/{card_id}/progression")
+async def get_card_progression(
+    card_id: int, steps: int = 4, db: Session = Depends(get_db)
+):
+    """Get progression intervals for a study card assuming user remembers each review correctly."""
+    try:
+        card = db.query(StudyCard).filter(StudyCard.id == card_id).first()
+        if not card:
+            raise HTTPException(status_code=404, detail="Study card not found")
+
+        # Get progression data from the service
+        progression_data = SpacedRepetitionService.get_card_progression(card, steps)
+
+        return {
+            "success": True,
+            "progression": progression_data,
+            "message": "Progression generated successfully",
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error generating progression: {str(e)}"
         )
 
 

@@ -57,6 +57,58 @@ const NoteContent = React.memo(({ content, className }) => {
     return <div className={`note-content ${className}`}>{renderLatex(content)}</div>;
 });
 
+// Timeline Component
+const TimelineVisualization = ({ currentCard }) => {
+    const [progression, setProgression] = useState(null);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (currentCard?.id) {
+            loadProgression();
+        }
+    }, [currentCard?.id]);
+
+    const loadProgression = async () => {
+        if (!currentCard?.id) return;
+        
+        setLoading(true);
+        try {
+            const progressionData = await apiService.getCardProgression(currentCard.id, 4);
+            setProgression(progressionData.progression);
+        } catch (error) {
+            console.error('Failed to load progression:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading || !progression) {
+        return (
+            <div className="timeline-container loading">
+                <div className="timeline-dots">
+                    <div className="timeline-dot loading-dot"></div>
+                    <div className="timeline-dot loading-dot"></div>
+                    <div className="timeline-dot loading-dot"></div>
+                    <div className="timeline-dot loading-dot"></div>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="timeline-container">
+            <div className="timeline-dots">
+                {progression.progression_intervals.map((interval, index) => (
+                    <div key={index} className="timeline-dot">
+                        <div className="dot-marker"></div>
+                        <div className="dot-label">{interval.interval_text}</div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+};
+
 const ReviewModal = ({ isOpen, onClose, fileId }) => {
     const [currentCard, setCurrentCard] = useState(null);
     const [showAnswer, setShowAnswer] = useState(false);
@@ -204,34 +256,39 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
     return (
         <div className="review-modal-overlay" onClick={onClose}>
             <div className="review-modal" onClick={(e) => e.stopPropagation()}>
-                {/* Premium Header */}
-                <div className="review-modal-header">
+                {/* Compact Header with Timeline */}
+                <div className="review-modal-header compact">
                     <div className="header-content">
-                    <div className="brand-section">
-                            <div className="brand-text">
+                        {/* Left: Brand */}
+                        <div className="brand-section">
                             <span className="material-icons infinity-icon">all_inclusive</span>
-                            </div>
-                        </div>
-                        <div className="stats-section">
-                            <div className="stat-grid">
-                                <div className="stat-card new">
-                                    <span className="stat-number">{newCards.length}</span>
-                                    <span className="stat-label">New</span>
-                                </div>
-                                <div className="stat-card learning">
-                                    <span className="stat-number">{learningCards.length}</span>
-                                    <span className="stat-label">Learning</span>
-                                </div>
-                                <div className="stat-card due">
-                                    <span className="stat-number">{dueCards.length}</span>
-                                    <span className="stat-label">Due</span>
-                                </div>
-                            </div>
                         </div>
                         
-                        <button className="close-button" onClick={onClose}>
-                            <span className="material-symbols-outlined">close</span>
-                        </button>
+                        {/* Center: Timeline */}
+                        {currentCard && !reviewComplete && (
+                            <TimelineVisualization currentCard={currentCard} />
+                        )}
+                        
+                        {/* Right: Compact Stats + Close */}
+                        <div className="header-right">
+                            <div className="stats-compact">
+                                <div className="stat-item new">
+                                    <span className="stat-value">{newCards.length}</span>
+                                    <span className="stat-name">New</span>
+                                </div>
+                                <div className="stat-item learning">
+                                    <span className="stat-value">{learningCards.length}</span>
+                                    <span className="stat-name">Learning</span>
+                                </div>
+                                <div className="stat-item due">
+                                    <span className="stat-value">{dueCards.length}</span>
+                                    <span className="stat-name">Due</span>
+                                </div>
+                            </div>
+                            <button className="close-button" onClick={onClose}>
+                                <span className="material-symbols-outlined">close</span>
+                            </button>
+                        </div>
                     </div>
                 </div>
 

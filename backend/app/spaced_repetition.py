@@ -119,6 +119,101 @@ class SpacedRepetitionService:
         return timeline_data
 
     @staticmethod
+    def get_card_progression(card: StudyCard, steps: int = 4) -> Dict:
+        """
+        Calculate future progression intervals assuming user remembers each review correctly.
+
+        Args:
+            card: The study card to calculate progression for
+            steps: Number of future intervals to calculate (default 4)
+
+        Returns:
+            Dictionary containing progression intervals
+        """
+        current_time = datetime.utcnow()
+        progression_intervals = []
+
+        # Create a copy of the card for simulation
+        simulated_card = SpacedRepetitionService._create_card_copy(card)
+
+        for step in range(steps):
+            # Simulate a successful review with quality 4 (Easy/Remembered)
+            SpacedRepetitionService._simulate_successful_review(simulated_card, 4)
+
+            # Calculate interval information
+            if simulated_card.is_learning:
+                # Learning cards use minute intervals
+                if simulated_card.learning_step < len(
+                    SpacedRepetitionService.LEARNING_INTERVALS
+                ):
+                    interval_minutes = SpacedRepetitionService.LEARNING_INTERVALS[
+                        simulated_card.learning_step
+                    ]
+                else:
+                    interval_minutes = 1440  # 1 day
+
+                # Convert to abbreviated format
+                if interval_minutes < 60:
+                    interval_text = f"{interval_minutes}m"
+                elif interval_minutes < 1440:
+                    interval_text = f"{interval_minutes // 60}h"
+                else:
+                    interval_text = f"{interval_minutes // 1440}d"
+
+                interval_days = None
+            else:
+                # Graduated cards use day intervals
+                interval_days = simulated_card.interval
+                interval_minutes = None
+
+                # Convert to abbreviated format
+                if interval_days < 7:
+                    interval_text = f"{interval_days}d"
+                elif interval_days < 30:
+                    weeks = interval_days // 7
+                    remaining_days = interval_days % 7
+                    if remaining_days == 0:
+                        interval_text = f"{weeks}w"
+                    else:
+                        interval_text = f"{weeks}w{remaining_days}d"
+                elif interval_days < 365:
+                    months = interval_days // 30
+                    remaining_days = interval_days % 30
+                    if remaining_days == 0:
+                        interval_text = f"{months}mo"
+                    else:
+                        interval_text = f"{months}mo{remaining_days}d"
+                else:
+                    years = interval_days // 365
+                    remaining_days = interval_days % 365
+                    if remaining_days == 0:
+                        interval_text = f"{years}y"
+                    else:
+                        interval_text = f"{years}y{remaining_days}d"
+
+            progression_intervals.append(
+                {
+                    "step": step + 1,
+                    "interval_text": interval_text,
+                    "interval_days": interval_days,
+                    "interval_minutes": interval_minutes,
+                    "next_review_date": simulated_card.next_review_date,
+                    "card_state": SpacedRepetitionService._get_card_state_label(
+                        simulated_card
+                    ),
+                    "easiness": simulated_card.easiness,
+                    "repetitions": simulated_card.repetitions,
+                }
+            )
+
+        return {
+            "card_id": card.id,
+            "current_state": SpacedRepetitionService._get_card_state_label(card),
+            "progression_intervals": progression_intervals,
+            "generated_at": current_time,
+        }
+
+    @staticmethod
     def _create_card_copy(card: StudyCard) -> StudyCard:
         """Create a copy of a study card for simulation purposes."""
         simulated_card = StudyCard(
