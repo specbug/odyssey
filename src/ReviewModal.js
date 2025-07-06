@@ -204,9 +204,15 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
     return (
         <div className="review-modal-overlay" onClick={onClose}>
             <div className="review-modal" onClick={(e) => e.stopPropagation()}>
-                {/* Simplified Header */}
+                {/* Premium Header */}
                 <div className="review-modal-header">
                     <div className="header-content">
+                    <div className="brand-section">
+                            <div className="brand-text">
+                            <span className="material-icons infinity-icon">all_inclusive</span>
+                                <p className="tagline">Spaced Repetition</p>
+                            </div>
+                        </div>
                         <div className="stats-section">
                             <div className="stat-grid">
                                 <div className="stat-card new">
@@ -242,13 +248,7 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                         </div>
                     ) : reviewComplete ? (
                         <div className="completion-state">
-                            <div className="completion-visual">
-                                <div className="success-icon-container">
-                                    <span className="material-icons success-icon">all_inclusive</span>
-                                </div>
-                                <div className="completion-rings"></div>
-                            </div>
-                            <h2>Session Complete</h2>
+                            <h2>Review Complete</h2>
                             <div className="completion-stats">
                                 <div className="completion-summary">
                                     <span className="cards-reviewed">{sessionStats.total}</span>

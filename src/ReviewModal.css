@@ -74,6 +74,51 @@
     gap: 24px;
 }
 
+.brand-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+
+.infinity-icon {
+    font-size: 30px !important;
+    color: #ff4d06;
+    text-shadow: 0 0 8px rgba(255, 77, 6, 0.2);
+    font-family: 'Material Icons' !important;
+    text-align: center;
+}
+
+.brand-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.app-name {
+    font-family: 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    background: linear-gradient(135deg, #ff4d06 0%, #ff6b35 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin: 0;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+.tagline {
+    font-family: 'IBM Plex Sans', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(0, 0, 0, 0.5);
+    margin: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    text-align: center;
+}
+
 .stats-section {
     flex: 1;
     display: flex;
@@ -98,17 +143,17 @@
     transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
+.stat-card.due {
+    background: linear-gradient(135deg, rgba(255, 77, 6, 0.04) 0%, rgba(255, 77, 6, 0.02) 100%);
+    border-color: rgba(255, 77, 6, 0.08);
+}
+
 .stat-card.new {
     background: linear-gradient(135deg, rgba(0, 122, 255, 0.04) 0%, rgba(0, 122, 255, 0.02) 100%);
     border-color: rgba(0, 122, 255, 0.08);
 }
 
-.stat-card.learning {
-    background: linear-gradient(135deg, rgba(255, 77, 6, 0.04) 0%, rgba(255, 77, 6, 0.02) 100%);
-    border-color: rgba(255, 77, 6, 0.08);
-}
-
-.stat-card.due {
+.stat-card.today {
     background: linear-gradient(135deg, rgba(52, 199, 89, 0.04) 0%, rgba(52, 199, 89, 0.02) 100%);
     border-color: rgba(52, 199, 89, 0.08);
 }
@@ -294,6 +339,7 @@
 
 .cards-reviewed,
 .accuracy-percentage {
+    font-family: 'R Plex Mono', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     font-size: 24px;
     font-weight: 700;
     color: rgba(0, 0, 0, 0.9);
@@ -303,6 +349,7 @@
 
 .cards-label,
 .accuracy-label {
+    font-family: 'IBM Plex Sans', 'Dr', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     font-size: 12px;
     font-weight: 600;
     color: rgba(0, 0, 0, 0.4);
@@ -401,45 +448,11 @@
     color: rgba(0, 0, 0, 0.9);
     line-height: 1.4;
     letter-spacing: -0.01em;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    max-width: 100%;
-}
-
-.question-content img,
-.answer-content img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 8px;
-    margin: 8px 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .answer-content {
     font-weight: 400;
     color: rgba(0, 0, 0, 0.8);
-}
-
-/* Note content styling for LaTeX and rich content */
-.note-content {
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-}
-
-.note-content .katex {
-    font-size: 1em;
-}
-
-.note-content .katex-display {
-    margin: 1em 0;
-}
-
-.note-content img {
-    max-width: 100%;
-    height: auto;
-    border-radius: 8px;
-    margin: 8px 0;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .reveal-section {
@@ -703,8 +716,12 @@
         gap: 16px;
     }
     
-    .stats-section {
-        justify-content: center;
+    .brand-section {
+        gap: 12px;
+    }
+    
+    .app-name {
+        font-size: 18px;
     }
     
     .stat-grid {
@@ -755,6 +772,10 @@
         position: absolute;
         top: 24px;
         right: 24px;
+    }
+    
+    .brand-section {
+        justify-content: center;
     }
     
     .stats-section {
