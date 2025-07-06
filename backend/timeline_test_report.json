@@ -1,0 +1,530 @@
+{
+  "generated_at": "2025-07-06T11:32:01.851437",
+  "test_cards": [
+    {
+      "card_id": 10,
+      "current_state": "new",
+      "current_interval": 1,
+      "current_easiness": 2.5,
+      "current_repetitions": 0,
+      "timeline_points": [
+        {
+          "quality": 0,
+          "quality_label": "Blackout",
+          "next_review_date": "2025-07-06 11:33:01.851490",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 1,
+          "quality_label": "Wrong",
+          "next_review_date": "2025-07-06 11:33:01.851524",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 2,
+          "quality_label": "Hard",
+          "next_review_date": "2025-07-06 11:33:01.851545",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 3,
+          "quality_label": "Good",
+          "next_review_date": "2025-07-07 11:32:01.851567",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.5,
+          "repetitions_after": 1
+        },
+        {
+          "quality": 4,
+          "quality_label": "Easy",
+          "next_review_date": "2025-07-07 11:32:01.851587",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.5,
+          "repetitions_after": 1
+        },
+        {
+          "quality": 5,
+          "quality_label": "Perfect",
+          "next_review_date": "2025-07-07 11:32:01.851606",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.5,
+          "repetitions_after": 1
+        }
+      ]
+    },
+    {
+      "card_id": 11,
+      "current_state": "learning",
+      "current_interval": 1,
+      "current_easiness": 2.3,
+      "current_repetitions": 0,
+      "timeline_points": [
+        {
+          "quality": 0,
+          "quality_label": "Blackout",
+          "next_review_date": "2025-07-06 11:33:01.851630",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.0999999999999996,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 1,
+          "quality_label": "Wrong",
+          "next_review_date": "2025-07-06 11:33:01.851650",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.0999999999999996,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 2,
+          "quality_label": "Hard",
+          "next_review_date": "2025-07-06 11:33:01.851669",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.0999999999999996,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 3,
+          "quality_label": "Good",
+          "next_review_date": "2025-07-06 11:42:01.851688",
+          "interval_days": null,
+          "interval_minutes": 10,
+          "interval_text": "10 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 4,
+          "quality_label": "Easy",
+          "next_review_date": "2025-07-10 11:32:01.851707",
+          "interval_days": 4,
+          "interval_minutes": null,
+          "interval_text": "4 days",
+          "card_state": "graduated",
+          "easiness_after": 2.3,
+          "repetitions_after": 2
+        },
+        {
+          "quality": 5,
+          "quality_label": "Perfect",
+          "next_review_date": "2025-07-10 11:32:01.851725",
+          "interval_days": 4,
+          "interval_minutes": null,
+          "interval_text": "4 days",
+          "card_state": "graduated",
+          "easiness_after": 2.3,
+          "repetitions_after": 2
+        }
+      ]
+    },
+    {
+      "card_id": 12,
+      "current_state": "graduated",
+      "current_interval": 4,
+      "current_easiness": 2.5,
+      "current_repetitions": 2,
+      "timeline_points": [
+        {
+          "quality": 0,
+          "quality_label": "Blackout",
+          "next_review_date": "2025-07-06 11:33:01.851749",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 1,
+          "quality_label": "Wrong",
+          "next_review_date": "2025-07-06 11:33:01.851769",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 2,
+          "quality_label": "Hard",
+          "next_review_date": "2025-07-06 11:33:01.851800",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 3,
+          "quality_label": "Good",
+          "next_review_date": "2025-07-16 11:32:01.851846",
+          "interval_days": 10,
+          "interval_minutes": null,
+          "interval_text": "10 days",
+          "card_state": "graduated",
+          "easiness_after": 2.36,
+          "repetitions_after": 3
+        },
+        {
+          "quality": 4,
+          "quality_label": "Easy",
+          "next_review_date": "2025-07-16 11:32:01.851884",
+          "interval_days": 10,
+          "interval_minutes": null,
+          "interval_text": "10 days",
+          "card_state": "graduated",
+          "easiness_after": 2.5,
+          "repetitions_after": 3
+        },
+        {
+          "quality": 5,
+          "quality_label": "Perfect",
+          "next_review_date": "2025-07-16 11:32:01.851906",
+          "interval_days": 10,
+          "interval_minutes": null,
+          "interval_text": "10 days",
+          "card_state": "graduated",
+          "easiness_after": 2.6,
+          "repetitions_after": 3
+        }
+      ]
+    },
+    {
+      "card_id": 13,
+      "current_state": "new",
+      "current_interval": 1,
+      "current_easiness": 2.3,
+      "current_repetitions": 0,
+      "timeline_points": [
+        {
+          "quality": 0,
+          "quality_label": "Blackout",
+          "next_review_date": "2025-07-06 11:33:01.851932",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.0999999999999996,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 1,
+          "quality_label": "Wrong",
+          "next_review_date": "2025-07-06 11:33:01.851953",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.0999999999999996,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 2,
+          "quality_label": "Hard",
+          "next_review_date": "2025-07-06 11:33:01.851972",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.0999999999999996,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 3,
+          "quality_label": "Good",
+          "next_review_date": "2025-07-06 11:42:01.851991",
+          "interval_days": null,
+          "interval_minutes": 10,
+          "interval_text": "10 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 4,
+          "quality_label": "Easy",
+          "next_review_date": "2025-07-10 11:32:01.852008",
+          "interval_days": 4,
+          "interval_minutes": null,
+          "interval_text": "4 days",
+          "card_state": "graduated",
+          "easiness_after": 2.3,
+          "repetitions_after": 2
+        },
+        {
+          "quality": 5,
+          "quality_label": "Perfect",
+          "next_review_date": "2025-07-10 11:32:01.852026",
+          "interval_days": 4,
+          "interval_minutes": null,
+          "interval_text": "4 days",
+          "card_state": "graduated",
+          "easiness_after": 2.3,
+          "repetitions_after": 2
+        }
+      ]
+    },
+    {
+      "card_id": 10,
+      "current_state": "new",
+      "current_interval": 1,
+      "current_easiness": 2.5,
+      "current_repetitions": 0,
+      "timeline_points": [
+        {
+          "quality": 0,
+          "quality_label": "Blackout",
+          "next_review_date": "2025-07-06 11:33:01.852276",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 1,
+          "quality_label": "Wrong",
+          "next_review_date": "2025-07-06 11:33:01.852299",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 2,
+          "quality_label": "Hard",
+          "next_review_date": "2025-07-06 11:33:01.852319",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 3,
+          "quality_label": "Good",
+          "next_review_date": "2025-07-07 11:32:01.852338",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.5,
+          "repetitions_after": 1
+        },
+        {
+          "quality": 4,
+          "quality_label": "Easy",
+          "next_review_date": "2025-07-07 11:32:01.852356",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.5,
+          "repetitions_after": 1
+        },
+        {
+          "quality": 5,
+          "quality_label": "Perfect",
+          "next_review_date": "2025-07-07 11:32:01.852374",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.5,
+          "repetitions_after": 1
+        }
+      ]
+    },
+    {
+      "card_id": 11,
+      "current_state": "learning",
+      "current_interval": 1,
+      "current_easiness": 2.3,
+      "current_repetitions": 0,
+      "timeline_points": [
+        {
+          "quality": 0,
+          "quality_label": "Blackout",
+          "next_review_date": "2025-07-06 11:33:01.852565",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.0999999999999996,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 1,
+          "quality_label": "Wrong",
+          "next_review_date": "2025-07-06 11:33:01.852587",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.0999999999999996,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 2,
+          "quality_label": "Hard",
+          "next_review_date": "2025-07-06 11:33:01.852606",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.0999999999999996,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 3,
+          "quality_label": "Good",
+          "next_review_date": "2025-07-06 11:42:01.852626",
+          "interval_days": null,
+          "interval_minutes": 10,
+          "interval_text": "10 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 4,
+          "quality_label": "Easy",
+          "next_review_date": "2025-07-10 11:32:01.852643",
+          "interval_days": 4,
+          "interval_minutes": null,
+          "interval_text": "4 days",
+          "card_state": "graduated",
+          "easiness_after": 2.3,
+          "repetitions_after": 2
+        },
+        {
+          "quality": 5,
+          "quality_label": "Perfect",
+          "next_review_date": "2025-07-10 11:32:01.852661",
+          "interval_days": 4,
+          "interval_minutes": null,
+          "interval_text": "4 days",
+          "card_state": "graduated",
+          "easiness_after": 2.3,
+          "repetitions_after": 2
+        }
+      ]
+    },
+    {
+      "card_id": 12,
+      "current_state": "graduated",
+      "current_interval": 4,
+      "current_easiness": 2.5,
+      "current_repetitions": 2,
+      "timeline_points": [
+        {
+          "quality": 0,
+          "quality_label": "Blackout",
+          "next_review_date": "2025-07-06 11:33:01.852683",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 1,
+          "quality_label": "Wrong",
+          "next_review_date": "2025-07-06 11:33:01.852702",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 2,
+          "quality_label": "Hard",
+          "next_review_date": "2025-07-06 11:33:01.852720",
+          "interval_days": null,
+          "interval_minutes": 1,
+          "interval_text": "1 min",
+          "card_state": "learning",
+          "easiness_after": 2.3,
+          "repetitions_after": 0
+        },
+        {
+          "quality": 3,
+          "quality_label": "Good",
+          "next_review_date": "2025-07-16 11:32:01.852739",
+          "interval_days": 10,
+          "interval_minutes": null,
+          "interval_text": "10 days",
+          "card_state": "graduated",
+          "easiness_after": 2.36,
+          "repetitions_after": 3
+        },
+        {
+          "quality": 4,
+          "quality_label": "Easy",
+          "next_review_date": "2025-07-16 11:32:01.852762",
+          "interval_days": 10,
+          "interval_minutes": null,
+          "interval_text": "10 days",
+          "card_state": "graduated",
+          "easiness_after": 2.5,
+          "repetitions_after": 3
+        },
+        {
+          "quality": 5,
+          "quality_label": "Perfect",
+          "next_review_date": "2025-07-16 11:32:01.852785",
+          "interval_days": 10,
+          "interval_minutes": null,
+          "interval_text": "10 days",
+          "card_state": "graduated",
+          "easiness_after": 2.6,
+          "repetitions_after": 3
+        }
+      ]
+    }
+  ]
+}

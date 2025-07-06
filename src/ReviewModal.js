@@ -210,7 +210,6 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                     <div className="brand-section">
                             <div className="brand-text">
                             <span className="material-icons infinity-icon">all_inclusive</span>
-                                <p className="tagline">Spaced Repetition</p>
                             </div>
                         </div>
                         <div className="stats-section">

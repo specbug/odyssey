@@ -201,3 +201,62 @@ class ReviewOptions(BaseModel):
 
     card_id: int
     options: List[dict]  # List of quality options with preview data
+
+
+# Timeline Schemas
+
+
+class TimelinePoint(BaseModel):
+    """A single point in the timeline showing when a card will appear next."""
+
+    quality: int = Field(..., ge=0, le=5, description="SM-2 quality rating (0-5)")
+    quality_label: str = Field(
+        ...,
+        description="Human-readable label for the quality (e.g., 'Wrong', 'Good', 'Easy')",
+    )
+    next_review_date: datetime = Field(
+        ..., description="When the card will appear next"
+    )
+    interval_days: Optional[int] = Field(
+        None, description="Interval in days (None for learning cards in minutes)"
+    )
+    interval_minutes: Optional[int] = Field(
+        None, description="Interval in minutes (for learning cards)"
+    )
+    interval_text: str = Field(
+        ..., description="Human-readable interval text (e.g., '1 min', '4 days')"
+    )
+    card_state: str = Field(
+        ..., description="Card state after review (new, learning, graduated)"
+    )
+    easiness_after: float = Field(..., description="Easiness factor after review")
+    repetitions_after: int = Field(
+        ..., description="Number of repetitions after review"
+    )
+
+
+class CardTimeline(BaseModel):
+    """Timeline for a study card showing future review dates based on different quality ratings."""
+
+    card_id: int
+    current_state: str = Field(
+        ..., description="Current card state (new, learning, graduated)"
+    )
+    current_interval: int = Field(..., description="Current interval")
+    current_easiness: float = Field(..., description="Current easiness factor")
+    current_repetitions: int = Field(..., description="Current number of repetitions")
+    next_review_date: Optional[datetime] = Field(
+        None, description="Current next review date"
+    )
+    timeline_points: List[TimelinePoint] = Field(
+        ..., description="Timeline points for each quality rating"
+    )
+    generated_at: datetime = Field(..., description="When this timeline was generated")
+
+
+class TimelineResponse(BaseModel):
+    """Response containing the timeline for a study card."""
+
+    success: bool = True
+    timeline: CardTimeline
+    message: Optional[str] = None

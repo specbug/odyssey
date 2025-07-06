@@ -27,6 +27,9 @@ from .schemas import (
     ReviewSessionResponse,
     DueCardsResponse,
     ReviewOptions,
+    TimelineResponse,
+    CardTimeline,
+    TimelinePoint,
 )
 from .spaced_repetition import SpacedRepetitionService
 from .utils import (
@@ -505,6 +508,31 @@ async def get_review_options(card_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error getting review options: {str(e)}"
+        )
+
+
+@app.get("/study-cards/{card_id}/timeline", response_model=TimelineResponse)
+async def get_card_timeline(card_id: int, db: Session = Depends(get_db)):
+    """Get timeline for a study card showing future review dates based on different quality ratings."""
+    try:
+        card = db.query(StudyCard).filter(StudyCard.id == card_id).first()
+        if not card:
+            raise HTTPException(status_code=404, detail="Study card not found")
+
+        # Get timeline data from the service
+        timeline_data = SpacedRepetitionService.get_card_timeline(card)
+        
+        # Create timeline response
+        timeline = CardTimeline(**timeline_data)
+        
+        return TimelineResponse(
+            success=True,
+            timeline=timeline,
+            message="Timeline generated successfully"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error generating timeline: {str(e)}"
         )
 
 
