@@ -3,6 +3,7 @@ import apiService from './api';
 import './ReviewModal.css';
 import 'katex/dist/katex.min.css';
 import { InlineMath, BlockMath } from 'react-katex';
+import AsteriskProgressBar from './AsteriskProgressBar';
 
 // Import the sophisticated note content component from App.js
 const NoteContent = React.memo(({ content, className }) => {
@@ -259,9 +260,27 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                 {/* Compact Header with Timeline */}
                 <div className="review-modal-header compact">
                     <div className="header-content">
-                        {/* Left: Brand */}
+                        {/* Left: Brand with Progress */}
                         <div className="brand-section">
-                            <span className="material-icons infinity-icon">all_inclusive</span>
+                            {currentCard && !reviewComplete && (() => {
+                                const allCards = [...newCards, ...learningCards, ...dueCards];
+                                const currentIndex = allCards.findIndex(card => card.id === currentCard.id);
+                                const currentStep = currentIndex + 1;
+                                
+                                return (
+                                    <AsteriskProgressBar 
+                                        totalSteps={allCards.length}
+                                        currentStep={currentStep}
+                                        size={35}
+                                        activeColor="rgba(255, 77, 6, 0.7)"
+                                        inactiveColor="rgba(0, 0, 0, 0.05)"
+                                        className="header-asterisk"
+                                    />
+                                );
+                            })()}
+                            {!currentCard && !reviewComplete && (
+                                <span className="material-icons infinity-icon">all_inclusive</span>
+                            )}
                         </div>
                         
                         {/* Center: Timeline */}
@@ -292,26 +311,7 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                     </div>
                 </div>
 
-                {/* Static Progress at Top */}
-                {currentCard && !reviewComplete && (
-                    <div className="modal-progress-section">
-                        <div className="card-progress-timeline">
-                            <div className="progress-dots">
-                                {[...Array(newCards.length + learningCards.length + dueCards.length)].map((_, index) => (
-                                    <div 
-                                        key={index}
-                                        className={`progress-dot ${index < sessionStats.total ? 'completed' : index === sessionStats.total ? 'current' : 'upcoming'}`}
-                                    />
-                                ))}
-                            </div>
-                            <div className="progress-text">
-                                <span className="current-position">{sessionStats.total + 1}</span>
-                                <span className="separator">of</span>
-                                <span className="total-cards">{newCards.length + learningCards.length + dueCards.length}</span>
-                            </div>
-                        </div>
-                    </div>
-                )}
+
 
                 {/* Content Area */}
                 <div className="review-content">
@@ -325,6 +325,16 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                         </div>
                     ) : reviewComplete ? (
                         <div className="completion-state">
+                            <div className="completion-asterisk">
+                                <AsteriskProgressBar 
+                                    totalSteps={Math.max(1, newCards.length + learningCards.length + dueCards.length)}
+                                    currentStep={Math.max(1, newCards.length + learningCards.length + dueCards.length)}
+                                    size={100}
+                                    activeColor="rgba(255, 77, 6, 0.7)"
+                                    inactiveColor="rgba(0, 0, 0, 0.05)"
+                                    className="completion-asterisk-element"
+                                />
+                            </div>
                             <h2>Review Complete</h2>
                             <div className="completion-stats">
                                 <div className="completion-summary">

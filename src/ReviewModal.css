@@ -76,6 +76,18 @@
     flex-shrink: 0;
 }
 
+.header-asterisk {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.header-asterisk .asterisk-progress-container {
+    margin: 0;
+    padding: 0;
+}
+
 .infinity-icon {
     font-size: 18px !important;
     color: #ff4d06;
@@ -315,62 +327,26 @@
     background: #faf9f7;
 }
 
-.card-progress-timeline {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-}
-
-.progress-dots {
-    display: flex;
-    gap: 5px;
-    align-items: center;
-}
-
-.progress-dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    transition: all 0.2s ease-out;
-}
-
-.progress-dot.completed {
-    background: #ff4d06;
-    opacity: 0.6;
-}
-
-.progress-dot.current {
-    background: #ff4d06;
-    opacity: 1;
-    transform: scale(1.1);
-}
-
-.progress-dot.upcoming {
-    background: rgba(0, 0, 0, 0.1);
-}
-
-.progress-text {
+/* Asterisk Progress Bar */
+.asterisk-progress-container {
+    position: relative;
     display: flex;
     align-items: center;
-    gap: 4px;
-    font-size: 14px;
-    font-weight: 500;
-    color: rgba(0, 0, 0, 0.5);
-    font-family: 'Dr', sans-serif;
+    justify-content: center;
+    margin: 0 auto;
 }
 
-.current-position {
-    color: #ff4d06;
-    font-weight: 600;
-    font-feature-settings: 'tnum' 1;
-    font-family: 'R Plex Mono', monospace;
+.asterisk-svg {
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.05));
 }
 
-.total-cards {
-    font-feature-settings: 'tnum' 1;
-    font-family: 'R Plex Mono', monospace;
+.asterisk-spike {
+    transform-origin: center;
 }
+
+
+
+
 
 /* Content Area */
 .review-content {
@@ -427,6 +403,29 @@
 .completion-state {
     text-align: center;
     max-width: 320px;
+}
+
+.completion-asterisk {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 24px;
+    height: 100px;
+}
+
+.completion-asterisk-element {
+    animation: asteriskTravel 0.8s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+}
+
+@keyframes asteriskTravel {
+    from {
+        transform: translate(-240px, -180px) scale(0.35);
+        opacity: 0.9;
+    }
+    to {
+        transform: translate(0, 0) scale(1);
+        opacity: 1;
+    }
 }
 
 .completion-state h2 {
@@ -700,6 +699,10 @@
         padding: 16px 20px;
     }
 
+    .asterisk-progress-container {
+        transform: scale(0.8);
+    }
+
     .header-content {
         gap: 12px;
     }
@@ -710,6 +713,10 @@
 
     .infinity-icon {
         font-size: 16px !important;
+    }
+
+    .header-asterisk {
+        transform: scale(0.9);
     }
 
     .brand-tagline {
@@ -780,6 +787,22 @@
     .completion-stats {
         gap: 24px;
     }
+
+    .completion-asterisk {
+        height: 80px;
+        margin-bottom: 20px;
+    }
+
+    @keyframes asteriskTravel {
+        from {
+            transform: translate(-200px, -140px) scale(0.32);
+            opacity: 0.9;
+        }
+        to {
+            transform: translate(0, 0) scale(0.8);
+            opacity: 1;
+        }
+    }
 }
 
 @media (max-width: 480px) {
@@ -789,6 +812,10 @@
 
     .brand-section {
         gap: 4px;
+    }
+
+    .header-asterisk {
+        transform: scale(0.8);
     }
 
     .close-button {
@@ -845,6 +872,10 @@
         display: none; /* Hide legacy stats on very small screens */
     }
 
+    .asterisk-progress-container {
+        transform: scale(0.8);
+    }
+
     .card-actions {
         gap: 20px;
     }
@@ -852,5 +883,21 @@
     .card-actions .action-text-button,
     .card-actions .source-text-button {
         font-size: 14px;
+    }
+
+    .completion-asterisk {
+        height: 70px;
+        margin-bottom: 16px;
+    }
+
+    @keyframes asteriskTravel {
+        from {
+            transform: translate(-180px, -120px) scale(0.28);
+            opacity: 0.9;
+        }
+        to {
+            transform: translate(0, 0) scale(0.7);
+            opacity: 1;
+        }
     }
 } 
