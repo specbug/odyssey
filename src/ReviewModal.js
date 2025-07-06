@@ -296,7 +296,7 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                                         <>
                                             <div className="card-answer-area">
                                                 <NoteContent 
-                                                    content={currentCard.annotation?.answer || 'No answer available'} 
+                                                    content={currentCard.annotation?.answer || null} 
                                                     className="answer-content" 
                                                 />
                                             </div>

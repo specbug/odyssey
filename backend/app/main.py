@@ -343,26 +343,42 @@ async def update_annotation(
 
 @app.delete("/annotations/{annotation_id}")
 async def delete_annotation(annotation_id: int, db: Session = Depends(get_db)):
-    """Delete an annotation and its associated study card (CASCADE)."""
-    db_annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
-    if not db_annotation:
-        raise HTTPException(status_code=404, detail="Annotation not found")
+    """Delete an annotation and its associated study card."""
+    try:
+        db_annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
+        if not db_annotation:
+            raise HTTPException(status_code=404, detail="Annotation not found")
 
-    # Check if there's an associated study card (for informational purposes)
-    study_card = (
-        db.query(StudyCard).filter(StudyCard.annotation_id == annotation_id).first()
-    )
-    has_study_card = study_card is not None
+        # Check if there's an associated study card
+        study_card = (
+            db.query(StudyCard).filter(StudyCard.annotation_id == annotation_id).first()
+        )
+        has_study_card = study_card is not None
 
-    # Delete annotation (study card will be automatically deleted due to CASCADE)
-    db.delete(db_annotation)
-    db.commit()
+        # Delete associated study card first (if exists)
+        if study_card:
+            # Delete associated card reviews first
+            db.query(CardReview).filter(CardReview.card_id == study_card.id).delete()
+            # Delete the study card
+            db.delete(study_card)
 
-    message = "Annotation deleted successfully"
-    if has_study_card:
-        message += " (associated study card also deleted)"
+        # Delete annotation
+        db.delete(db_annotation)
+        db.commit()
 
-    return {"message": message}
+        message = "Annotation deleted successfully"
+        if has_study_card:
+            message += " (associated study card also deleted)"
+
+        return {"message": message}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=500, detail=f"Error deleting annotation: {str(e)}"
+        )
 
 
 @app.delete("/files/{file_id}/annotations")
