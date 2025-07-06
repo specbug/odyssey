@@ -44,7 +44,7 @@
   flex-direction: column;
   height: 100vh;
   font-family: 'SF Pro Text', 'Dr', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  background-color: #faf9f7;
+  background-color: rgb(250, 249, 247);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -796,9 +796,9 @@
 }
 
 .note {
-  margin-bottom: calc(var(--orbit-grid) * 1.5);
-  padding: calc(var(--orbit-grid) * 1.5) calc(var(--orbit-grid) * 2);
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.85) 100%);
+  margin-bottom: calc(var(--orbit-grid) * 0.5);
+  padding: calc(var(--orbit-grid) * 1) calc(var(--orbit-grid) * 1.2);
+  background: rgba(250, 249, 247, 0.8);
   box-shadow: 
     0 1px 0 0 rgba(255, 255, 255, 0.8) inset,
     0 0.5px 2px rgba(0, 0, 0, 0.02),
@@ -806,7 +806,7 @@
     0 4px 16px rgba(0, 0, 0, 0.06),
     0 8px 32px rgba(0, 0, 0, 0.04);
   border: 0.5px solid rgba(0, 0, 0, 0.06);
-  border-left: 3px solid rgba(255, 77, 6, 0.3);
+  border-left: 3px solid rgba(255, 77, 6, 0.65);
   border-radius: 0;
   box-sizing: border-box;
   position: relative;

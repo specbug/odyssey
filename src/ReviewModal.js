@@ -236,6 +236,14 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                     </div>
                 </div>
 
+                <div className="card-progress">
+                                    <div className="progress-indicator">
+                                        <span className="current-position">{sessionStats.total + 1}</span>
+                                        <span className="separator">of</span>
+                                        <span className="total-cards">{newCards.length + learningCards.length + dueCards.length}</span>
+                                    </div>
+                                </div>
+
                 {/* Content Area */}
                 <div className="review-content">
                     {loading && !currentCard ? (
@@ -269,21 +277,12 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                     ) : currentCard ? (
                         <div className="study-session">
                             <div className="card-container">
-                                <div className="card-progress">
-                                    <div className="progress-indicator">
-                                        <span className="current-position">{sessionStats.total + 1}</span>
-                                        <span className="separator">of</span>
-                                        <span className="total-cards">{newCards.length + learningCards.length + dueCards.length}</span>
-                                    </div>
-                                </div>
                                 
-                                <div className="flashcard">
-                                    <div className="card-question-area">
+                                <div className="card-question-area">
                                         <NoteContent 
                                             content={currentCard.annotation?.question || 'No question available'} 
                                             className="question-content" 
                                         />
-                                    </div>
                                     
                                     {!showAnswer ? (
                                         <div className="reveal-section">
