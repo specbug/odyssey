@@ -236,13 +236,26 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                     </div>
                 </div>
 
-                <div className="card-progress">
-                                    <div className="progress-indicator">
-                                        <span className="current-position">{sessionStats.total + 1}</span>
-                                        <span className="separator">of</span>
-                                        <span className="total-cards">{newCards.length + learningCards.length + dueCards.length}</span>
-                                    </div>
-                                </div>
+                {/* Static Progress at Top */}
+                {currentCard && (
+                    <div className="modal-progress-section">
+                        <div className="card-progress-timeline">
+                            <div className="progress-dots">
+                                {[...Array(newCards.length + learningCards.length + dueCards.length)].map((_, index) => (
+                                    <div 
+                                        key={index}
+                                        className={`progress-dot ${index < sessionStats.total ? 'completed' : index === sessionStats.total ? 'current' : 'upcoming'}`}
+                                    />
+                                ))}
+                            </div>
+                            <div className="progress-text">
+                                <span className="current-position">{sessionStats.total + 1}</span>
+                                <span className="separator">of</span>
+                                <span className="total-cards">{newCards.length + learningCards.length + dueCards.length}</span>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Content Area */}
                 <div className="review-content">
@@ -277,60 +290,50 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                     ) : currentCard ? (
                         <div className="study-session">
                             <div className="card-container">
-                                
                                 <div className="card-question-area">
-                                        <NoteContent 
-                                            content={currentCard.annotation?.question || 'No question available'} 
-                                            className="question-content" 
-                                        />
+                                    <NoteContent 
+                                        content={currentCard.annotation?.question || 'No question available'} 
+                                        className="question-content" 
+                                    />
                                     
                                     {!showAnswer ? (
                                         <div className="reveal-section">
-                                            <button className="reveal-button" onClick={handleShowAnswer}>
+                                            <button className="reveal-text-button" onClick={handleShowAnswer}>
                                                 <span className="material-symbols-outlined">visibility</span>
                                                 <span>Show Answer</span>
                                             </button>
                                         </div>
                                     ) : (
-                                        <>
-                                            <div className="card-answer-area">
-                                                <NoteContent 
-                                                    content={currentCard.annotation?.answer || null} 
-                                                    className="answer-content" 
-                                                />
-                                            </div>
-                                            
-                                            <div className="review-section">
-                                                <div className="review-buttons">
-                                                    <button 
-                                                        className="difficulty-button hard"
-                                                        onClick={() => handleReview(1)}
-                                                        disabled={loading}
-                                                    >
-                                                        <span className="material-symbols-outlined">close</span>
-                                                        <span>Forgot</span>
-                                                        <span className="next-review">1 min</span>
-                                                    </button>
-                                                    <button 
-                                                        className="difficulty-button easy"
-                                                        onClick={() => handleReview(4)}
-                                                        disabled={loading}
-                                                    >
-                                                        <span className="material-symbols-outlined">check</span>
-                                                        <span>Remembered</span>
-                                                        <span className="next-review">4 days</span>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </>
+                                        <div className="card-answer-area">
+                                            <NoteContent 
+                                                content={currentCard.annotation?.answer || null} 
+                                                className="answer-content" 
+                                            />
+                                        </div>
                                     )}
                                 </div>
                                 
                                 {showAnswer && (
-                                    <div className="source-link">
-                                        <button className="source-button" onClick={handleViewInDocument}>
-                                            <span>View in Document</span>
-                                            <span className="material-symbols-outlined">arrow_outward</span>
+                                    <div className="card-actions">
+                                        <button 
+                                            className="action-text-button forgot"
+                                            onClick={() => handleReview(1)}
+                                            disabled={loading}
+                                        >
+                                            <span className="material-symbols-outlined">close</span>
+                                            <span>Forgot</span>
+                                        </button>
+                                        <button 
+                                            className="action-text-button remembered"
+                                            onClick={() => handleReview(4)}
+                                            disabled={loading}
+                                        >
+                                            <span className="material-symbols-outlined">check</span>
+                                            <span>Remembered</span>
+                                        </button>
+                                        <button className="source-text-button" onClick={handleViewInDocument}>
+                                            <span className="material-symbols-outlined">open_in_new</span>
+                                            <span>View Source</span>
                                         </button>
                                     </div>
                                 )}
