@@ -10,6 +10,7 @@ import apiService from './api';
 import HomePage from './HomePage';
 import ReviewModal from './ReviewModal';
 import NoteContent from './components/shared/NoteContent';
+import { handlePaste } from './utils/modernClipboard';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -132,23 +133,8 @@ const Note = memo(({ note, onSave, onCancel, onEdit, onDelete, isPositioned }) =
         }
     };
 
-    const handlePaste = (e) => {
-        e.preventDefault();
-        const items = e.clipboardData.items;
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf('image') !== -1) {
-                const blob = items[i].getAsFile();
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const img = `<img src="${event.target.result}" class="pasted-image" />`;
-                    document.execCommand('insertHTML', false, img);
-                };
-                reader.readAsDataURL(blob);
-            } else if (items[i].type === 'text/plain') {
-                const text = e.clipboardData.getData('text/plain');
-                document.execCommand('insertText', false, text);
-            }
-        }
+    const handlePasteEvent = (e) => {
+        handlePaste(e);
     };
 
     return (
@@ -159,7 +145,7 @@ const Note = memo(({ note, onSave, onCancel, onEdit, onDelete, isPositioned }) =
                 value={question}
                 onChange={setQuestion}
                 onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
+                onPaste={handlePasteEvent}
                 placeholder="Type a prompt here"
             />
             <ContentEditable
@@ -167,7 +153,7 @@ const Note = memo(({ note, onSave, onCancel, onEdit, onDelete, isPositioned }) =
                 value={answer}
                 onChange={setAnswer}
                 onKeyDown={handleKeyDown}
-                onPaste={handlePaste}
+                onPaste={handlePasteEvent}
                 placeholder="Type a response here"
             />
             <NoteMenu 
