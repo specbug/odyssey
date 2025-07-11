@@ -5,11 +5,11 @@ import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'katex/dist/katex.min.css';
 import './katex-fonts.css';
-import { InlineMath, BlockMath } from 'react-katex';
 import './App.css';
 import apiService from './api';
 import HomePage from './HomePage';
 import ReviewModal from './ReviewModal';
+import NoteContent from './components/shared/NoteContent';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
@@ -47,57 +47,6 @@ const ContentEditable = memo(React.forwardRef(({ value, onChange, onKeyDown, onP
     );
 }));
 
-const NoteContent = memo(({ content, className }) => {
-    const renderLatex = (string) => {
-        if (!string) return [];
-        
-        const processedString = string.replace(/<div>/g, ' ').replace(/<\/div>/g, ' ');
-
-        const latexRegex = /(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$|\\[[\s\S]*?\\\]|\\\(.*?\\\)|\\begin\{equation\}[\s\S]*?\\end\{equation\})/g;
-        const parts = processedString.split(latexRegex);
-
-        return parts.map((part, index) => {
-            if (!part) {
-                return null;
-            }
-
-            const match = part.match(latexRegex);
-            if (match && match[0] === part) {
-                let isBlock = false;
-                let katexString = '';
-
-                if (part.startsWith('$$')) {
-                    isBlock = true;
-                    katexString = part.substring(2, part.length - 2);
-                } else if (part.startsWith('\\[')) {
-                    isBlock = true;
-                    katexString = part.substring(2, part.length - 2);
-                } else if (part.startsWith('\\begin{equation}')) {
-                    isBlock = true;
-                    katexString = part.substring(16, part.length - 14);
-                } else if (part.startsWith('$')) {
-                    isBlock = false;
-                    katexString = part.substring(1, part.length - 1);
-                } else if (part.startsWith('\\(')) {
-                    isBlock = false;
-                    katexString = part.substring(2, part.length - 2);
-                }
-                
-                if (katexString) {
-                    if (isBlock) {
-                        return <BlockMath key={index} math={katexString} />;
-                    } else {
-                        return <InlineMath key={index} math={katexString} />;
-                    }
-                }
-            }
-            
-            return <span key={index} dangerouslySetInnerHTML={{ __html: part }}></span>;
-        });
-    };
-
-    return <div className={`note-content ${className}`}>{renderLatex(content)}</div>;
-});
 
 const NoteMenu = memo(({ noteId, onEdit, onDelete }) => {
     const [isOpen, setIsOpen] = useState(false);
