@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import apiService from './api';
 import './ReviewModal.css';
 import 'katex/dist/katex.min.css';
@@ -15,9 +15,9 @@ const TimelineVisualization = ({ currentCard }) => {
         if (currentCard?.id) {
             loadProgression();
         }
-    }, [currentCard?.id]);
+    }, [currentCard?.id, loadProgression]);
 
-    const loadProgression = async () => {
+    const loadProgression = useCallback(async () => {
         if (!currentCard?.id) return;
         
         setLoading(true);
@@ -29,7 +29,7 @@ const TimelineVisualization = ({ currentCard }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [currentCard?.id]);
 
     if (loading || !progression) {
         return (
@@ -66,7 +66,6 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
     const [dueCards, setDueCards] = useState([]);
     const [newCards, setNewCards] = useState([]);
     const [learningCards, setLearningCards] = useState([]);
-    const [reviewedToday, setReviewedToday] = useState(0);
     const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 });
 
     useEffect(() => {
@@ -76,9 +75,9 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
             setReviewComplete(false);
             setSessionStats({ correct: 0, total: 0 });
         }
-    }, [isOpen, fileId]);
+    }, [isOpen, fileId, loadDueCards]);
 
-    const loadDueCards = async () => {
+    const loadDueCards = useCallback(async () => {
         if (!fileId) return;
         
         setLoading(true);
@@ -129,7 +128,7 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [fileId]);
 
     const handleShowAnswer = () => {
         setShowAnswer(true);

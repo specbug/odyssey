@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 
 const AsteriskProgressBar = ({ 
   totalSteps, 
@@ -18,7 +18,7 @@ const AsteriskProgressBar = ({
     return s - Math.floor(s);
   };
 
-  const generateSpikes = () => {
+  const generateSpikes = useCallback(() => {
     // Calculate center circle radius to avoid overlap
     const centerRadius = size < 50 ? size * 0.12 : size * 0.08;
     
@@ -52,9 +52,9 @@ const AsteriskProgressBar = ({
         rotation: (360 / totalSteps) * i,
       };
     });
-  };
+  }, [size, totalSteps]);
 
-  const render = () => {
+  const render = useCallback(() => {
     if (!containerRef.current) return;
     
     // Clear previous content
@@ -97,9 +97,9 @@ const AsteriskProgressBar = ({
 
     svg.appendChild(g);
     containerRef.current.appendChild(svg);
-  };
+  }, [size, activeColor, totalSteps, generateSpikes]);
 
-  const update = () => {
+  const update = useCallback(() => {
     pathElementsRef.current.forEach((path, index) => {
       path.setAttribute('fill', index < currentStep ? activeColor : inactiveColor);
     });
@@ -108,16 +108,16 @@ const AsteriskProgressBar = ({
     if (centerCircleRef.current) {
       centerCircleRef.current.setAttribute('fill', activeColor);
     }
-  };
+  }, [currentStep, activeColor, inactiveColor]);
 
   useEffect(() => {
     render();
     update();
-  }, [totalSteps, size, activeColor, inactiveColor]);
+  }, [render, update]);
 
   useEffect(() => {
     update();
-  }, [currentStep]);
+  }, [update]);
 
   if (totalSteps === 0) {
     return <div className={`asterisk-progress-container ${className}`} style={{ width: size, height: size }} />;

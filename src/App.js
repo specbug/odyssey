@@ -438,7 +438,7 @@ function App() {
         } finally {
             setIsLoadingAnnotations(false);
         }
-    }, []);
+    }, [resolveAnnotationLocation]);
 
     // Resolve annotation location using fallback chain
     const resolveAnnotationLocation = useCallback(async (annotation) => {
@@ -511,7 +511,7 @@ function App() {
             textAnchor: null,
             resolutionMethod: 'failed'
         };
-    }, []);
+    }, [findTextAnchorMatch, convertNormalizedToPixel]);
 
     const startNewNote = useCallback(() => {
         if (!pendingHighlight) return;
@@ -679,7 +679,7 @@ function App() {
 
         console.warn('Text anchor match failed for:', selected_text);
         return null;
-    }, []);
+    }, [findTextBounds]);
 
     // Find text bounds and convert to coordinates
     const findTextBounds = useCallback((pageElement, text, startIndex) => {
@@ -748,10 +748,10 @@ function App() {
             console.warn('Error finding text bounds:', error);
             return null;
         }
-    }, []);
+    }, [getTextNodes]);
 
     // Get all text nodes from an element
-    const getTextNodes = (element) => {
+    const getTextNodes = useCallback((element) => {
         const textNodes = [];
         const walker = document.createTreeWalker(
             element,
@@ -761,14 +761,14 @@ function App() {
         );
 
         let node;
-        while (node = walker.nextNode()) {
+        while ((node = walker.nextNode())) {
             if (node.textContent.trim()) {
                 textNodes.push(node);
             }
         }
 
         return textNodes;
-    };
+    }, []);
 
     // Convert normalized coordinates to current pixel coordinates
     const convertNormalizedToPixel = useCallback((pageIndex, normalizedRects) => {
