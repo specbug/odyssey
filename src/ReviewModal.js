@@ -1,35 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import apiService from './api';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import './ReviewModal.css';
 import 'katex/dist/katex.min.css';
 import AsteriskProgressBar from './AsteriskProgressBar';
 import NoteContent from './components/shared/NoteContent';
+import { useAnnotations, useCreateStudyCard, useDueCards, useReviewCard, useCardProgression } from './hooks/useApi';
 
 
 // Timeline Component
 const TimelineVisualization = ({ currentCard }) => {
-    const [progression, setProgression] = useState(null);
-    const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-        if (currentCard?.id) {
-            loadProgression();
-        }
-    }, [currentCard?.id, loadProgression]);
-
-    const loadProgression = useCallback(async () => {
-        if (!currentCard?.id) return;
-        
-        setLoading(true);
-        try {
-            const progressionData = await apiService.getCardProgression(currentCard.id, 4);
-            setProgression(progressionData.progression);
-        } catch (error) {
-            console.error('Failed to load progression:', error);
-        } finally {
-            setLoading(false);
-        }
-    }, [currentCard?.id]);
+    const { data: progressionData, isLoading: loading } = useCardProgression(currentCard?.id, 4);
+    const progression = progressionData?.progression;
 
     if (loading || !progression) {
         return (
@@ -61,34 +41,28 @@ const TimelineVisualization = ({ currentCard }) => {
 const ReviewModal = ({ isOpen, onClose, fileId }) => {
     const [currentCard, setCurrentCard] = useState(null);
     const [showAnswer, setShowAnswer] = useState(false);
-    const [loading, setLoading] = useState(false);
     const [reviewComplete, setReviewComplete] = useState(false);
-    const [dueCards, setDueCards] = useState([]);
-    const [newCards, setNewCards] = useState([]);
-    const [learningCards, setLearningCards] = useState([]);
     const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 });
 
-    useEffect(() => {
-        if (isOpen) {
-            loadDueCards();
-            setShowAnswer(false);
-            setReviewComplete(false);
-            setSessionStats({ correct: 0, total: 0 });
-        }
-    }, [isOpen, fileId, loadDueCards]);
+    // React Query hooks
+    const { data: annotations = [] } = useAnnotations(fileId);
+    const { data: dueCardsData } = useDueCards(50);
+    const createStudyCardMutation = useCreateStudyCard();
+    const reviewCardMutation = useReviewCard();
+
+    // Extract cards from due cards data with useMemo for stable references
+    const dueCards = useMemo(() => dueCardsData?.due_cards || [], [dueCardsData?.due_cards]);
+    const newCards = useMemo(() => dueCardsData?.new_cards || [], [dueCardsData?.new_cards]);
+    const learningCards = useMemo(() => dueCardsData?.learning_cards || [], [dueCardsData?.learning_cards]);
 
     const loadDueCards = useCallback(async () => {
-        if (!fileId) return;
+        if (!fileId || !isOpen) return;
         
-        setLoading(true);
         try {
-            // First, get all annotations for this file
-            const annotations = await apiService.getAnnotations(fileId);
-            
             // Create study cards for annotations that don't have them
             const studyCardPromises = annotations.map(async (annotation) => {
                 try {
-                    return await apiService.createStudyCard(annotation.id);
+                    return await createStudyCardMutation.mutateAsync(annotation.id);
                 } catch (error) {
                     console.log(`Study card may already exist for annotation ${annotation.id}`);
                     return null;
@@ -97,25 +71,8 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
             
             await Promise.all(studyCardPromises);
             
-            // Now get the due cards
-            const cardsData = await apiService.getDueCards();
-            console.log('Cards data received:', cardsData); // Debug log
-            
-            // Handle the updated response structure
-            const allCards = [
-                ...(cardsData.due_cards || []), 
-                ...(cardsData.new_cards || []),
-                ...(cardsData.learning_cards || [])
-            ];
-            
-            // Categorize cards properly
-            const newCards = cardsData.new_cards || [];
-            const learningCards = cardsData.learning_cards || [];
-            const dueCards = cardsData.due_cards || [];
-            
-            setNewCards(newCards);
-            setLearningCards(learningCards);
-            setDueCards(dueCards);
+            // Cards data will be automatically refetched by React Query
+            const allCards = [...dueCards, ...newCards, ...learningCards];
             
             // Start with the first available card
             if (allCards.length > 0) {
@@ -125,10 +82,18 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
             }
         } catch (error) {
             console.error('Failed to load due cards:', error);
-        } finally {
-            setLoading(false);
         }
-    }, [fileId]);
+    }, [fileId, isOpen, annotations, createStudyCardMutation, dueCards, newCards, learningCards]);
+
+    useEffect(() => {
+        if (isOpen) {
+            loadDueCards();
+            setShowAnswer(false);
+            setReviewComplete(false);
+            setSessionStats({ correct: 0, total: 0 });
+        }
+    }, [isOpen, loadDueCards]);
+
 
     const handleShowAnswer = () => {
         setShowAnswer(true);
@@ -137,12 +102,14 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
     const handleReview = async (quality) => {
         if (!currentCard) return;
         
-        setLoading(true);
         try {
-            await apiService.reviewCard(currentCard.id, {
-                card_id: currentCard.id,
-                quality: quality,
-                time_taken: 30 // You could track actual time here
+            await reviewCardMutation.mutateAsync({
+                cardId: currentCard.id,
+                reviewData: {
+                    card_id: currentCard.id,
+                    quality: quality,
+                    time_taken: 30 // You could track actual time here
+                }
             });
             
             // Update session stats
@@ -164,8 +131,6 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
             }
         } catch (error) {
             console.error('Failed to review card:', error);
-        } finally {
-            setLoading(false);
         }
     };
 
@@ -274,7 +239,7 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
 
                 {/* Content Area */}
                 <div className="review-content">
-                    {loading && !currentCard ? (
+                    {(createStudyCardMutation.isPending || reviewCardMutation.isPending) && !currentCard ? (
                         <div className="loading-state">
                             <div className="loading-animation">
                                 <div className="loading-spinner"></div>
@@ -357,7 +322,7 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                                         <button 
                                             className="action-text-button forgot"
                                             onClick={() => handleReview(1)}
-                                            disabled={loading}
+                                            disabled={reviewCardMutation.isPending}
                                         >
                                             <span className="material-symbols-outlined">close</span>
                                             <span>Forgot</span>
@@ -365,7 +330,7 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                                         <button 
                                             className="action-text-button remembered"
                                             onClick={() => handleReview(4)}
-                                            disabled={loading}
+                                            disabled={reviewCardMutation.isPending}
                                         >
                                             <span className="material-symbols-outlined">check</span>
                                             <span>Remembered</span>

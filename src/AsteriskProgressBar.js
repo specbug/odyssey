@@ -97,7 +97,7 @@ const AsteriskProgressBar = ({
 
     svg.appendChild(g);
     containerRef.current.appendChild(svg);
-  }, [size, activeColor, totalSteps, generateSpikes]);
+  }, [size, activeColor, generateSpikes]);
 
   const update = useCallback(() => {
     pathElementsRef.current.forEach((path, index) => {

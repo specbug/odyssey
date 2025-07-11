@@ -1,28 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import apiService from './api';
+import React from 'react';
 import './HomePage.css';
+import { useFiles } from './hooks/useApi';
+import apiService from './api';
 
 const HomePage = ({ onFileSelect }) => {
-    const [files, setFiles] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState(null);
-
-    useEffect(() => {
-        loadFiles();
-    }, []);
-
-    const loadFiles = async () => {
-        try {
-            setLoading(true);
-            const fileList = await apiService.getFiles();
-            setFiles(fileList);
-        } catch (err) {
-            setError('Failed to load PDF files');
-            console.error('Error loading files:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
+    const { data: files = [], isLoading: loading, error, refetch } = useFiles();
 
     const handleFileClick = async (file) => {
         try {
@@ -77,8 +59,8 @@ const HomePage = ({ onFileSelect }) => {
                 <div className="error-state">
                     <div className="error-icon">⚠️</div>
                     <h3>Something went wrong</h3>
-                    <p>{error}</p>
-                    <button className="retry-button" onClick={loadFiles}>
+                    <p>{error?.message || 'Failed to load PDF files'}</p>
+                    <button className="retry-button" onClick={() => refetch()}>
                         Try Again
                     </button>
                 </div>
