@@ -1,0 +1,115 @@
+.loading-bar-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    z-index: 10000;
+    pointer-events: none;
+    background: transparent;
+}
+
+.loading-bar-track {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    overflow: hidden;
+}
+
+.loading-bar-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        #007AFF 0%,
+        #5AC8FA 50%,
+        #007AFF 100%
+    );
+    background-size: 200% 100%;
+    border-radius: 0 1px 1px 0;
+    transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    animation: shimmer 2s infinite;
+    box-shadow: 
+        0 0 6px rgba(0, 122, 255, 0.3),
+        0 0 12px rgba(0, 122, 255, 0.15);
+}
+
+.loading-bar-glow {
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: linear-gradient(
+        180deg,
+        rgba(0, 122, 255, 0.2) 0%,
+        rgba(0, 122, 255, 0.1) 50%,
+        transparent 100%
+    );
+    opacity: 0.8;
+    filter: blur(1px);
+    pointer-events: none;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    .loading-bar-track {
+        background: rgba(0, 0, 0, 0.1);
+    }
+    
+    .loading-bar-fill {
+        background: linear-gradient(
+            90deg,
+            #0A84FF 0%,
+            #64D2FF 50%,
+            #0A84FF 100%
+        );
+        box-shadow: 
+            0 0 6px rgba(10, 132, 255, 0.4),
+            0 0 12px rgba(10, 132, 255, 0.2);
+    }
+    
+    .loading-bar-glow {
+        background: linear-gradient(
+            180deg,
+            rgba(10, 132, 255, 0.25) 0%,
+            rgba(10, 132, 255, 0.12) 50%,
+            transparent 100%
+        );
+    }
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    .loading-bar-fill {
+        background: #007AFF;
+        box-shadow: none;
+    }
+    
+    .loading-bar-glow {
+        display: none;
+    }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .loading-bar-fill {
+        animation: none;
+        transition: transform 0.2s ease;
+    }
+} 

@@ -10,6 +10,7 @@ import './App.css';
 import apiService from './api';
 import HomePage from './HomePage';
 import ReviewModal from './ReviewModal';
+import LoadingBar from './LoadingBar';
 
 // Use local PDF.js worker - works better with nginx
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
@@ -376,6 +377,7 @@ function App() {
     const [isLoadingAnnotations, setIsLoadingAnnotations] = useState(false);
     const [showHomePage, setShowHomePage] = useState(true);
     const [showReviewModal, setShowReviewModal] = useState(false);
+    const [isLoadingFile, setIsLoadingFile] = useState(false);
     const listRef = useRef();
     const pageHeights = useRef({});
     const viewerRef = useRef(null);
@@ -390,6 +392,7 @@ function App() {
 
     const handleFileSelection = async (selectedFile, existingMetadata = null) => {
         setIsUploading(true);
+        setIsLoadingFile(true);
         setUploadError(null);
         
         try {
@@ -431,6 +434,7 @@ function App() {
             console.error('File selection failed:', error);
         } finally {
             setIsUploading(false);
+            setIsLoadingFile(false);
         }
     };
 
@@ -1027,6 +1031,7 @@ function App() {
     if (showHomePage) {
         return (
             <div className="App">
+                <LoadingBar isLoading={isLoadingFile} />
                 <div className="toolbar">
                   <div className="toolbar-left">
                     <div className="app-title clickable-title" onClick={goToHomePage}>odyssey</div>
@@ -1061,6 +1066,7 @@ function App() {
 
     return (
         <div className="App">
+            <LoadingBar isLoading={isLoadingFile} />
             <div className="toolbar">
               <div className="toolbar-left">
                 <div className="app-title clickable-title" onClick={goToHomePage}>odyssey</div>
