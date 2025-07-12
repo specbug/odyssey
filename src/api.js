@@ -1,4 +1,7 @@
-const API_BASE_URL = 'http://localhost:8000';
+// Use different API base URLs for development vs production
+const API_BASE_URL = process.env.NODE_ENV === 'development' 
+    ? 'http://localhost:8000' 
+    : '/api';
 
 class ApiService {
     constructor() {

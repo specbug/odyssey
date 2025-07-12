@@ -11,10 +11,8 @@ import apiService from './api';
 import HomePage from './HomePage';
 import ReviewModal from './ReviewModal';
 
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString();
+// Use CDN for PDF.js worker - more reliable for production
+pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 const MemoizedPage = memo(Page);
 
