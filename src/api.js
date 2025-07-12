@@ -6,6 +6,8 @@ const API_BASE_URL = process.env.NODE_ENV === 'development'
 class ApiService {
     constructor() {
         this.baseUrl = API_BASE_URL;
+        this.pdfCache = new Map(); // Cache for downloaded PDF files
+        this.cacheMaxSize = 5; // Maximum number of PDFs to cache
     }
 
     async uploadFile(file) {
@@ -58,15 +60,44 @@ class ApiService {
 
     async downloadFile(fileId) {
         try {
+            // Check if file is already cached
+            if (this.pdfCache.has(fileId)) {
+                console.log(`📋 Using cached PDF for file ${fileId}`);
+                // Move to end to mark as recently used
+                const cachedBlob = this.pdfCache.get(fileId);
+                this.pdfCache.delete(fileId);
+                this.pdfCache.set(fileId, cachedBlob);
+                return cachedBlob;
+            }
+
+            console.log(`📥 Downloading PDF for file ${fileId}`);
             const response = await fetch(`${this.baseUrl}/files/${fileId}/download`);
             if (!response.ok) {
                 throw new Error('Failed to download file');
             }
-            return response.blob();
+            
+            const blob = await response.blob();
+            
+            // Cache the downloaded file
+            this._cacheFile(fileId, blob);
+            
+            return blob;
         } catch (error) {
             console.error('Download error:', error);
             throw error;
         }
+    }
+
+    _cacheFile(fileId, blob) {
+        // Remove oldest item if cache is full
+        if (this.pdfCache.size >= this.cacheMaxSize) {
+            const oldestKey = this.pdfCache.keys().next().value;
+            this.pdfCache.delete(oldestKey);
+            console.log(`🗑️ Evicted PDF ${oldestKey} from cache`);
+        }
+        
+        this.pdfCache.set(fileId, blob);
+        console.log(`💾 Cached PDF for file ${fileId} (cache size: ${this.pdfCache.size})`);
     }
 
     async deleteFile(fileId) {

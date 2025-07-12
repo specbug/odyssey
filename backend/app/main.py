@@ -6,8 +6,10 @@ from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from typing import List, Optional
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
+import gzip
+import io
 
 from .database import SessionLocal, engine, get_db
 from .models import Base, PDFFile, Annotation, StudyCard, CardReview, ReviewSession
@@ -69,6 +71,88 @@ MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "50000000"))  # 50MB
 
 # Ensure upload directory exists
 ensure_upload_dir(UPLOAD_DIR)
+
+
+# Simple GZip middleware for compression
+class GZipMiddleware:
+    def __init__(self, app, minimum_size: int = 500):
+        self.app = app
+        self.minimum_size = minimum_size
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] == "http":
+            # Check if client accepts gzip
+            headers = dict(scope.get("headers", []))
+            accept_encoding = headers.get(b"accept-encoding", b"").decode()
+            
+            # Skip compression for file downloads to avoid streaming issues
+            path = scope.get("path", "")
+            if path and "/download" in path:
+                await self.app(scope, receive, send)
+                return
+
+            if "gzip" in accept_encoding:
+                # Create compressing send wrapper
+                compressing_send = CompressingSend(send, self.minimum_size)
+                await self.app(scope, receive, compressing_send)
+                return
+
+        await self.app(scope, receive, send)
+
+
+class CompressingSend:
+    def __init__(self, send, minimum_size: int):
+        self.send = send
+        self.minimum_size = minimum_size
+        self.initial_message = None
+        self.started = False
+
+    async def __call__(self, message):
+        message_type = message["type"]
+
+        if message_type == "http.response.start":
+            self.initial_message = message
+
+        elif message_type == "http.response.body" and not self.started:
+            self.started = True
+            body = message.get("body", b"")
+            more_body = message.get("more_body", False)
+
+            if len(body) < self.minimum_size and not more_body:
+                # Don't compress small responses
+                await self.send(self.initial_message)
+                await self.send(message)
+            else:
+                # Compress the body
+                compressed_body = gzip.compress(body)
+
+                # Update headers properly
+                headers = list(self.initial_message.get("headers", []))
+
+                # Remove existing content-length header (let HTTP use chunked transfer)
+                headers = [h for h in headers if h[0].lower() != b"content-length"]
+
+                # Add compression headers
+                headers.append((b"content-encoding", b"gzip"))
+                # Don't set Content-Length - let HTTP handle chunked transfer encoding
+
+                # Add vary header if not present
+                has_vary = any(h[0].lower() == b"vary" for h in headers)
+                if not has_vary:
+                    headers.append((b"vary", b"Accept-Encoding"))
+
+                # Update the message
+                self.initial_message["headers"] = headers
+                message["body"] = compressed_body
+
+                await self.send(self.initial_message)
+                await self.send(message)
+        else:
+            await self.send(message)
+
+
+# Add compression middleware
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 
 # Custom exception handlers for better debugging
@@ -216,8 +300,8 @@ async def get_file(file_id: int, db: Session = Depends(get_db)):
 
 
 @app.get("/files/{file_id}/download")
-async def download_file(file_id: int, db: Session = Depends(get_db)):
-    """Download file by ID."""
+async def download_file(file_id: int, request: Request, db: Session = Depends(get_db)):
+    """Download file by ID with optimized caching."""
     file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
@@ -225,8 +309,37 @@ async def download_file(file_id: int, db: Session = Depends(get_db)):
     if not os.path.exists(file.file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
 
+    # Get file modification time for ETag
+    file_stat = os.stat(file.file_path)
+    file_mtime = file_stat.st_mtime
+    etag = f'"{file.file_hash}-{int(file_mtime)}"'
+
+    # Check if client has cached version
+    if_none_match = request.headers.get("if-none-match")
+    if if_none_match == etag:
+        return JSONResponse(status_code=304, content=None)
+
+    # Create response with aggressive caching headers
+    headers = {
+        "Cache-Control": "public, max-age=31536000, immutable",  # 1 year cache
+        "ETag": etag,
+        "Last-Modified": datetime.fromtimestamp(file_mtime).strftime(
+            "%a, %d %b %Y %H:%M:%S GMT"
+        ),
+        "Expires": (datetime.now() + timedelta(days=365)).strftime(
+            "%a, %d %b %Y %H:%M:%S GMT"
+        ),
+        "Content-Encoding": "gzip" if file.file_path.endswith(".gz") else None,
+    }
+
+    # Remove None values
+    headers = {k: v for k, v in headers.items() if v is not None}
+
     return FileResponse(
-        file.file_path, media_type=file.mime_type, filename=file.original_filename
+        file.file_path,
+        media_type=file.mime_type,
+        filename=file.original_filename,
+        headers=headers,
     )
 
 

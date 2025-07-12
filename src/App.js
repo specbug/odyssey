@@ -406,14 +406,22 @@ function App() {
                 }
             }
             
-            // Set file metadata and switch to PDF viewer
+            // Set file metadata and switch to PDF viewer immediately
             setFileMetadata(fileData);
-            setFile(selectedFile);
             setShowHomePage(false);
             
-            // Load existing annotations
+            // Only set file if we have actual file data (not null from early loading state)
+            if (selectedFile) {
+                setFile(selectedFile);
+            }
+            
+            // Load annotations in parallel (don't await - let it load in background)
             if (fileData) {
-                await loadAnnotations(fileData.id);
+                // Start loading annotations asynchronously
+                loadAnnotations(fileData.id).catch(error => {
+                    console.warn('Failed to load annotations:', error);
+                    // Don't fail the entire operation if annotations fail to load
+                });
             } else {
                 // New file, clear annotations
                 setHighlights([]);

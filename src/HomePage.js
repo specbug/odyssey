@@ -6,6 +6,7 @@ const HomePage = ({ onFileSelect }) => {
     const [files, setFiles] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
+    const [preloadedFiles, setPreloadedFiles] = useState(new Set());
 
     useEffect(() => {
         loadFiles();
@@ -16,6 +17,9 @@ const HomePage = ({ onFileSelect }) => {
             setLoading(true);
             const fileList = await apiService.getFiles();
             setFiles(fileList);
+            
+            // Preload recently accessed files
+            preloadRecentFiles(fileList);
         } catch (err) {
             setError('Failed to load PDF files');
             console.error('Error loading files:', err);
@@ -24,11 +28,49 @@ const HomePage = ({ onFileSelect }) => {
         }
     };
 
+    const preloadRecentFiles = async (fileList) => {
+        if (!fileList || fileList.length === 0) return;
+        
+        // Sort by last accessed time and preload top 3 most recent
+        const sortedFiles = [...fileList]
+            .sort((a, b) => new Date(b.last_accessed) - new Date(a.last_accessed))
+            .slice(0, 3);
+        
+        console.log('🚀 Preloading recent files:', sortedFiles.map(f => f.display_name));
+        
+        // Preload files in the background
+        sortedFiles.forEach(file => {
+            if (!preloadedFiles.has(file.id)) {
+                preloadFile(file.id);
+            }
+        });
+    };
+
+    const preloadFile = async (fileId) => {
+        try {
+            console.log(`🔄 Preloading file ${fileId}...`);
+            await apiService.downloadFile(fileId);
+            
+            setPreloadedFiles(prev => new Set([...prev, fileId]));
+            console.log(`✅ Preloaded file ${fileId}`);
+        } catch (error) {
+            console.warn(`Failed to preload file ${fileId}:`, error);
+        }
+    };
+
     const handleFileClick = async (file) => {
         try {
-            // Download the file and create a File object for the PDF viewer
-            const blob = await apiService.downloadFile(file.id);
+            // Start downloading the file in parallel with UI updates
+            const downloadPromise = apiService.downloadFile(file.id);
+            
+            // Immediately switch to PDF viewer to show loading state
+            onFileSelect(null, file);
+            
+            // Wait for download to complete
+            const blob = await downloadPromise;
             const fileObject = new File([blob], file.original_filename, { type: 'application/pdf' });
+            
+            // Update with actual file data
             onFileSelect(fileObject, file);
         } catch (err) {
             console.error('Error opening file:', err);
@@ -110,19 +152,25 @@ const HomePage = ({ onFileSelect }) => {
                     {files.map((file) => (
                         <div 
                             key={file.id} 
-                            className="file-card"
+                            className={`file-card ${preloadedFiles.has(file.id) ? 'preloaded' : ''}`}
                             onClick={() => handleFileClick(file)}
                         >
                             <div className="file-card-content">
                                 <div className="file-icon">
                                     <div className="pdf-icon">
                                         <span>PDF</span>
+                                        {preloadedFiles.has(file.id) && (
+                                            <div className="preload-indicator">⚡</div>
+                                        )}
                                     </div>
                                 </div>
                                 
                                 <div className="file-info">
                                     <h3 className="file-name" title={file.display_name}>
                                         {file.display_name}
+                                        {preloadedFiles.has(file.id) && (
+                                            <span className="preload-badge">Ready</span>
+                                        )}
                                     </h3>
                                     
                                     <div className="file-bottom-section">
