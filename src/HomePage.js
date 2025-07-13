@@ -26,15 +26,8 @@ const HomePage = ({ onFileSelect }) => {
 
 
 
-    const handleFileClick = async (file) => {
-        try {
-            // Download the file and create a File object for the PDF viewer
-            const blob = await apiService.downloadFile(file.id);
-            const fileObject = new File([blob], file.original_filename, { type: 'application/pdf' });
-            onFileSelect(fileObject, file);
-        } catch (err) {
-            console.error('Error opening file:', err);
-        }
+    const handleFileClick = (file) => {
+        onFileSelect(file);
     };
 
     const formatFileSize = (bytes) => {

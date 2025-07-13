@@ -407,6 +407,10 @@ function App() {
                 } else {
                     throw new Error('Upload failed');
                 }
+            } else {
+                // For existing files, download the file blob
+                const blob = await apiService.downloadFile(existingMetadata.id);
+                selectedFile = new File([blob], existingMetadata.original_filename, { type: 'application/pdf' });
             }
             
             // Set file metadata and switch to PDF viewer
@@ -438,8 +442,8 @@ function App() {
         }
     };
 
-    const handleHomePageFileSelect = async (file, metadata) => {
-        await handleFileSelection(file, metadata);
+    const handleHomePageFileSelect = async (metadata) => {
+        await handleFileSelection(null, metadata);
     };
 
     const goToHomePage = () => {
