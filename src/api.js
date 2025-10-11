@@ -1,7 +1,7 @@
 // Use different API base URLs for development vs production
 const API_BASE_URL = process.env.NODE_ENV === 'development' 
     ? 'http://localhost:8000' 
-    : '/api';
+    : `${process.env.PUBLIC_URL}/api`;
 
 class ApiService {
     constructor() {
