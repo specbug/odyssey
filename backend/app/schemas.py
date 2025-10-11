@@ -19,6 +19,7 @@ class PDFFileResponse(PDFFileBase):
     id: int
     file_hash: str
     zoom_level: float = 1.2
+    last_read_position: int = 0
     upload_date: datetime
     last_accessed: datetime
     annotation_count: Optional[int] = 0
@@ -74,6 +75,10 @@ class FileUploadResponse(BaseModel):
 
 class ZoomLevelUpdate(BaseModel):
     zoom_level: float = Field(..., ge=0.5, le=3.0, description="Zoom level between 0.5 and 3.0")
+
+
+class ReadPositionUpdate(BaseModel):
+    last_read_position: int = Field(..., ge=0, description="Last read page index (0-based)")
 
 
 # Spaced Repetition Schemas

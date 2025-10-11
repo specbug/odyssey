@@ -384,6 +384,7 @@ function App() {
     const pageHeights = useRef({});
     const viewerRef = useRef(null);
     const noteRefs = useRef({});
+    const savePositionTimeout = useRef(null);
 
     // Save scale to database whenever it changes (with debouncing)
     useEffect(() => {
@@ -401,6 +402,47 @@ function App() {
 
         return () => clearTimeout(timeoutId);
     }, [scale, fileMetadata?.id]);
+
+    // Handle scroll from react-window List component
+    const handleListScroll = useCallback(({ scrollOffset, scrollUpdateWasRequested }) => {
+        if (!fileMetadata?.id || !numPages) return;
+
+        // Calculate which page is at the top of the viewport
+        let currentPageIndex = 0;
+        let accumulatedHeight = 0;
+
+        for (let i = 0; i < numPages; i++) {
+            // Get page height from ref, or use estimated height
+            const pageHeight = pageHeights.current[i] || (1188 * scale);
+            if (accumulatedHeight + pageHeight > scrollOffset) {
+                currentPageIndex = i;
+                break;
+            }
+            accumulatedHeight += pageHeight;
+            currentPageIndex = i; // In case we're at the last page
+        }
+
+        console.log('📜 Scroll detected:', {
+            scrollOffset,
+            currentPage: currentPageIndex + 1, // 1-based for display
+            totalPages: numPages,
+            wasRequested: scrollUpdateWasRequested
+        });
+
+        // Debounce save operation
+        if (savePositionTimeout.current) {
+            clearTimeout(savePositionTimeout.current);
+        }
+
+        savePositionTimeout.current = setTimeout(async () => {
+            try {
+                await apiService.updateReadPosition(fileMetadata.id, currentPageIndex);
+                console.log(`✅ Saved read position: page ${currentPageIndex + 1} of ${numPages} for file ${fileMetadata.id}`);
+            } catch (error) {
+                console.warn('❌ Failed to save read position to database:', error);
+            }
+        }, 1000); // Save 1 second after scrolling stops
+    }, [fileMetadata?.id, numPages, scale]);
 
     const onFileChange = async (event) => {
         const selectedFile = event.target.files[0];
@@ -484,6 +526,31 @@ function App() {
     const onDocumentLoadSuccess = useCallback(({ numPages }) => {
         setNumPages(numPages);
     }, []);
+
+    // Restore scroll position after document loads
+    useEffect(() => {
+        if (!numPages || !listRef.current) return;
+
+        const savedPageIndex = fileMetadata?.last_read_position;
+        if (savedPageIndex === undefined || savedPageIndex === null) return;
+
+        // Validate page index is within bounds
+        if (savedPageIndex < 0 || savedPageIndex >= numPages) {
+            console.warn(`Invalid saved page index ${savedPageIndex}, expected 0-${numPages - 1}`);
+            return;
+        }
+
+        // Wait for react-window to render
+        const restorePosition = setTimeout(() => {
+            if (listRef.current) {
+                // Use scrollToItem to jump directly to the saved page
+                listRef.current.scrollToItem(savedPageIndex, 'start');
+                console.log(`📖 Restored read position to page ${savedPageIndex + 1} of ${numPages}`);
+            }
+        }, 300); // Small delay to ensure List is mounted
+
+        return () => clearTimeout(restorePosition);
+    }, [numPages, fileMetadata?.last_read_position]);
 
     const loadAnnotations = useCallback(async (fileId) => {
         if (!fileId) return;
@@ -1156,6 +1223,7 @@ function App() {
                                 itemCount={numPages}
                                 itemSize={getPageHeight}
                                 width="100%"
+                                onScroll={handleListScroll}
                             >
                                 {({ index, style }) => (
                                     <PageRenderer

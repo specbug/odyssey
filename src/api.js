@@ -105,6 +105,25 @@ class ApiService {
         }
     }
 
+    async updateReadPosition(fileId, position) {
+        try {
+            const response = await fetch(`${this.baseUrl}/files/${fileId}/position`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ last_read_position: position }),
+            });
+            if (!response.ok) {
+                throw new Error('Failed to update read position');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Update read position error:', error);
+            throw error;
+        }
+    }
+
     async createAnnotation(fileId, annotation) {
         try {
             const response = await fetch(`${this.baseUrl}/files/${fileId}/annotations`, {
