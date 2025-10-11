@@ -13,7 +13,7 @@ import ReviewModal from './ReviewModal';
 import LoadingBar from './LoadingBar';
 
 // Use local PDF.js worker - works better with nginx
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+pdfjs.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL}/pdf.worker.min.mjs`;
 
 const MemoizedPage = memo(Page);
 
