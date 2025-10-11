@@ -18,6 +18,7 @@ class PDFFileCreate(PDFFileBase):
 class PDFFileResponse(PDFFileBase):
     id: int
     file_hash: str
+    zoom_level: float = 1.2
     upload_date: datetime
     last_accessed: datetime
     annotation_count: Optional[int] = 0
@@ -69,6 +70,10 @@ class FileUploadResponse(BaseModel):
     message: str
     file_data: Optional[PDFFileResponse] = None
     is_duplicate: bool = False
+
+
+class ZoomLevelUpdate(BaseModel):
+    zoom_level: float = Field(..., ge=0.5, le=3.0, description="Zoom level between 0.5 and 3.0")
 
 
 # Spaced Repetition Schemas

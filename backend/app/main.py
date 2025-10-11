@@ -19,6 +19,7 @@ from .schemas import (
     AnnotationUpdate,
     AnnotationResponse,
     FileUploadResponse,
+    ZoomLevelUpdate,
     StudyCardCreate,
     StudyCardResponse,
     StudyCardUpdate,
@@ -295,6 +296,23 @@ async def get_file(file_id: int, db: Session = Depends(get_db)):
     # Update last accessed time
     file.last_accessed = datetime.utcnow()
     db.commit()
+
+    return file
+
+
+@app.patch("/files/{file_id}/zoom", response_model=PDFFileResponse)
+async def update_file_zoom(
+    file_id: int, zoom_data: ZoomLevelUpdate, db: Session = Depends(get_db)
+):
+    """Update the zoom level for a specific file."""
+    file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Update zoom level
+    file.zoom_level = zoom_data.zoom_level
+    db.commit()
+    db.refresh(file)
 
     return file
 

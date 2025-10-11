@@ -15,45 +15,7 @@ import LoadingBar from './LoadingBar';
 // Use local PDF.js worker - works better with nginx
 pdfjs.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL}/pdf.worker.min.mjs`;
 
-// localStorage utility functions for scale persistence
-const SCALE_STORAGE_PREFIX = 'odyssey_scale_';
 const DEFAULT_SCALE = 1.2;
-const MIN_SCALE = 0.5;
-const MAX_SCALE = 3.0;
-
-const loadScaleForFile = (fileId) => {
-    if (!fileId) return DEFAULT_SCALE;
-
-    try {
-        const key = `${SCALE_STORAGE_PREFIX}${fileId}`;
-        const saved = localStorage.getItem(key);
-
-        if (saved) {
-            const scale = parseFloat(saved);
-            // Validate the loaded scale is within bounds
-            if (!isNaN(scale) && scale >= MIN_SCALE && scale <= MAX_SCALE) {
-                console.log(`Loaded saved scale ${scale} for file ${fileId}`);
-                return scale;
-            }
-        }
-    } catch (error) {
-        console.warn('Failed to load scale from localStorage:', error);
-    }
-
-    return DEFAULT_SCALE;
-};
-
-const saveScaleForFile = (fileId, scale) => {
-    if (!fileId) return;
-
-    try {
-        const key = `${SCALE_STORAGE_PREFIX}${fileId}`;
-        localStorage.setItem(key, scale.toString());
-        console.log(`Saved scale ${scale} for file ${fileId}`);
-    } catch (error) {
-        console.warn('Failed to save scale to localStorage:', error);
-    }
-};
 
 const MemoizedPage = memo(Page);
 
@@ -423,13 +385,18 @@ function App() {
     const viewerRef = useRef(null);
     const noteRefs = useRef({});
 
-    // Save scale to localStorage whenever it changes (with debouncing)
+    // Save scale to database whenever it changes (with debouncing)
     useEffect(() => {
         if (!fileMetadata?.id) return;
 
         // Debounce the save operation
-        const timeoutId = setTimeout(() => {
-            saveScaleForFile(fileMetadata.id, scale);
+        const timeoutId = setTimeout(async () => {
+            try {
+                await apiService.updateFileZoom(fileMetadata.id, scale);
+                console.log(`Saved zoom ${scale} for file ${fileMetadata.id}`);
+            } catch (error) {
+                console.warn('Failed to save zoom to database:', error);
+            }
         }, 500); // Wait 500ms after last change before saving
 
         return () => clearTimeout(timeoutId);
@@ -470,13 +437,10 @@ function App() {
             setFile(selectedFile);
             setShowHomePage(false);
 
-            // Load saved scale for this file
-            if (fileData?.id) {
-                const savedScale = loadScaleForFile(fileData.id);
-                setScale(savedScale);
-            } else {
-                setScale(DEFAULT_SCALE);
-            }
+            // Load saved zoom level for this file from database
+            const savedZoom = fileData?.zoom_level || DEFAULT_SCALE;
+            setScale(savedZoom);
+            console.log(`Loaded zoom ${savedZoom} for file ${fileData?.id}`);
 
             // Load existing annotations
             if (fileData) {

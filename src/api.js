@@ -86,6 +86,25 @@ class ApiService {
         }
     }
 
+    async updateFileZoom(fileId, zoomLevel) {
+        try {
+            const response = await fetch(`${this.baseUrl}/files/${fileId}/zoom`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ zoom_level: zoomLevel }),
+            });
+            if (!response.ok) {
+                throw new Error('Failed to update zoom level');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Update zoom error:', error);
+            throw error;
+        }
+    }
+
     async createAnnotation(fileId, annotation) {
         try {
             const response = await fetch(`${this.baseUrl}/files/${fileId}/annotations`, {
