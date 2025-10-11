@@ -385,6 +385,8 @@ function App() {
     const viewerRef = useRef(null);
     const noteRefs = useRef({});
     const savePositionTimeout = useRef(null);
+    const currentPageIndexRef = useRef(0); // Track current page for immediate saves
+    const isNavigatingAwayRef = useRef(false); // Prevent position updates during navigation
 
     // Save scale to database whenever it changes (with debouncing)
     useEffect(() => {
@@ -407,6 +409,12 @@ function App() {
     const handleListScroll = useCallback(({ scrollOffset, scrollUpdateWasRequested }) => {
         if (!fileMetadata?.id || !numPages) return;
 
+        // Don't update position if we're navigating away
+        if (isNavigatingAwayRef.current) {
+            console.log('🚫 Ignoring scroll event - navigating away');
+            return;
+        }
+
         // Calculate which page is at the top of the viewport
         let currentPageIndex = 0;
         let accumulatedHeight = 0;
@@ -428,6 +436,9 @@ function App() {
             totalPages: numPages,
             wasRequested: scrollUpdateWasRequested
         });
+
+        // Update ref with current page for immediate saves (e.g., when navigating away)
+        currentPageIndexRef.current = currentPageIndex;
 
         // Debounce save operation
         if (savePositionTimeout.current) {
@@ -469,9 +480,12 @@ function App() {
                     throw new Error('Upload failed');
                 }
             } else {
-                // For existing files, download the file blob
+                // For existing files, fetch fresh metadata and download the file blob
+                console.log('Fetching fresh metadata for file', existingMetadata.id);
+                fileData = await apiService.getFile(existingMetadata.id);
                 const blob = await apiService.downloadFile(existingMetadata.id);
-                selectedFile = new File([blob], existingMetadata.original_filename, { type: 'application/pdf' });
+                selectedFile = new File([blob], fileData.original_filename, { type: 'application/pdf' });
+                console.log('Loaded fresh metadata with last_read_position:', fileData.last_read_position);
             }
             
             // Set file metadata and switch to PDF viewer
@@ -498,7 +512,8 @@ function App() {
             setActiveNoteId(null);
             pageHeights.current = {};
             noteRefs.current = {};
-            
+            isNavigatingAwayRef.current = false; // Re-enable position tracking
+
         } catch (error) {
             setUploadError(error.message);
             console.error('File selection failed:', error);
@@ -512,15 +527,29 @@ function App() {
         await handleFileSelection(null, metadata);
     };
 
-    const goToHomePage = () => {
-        setShowHomePage(true);
-        setFile(null);
-        setFileMetadata(null);
-        setNotes([]);
-        setHighlights([]);
-        setPendingHighlight(null);
-        setActiveNoteId(null);
-        setUploadError(null);
+    const goToHomePage = async () => {
+        // Set flag immediately to prevent scroll events from updating position
+        isNavigatingAwayRef.current = true;
+
+        // Save current position immediately before reloading
+        if (fileMetadata?.id && currentPageIndexRef.current !== undefined) {
+            // Clear any pending debounced save
+            if (savePositionTimeout.current) {
+                clearTimeout(savePositionTimeout.current);
+                savePositionTimeout.current = null;
+            }
+
+            // Immediately save the current position
+            try {
+                await apiService.updateReadPosition(fileMetadata.id, currentPageIndexRef.current);
+                console.log(`💾 Saved position before going home: page ${currentPageIndexRef.current + 1}`);
+            } catch (error) {
+                console.warn('Failed to save position before going home:', error);
+            }
+        }
+
+        // Reload the page to clear all state and fetch fresh data
+        window.location.reload();
     };
 
     const onDocumentLoadSuccess = useCallback(({ numPages }) => {
@@ -545,6 +574,7 @@ function App() {
             if (listRef.current) {
                 // Use scrollToItem to jump directly to the saved page
                 listRef.current.scrollToItem(savedPageIndex, 'start');
+                currentPageIndexRef.current = savedPageIndex; // Initialize ref with restored position
                 console.log(`📖 Restored read position to page ${savedPageIndex + 1} of ${numPages}`);
             }
         }, 300); // Small delay to ensure List is mounted
