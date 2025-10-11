@@ -15,6 +15,46 @@ import LoadingBar from './LoadingBar';
 // Use local PDF.js worker - works better with nginx
 pdfjs.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL}/pdf.worker.min.mjs`;
 
+// localStorage utility functions for scale persistence
+const SCALE_STORAGE_PREFIX = 'odyssey_scale_';
+const DEFAULT_SCALE = 1.2;
+const MIN_SCALE = 0.5;
+const MAX_SCALE = 3.0;
+
+const loadScaleForFile = (fileId) => {
+    if (!fileId) return DEFAULT_SCALE;
+
+    try {
+        const key = `${SCALE_STORAGE_PREFIX}${fileId}`;
+        const saved = localStorage.getItem(key);
+
+        if (saved) {
+            const scale = parseFloat(saved);
+            // Validate the loaded scale is within bounds
+            if (!isNaN(scale) && scale >= MIN_SCALE && scale <= MAX_SCALE) {
+                console.log(`Loaded saved scale ${scale} for file ${fileId}`);
+                return scale;
+            }
+        }
+    } catch (error) {
+        console.warn('Failed to load scale from localStorage:', error);
+    }
+
+    return DEFAULT_SCALE;
+};
+
+const saveScaleForFile = (fileId, scale) => {
+    if (!fileId) return;
+
+    try {
+        const key = `${SCALE_STORAGE_PREFIX}${fileId}`;
+        localStorage.setItem(key, scale.toString());
+        console.log(`Saved scale ${scale} for file ${fileId}`);
+    } catch (error) {
+        console.warn('Failed to save scale to localStorage:', error);
+    }
+};
+
 const MemoizedPage = memo(Page);
 
 const ContentEditable = memo(React.forwardRef(({ value, onChange, onKeyDown, onPaste, placeholder, ...props }, ref) => {
@@ -383,6 +423,18 @@ function App() {
     const viewerRef = useRef(null);
     const noteRefs = useRef({});
 
+    // Save scale to localStorage whenever it changes (with debouncing)
+    useEffect(() => {
+        if (!fileMetadata?.id) return;
+
+        // Debounce the save operation
+        const timeoutId = setTimeout(() => {
+            saveScaleForFile(fileMetadata.id, scale);
+        }, 500); // Wait 500ms after last change before saving
+
+        return () => clearTimeout(timeoutId);
+    }, [scale, fileMetadata?.id]);
+
     const onFileChange = async (event) => {
         const selectedFile = event.target.files[0];
         if (!selectedFile) return;
@@ -417,7 +469,15 @@ function App() {
             setFileMetadata(fileData);
             setFile(selectedFile);
             setShowHomePage(false);
-            
+
+            // Load saved scale for this file
+            if (fileData?.id) {
+                const savedScale = loadScaleForFile(fileData.id);
+                setScale(savedScale);
+            } else {
+                setScale(DEFAULT_SCALE);
+            }
+
             // Load existing annotations
             if (fileData) {
                 await loadAnnotations(fileData.id);
