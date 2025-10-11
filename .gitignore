@@ -15,8 +15,8 @@ pnpm-debug.log*
 .nyc_output
 
 # Production builds
-/build
-/dist
+build/
+dist/
 /out
 
 # Environment variables
@@ -153,3 +153,19 @@ backend/coverage.xml
 backend/*.cover
 backend/.hypothesis/
 backend/.pytest_cache/
+
+# --- Generic Python / Project Root Ignores ---
+
+# Virtual environments (in root or elsewhere)
+.venv/
+venv/
+env/
+
+# Python cache (in root or elsewhere)
+__pycache__/
+
+# Database files
+pdf_annotations.db
+*.db
+*.sqlite
+*.sqlite3
