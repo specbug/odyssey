@@ -1,9 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import apiService from './api';
 import './ReviewModal.css';
 import 'katex/dist/katex.min.css';
 import { InlineMath, BlockMath } from 'react-katex';
 import AsteriskProgressBar from './AsteriskProgressBar';
+
+// Vibrant color themes inspired by Orbit
+const COLOR_THEMES = [
+    { bg: '#F47E60', fg: '#1A1A1A', name: 'Orbit Orange' },
+    { bg: '#FF6B6B', fg: '#1A1A1A', name: 'Coral Red' },
+    { bg: '#9B59B6', fg: '#FFFFFF', name: 'Deep Purple' },
+    { bg: '#3498DB', fg: '#FFFFFF', name: 'Ocean Blue' },
+    { bg: '#E74C3C', fg: '#FFFFFF', name: 'Sunset Pink' },
+    { bg: '#F39C12', fg: '#1A1A1A', name: 'Warm Amber' },
+];
 
 // Import the sophisticated note content component from App.js
 const NoteContent = React.memo(({ content, className }) => {
@@ -120,6 +130,9 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
     const [learningCards, setLearningCards] = useState([]);
     const [reviewedToday, setReviewedToday] = useState(0);
     const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 });
+    const [currentThemeIndex, setCurrentThemeIndex] = useState(0);
+    const [showContextMenu, setShowContextMenu] = useState(false);
+    const contextMenuRef = useRef(null);
 
     useEffect(() => {
         if (isOpen) {
@@ -127,8 +140,50 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
             setShowAnswer(false);
             setReviewComplete(false);
             setSessionStats({ correct: 0, total: 0 });
+            setCurrentThemeIndex(Math.floor(Math.random() * COLOR_THEMES.length));
         }
     }, [isOpen, fileId]);
+
+    // Keyboard navigation
+    useEffect(() => {
+        if (!isOpen || reviewComplete) return;
+
+        const handleKeyPress = (e) => {
+            // Ignore if user is typing in an input field
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            if (e.code === 'Space' && !showAnswer) {
+                e.preventDefault();
+                handleShowAnswer();
+            } else if (e.key === '1' && showAnswer) {
+                e.preventDefault();
+                handleReview(1);
+            } else if (e.key === '2' && showAnswer) {
+                e.preventDefault();
+                handleReview(4);
+            } else if (e.key === 'Escape') {
+                e.preventDefault();
+                onClose();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyPress);
+        return () => window.removeEventListener('keydown', handleKeyPress);
+    }, [isOpen, showAnswer, reviewComplete, currentCard]);
+
+    // Click outside context menu to close
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (contextMenuRef.current && !contextMenuRef.current.contains(e.target)) {
+                setShowContextMenu(false);
+            }
+        };
+
+        if (showContextMenu) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [showContextMenu]);
 
     const loadDueCards = async () => {
         if (!fileId) return;
@@ -189,7 +244,7 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
 
     const handleReview = async (quality) => {
         if (!currentCard) return;
-        
+
         setLoading(true);
         try {
             await apiService.reviewCard(currentCard.id, {
@@ -197,21 +252,23 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                 quality: quality,
                 time_taken: 30 // You could track actual time here
             });
-            
+
             // Update session stats
             setSessionStats(prev => ({
                 correct: prev.correct + (quality >= 3 ? 1 : 0),
                 total: prev.total + 1
             }));
-            
+
             // Move to next card
             const allCards = [...newCards, ...learningCards, ...dueCards];
             const currentIndex = allCards.findIndex(card => card.id === currentCard.id);
             const remainingCards = allCards.slice(currentIndex + 1);
-            
+
             if (remainingCards.length > 0) {
                 setCurrentCard(remainingCards[0]);
                 setShowAnswer(false);
+                // Change to next theme color
+                setCurrentThemeIndex((prev) => (prev + 1) % COLOR_THEMES.length);
             } else {
                 setReviewComplete(true);
             }
@@ -254,212 +311,263 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
 
     if (!isOpen) return null;
 
+    const currentTheme = COLOR_THEMES[currentThemeIndex];
+
     return (
-        <div className="review-modal-overlay" onClick={onClose}>
-            <div className="review-modal" onClick={(e) => e.stopPropagation()}>
-                {/* Compact Header with Timeline */}
-                <div className="review-modal-header compact">
-                    <div className="header-content">
-                        {/* Left: Brand with Progress */}
-                        <div className="brand-section">
-                            {currentCard && !reviewComplete && (() => {
-                                const allCards = [...newCards, ...learningCards, ...dueCards];
-                                
-                                // Only show asterisk if there are actually cards to review
-                                if (allCards.length === 0) {
-                                    return (
-                                        <div className="header-logo">
-                                            <img src={`${process.env.PUBLIC_URL}/logo.svg`} alt="Odyssey Logo" className="logo-svg" />
-                                        </div>
-                                    );
-                                }
-                                
-                                const currentIndex = allCards.findIndex(card => card.id === currentCard.id);
-                                const currentStep = currentIndex + 1;
-                                
-                                return (
-                                    <AsteriskProgressBar 
-                                        totalSteps={allCards.length}
-                                        currentStep={currentStep}
-                                        size={35}
-                                        activeColor="rgba(255, 77, 6, 0.7)"
-                                        inactiveColor="rgba(0, 0, 0, 0.05)"
-                                        className="header-asterisk"
-                                    />
-                                );
-                            })()}
-                            {(!currentCard && !reviewComplete) && (
-                                <div className="header-logo">
-                                    <img src={`${process.env.PUBLIC_URL}/logo.svg`} alt="Odyssey Logo" className="logo-svg" />
-                                </div>
-                            )}
-                        </div>
-                        
-                        {/* Center: Timeline */}
-                        {currentCard && !reviewComplete && (
-                            <TimelineVisualization currentCard={currentCard} />
-                        )}
-                        
-                        {/* Right: Compact Stats + Close */}
-                        <div className="header-right">
-                            <div className="stats-compact">
-                                <div className="stat-item new">
-                                    <span className="stat-value">{newCards.length}</span>
-                                    <span className="stat-name">New</span>
-                                </div>
-                                <div className="stat-item learning">
-                                    <span className="stat-value">{learningCards.length}</span>
-                                    <span className="stat-name">Learning</span>
-                                </div>
-                                <div className="stat-item due">
-                                    <span className="stat-value">{dueCards.length}</span>
-                                    <span className="stat-name">Due</span>
-                                </div>
+        <div
+            className="review-fullscreen"
+            style={{
+                backgroundColor: currentTheme.bg,
+                color: currentTheme.fg,
+                transition: 'background-color 0.5s cubic-bezier(0.4, 0, 0.2, 1), color 0.5s ease'
+            }}
+        >
+            <div className="review-container">
+                {/* Top Bar: Orbit-Inspired */}
+                <div className="orbit-top-bar">
+                    {/* Left: Spaced Repetition Intervals */}
+                    {currentCard && !reviewComplete && (
+                        <TimelineVisualization currentCard={currentCard} />
+                    )}
+
+                    {/* Center: Progress Asterisk */}
+                    {currentCard && !reviewComplete && (() => {
+                        const allCards = [...newCards, ...learningCards, ...dueCards];
+                        const currentIndex = allCards.findIndex(card => card.id === currentCard.id);
+                        const currentStep = currentIndex + 1;
+
+                        return (
+                            <div className="header-progress-asterisk">
+                                <AsteriskProgressBar
+                                    totalSteps={allCards.length}
+                                    currentStep={currentStep}
+                                    size={36}
+                                    activeColor="#ff4d06"
+                                    inactiveColor="rgba(0, 0, 0, 0.15)"
+                                    className="asterisk-progress"
+                                />
                             </div>
-                            <button className="close-button" onClick={onClose}>
-                                <span className="material-symbols-outlined">close</span>
-                            </button>
+                        );
+                    })()}
+
+                    {/* Right: Brand + Context Menu + Stats + Close */}
+                    <div className="top-bar-right">
+                        <div className="brand-logo">
+                            <img src={`${process.env.PUBLIC_URL}/logo.svg`} alt="Odyssey" className="logo-svg" />
                         </div>
+
+                        {/* Context Menu - Only show when actively reviewing */}
+                        {currentCard && !reviewComplete && (
+                            <div className="context-menu-wrapper" ref={contextMenuRef}>
+                                <button
+                                    className="context-menu-button"
+                                    onClick={() => setShowContextMenu(!showContextMenu)}
+                                    style={{ color: currentTheme.fg }}
+                                >
+                                    <span className="material-symbols-outlined">more_vert</span>
+                                </button>
+
+                                {showContextMenu && (
+                                    <div className="context-menu-dropdown">
+                                        <button className="context-menu-item" onClick={() => {
+                                            handleReview(0);
+                                            setShowContextMenu(false);
+                                        }}>
+                                            <span className="material-symbols-outlined">skip_next</span>
+                                            <span>Skip Prompt</span>
+                                        </button>
+                                        <button className="context-menu-item" onClick={() => {
+                                            handleViewInDocument();
+                                            setShowContextMenu(false);
+                                        }}>
+                                            <span className="material-symbols-outlined">open_in_new</span>
+                                            <span>Visit Prompt Origin</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <button className="close-button-orbit" onClick={onClose} style={{ color: currentTheme.fg }}>
+                            <span className="material-symbols-outlined">close</span>
+                        </button>
                     </div>
                 </div>
 
 
 
-                {/* Content Area */}
-                <div className="review-content">
+                {/* Center Content Area */}
+                <div className="orbit-center-content">
                     {loading && !currentCard ? (
-                        <div className="loading-state">
-                            <div className="loading-animation">
-                                <div className="loading-spinner"></div>
-                            </div>
-                            <h3>Preparing your cards</h3>
-                            <p>Setting up your personalized review session...</p>
+                        <div className="loading-state-orbit">
+                            <div className="loading-spinner-orbit" style={{ borderTopColor: currentTheme.fg }}></div>
+                            <h3 style={{ color: currentTheme.fg }}>Preparing your cards</h3>
                         </div>
                     ) : reviewComplete ? (
-                        <div className="completion-state">
-                            {(() => {
-                                // Check if any cards were actually reviewed
-                                if (sessionStats.total === 0) {
-                                    // No cards were reviewed - show empty state
-                                    return (
-                                        <>
-                                            <div className="completion-logo">
-                                                <img src={`${process.env.PUBLIC_URL}/logo.svg`} alt="Odyssey Logo" className="logo-svg-large" />
-                                            </div>
-                                            <h2>No Cards to Review</h2>
-                                            <p>You're all caught up! Create more annotations to generate study cards.</p>
-                                            <button className="primary-button" onClick={handleReturnToBook}>
-                                                <span>Continue Reading</span>
-                                                <span className="material-symbols-outlined">arrow_forward</span>
-                                            </button>
-                                        </>
-                                    );
-                                }
-
-                                // Cards were reviewed - show completion state
-                                const totalCards = sessionStats.total;
-
-                                return (
-                                    <>
-                                        <div className="completion-asterisk">
-                                            <AsteriskProgressBar
-                                                totalSteps={totalCards}
-                                                currentStep={totalCards}
-                                                size={100}
-                                                activeColor="rgba(255, 77, 6, 0.7)"
-                                                inactiveColor="rgba(0, 0, 0, 0.05)"
-                                                className="completion-asterisk-element"
-                                            />
+                        <div className="completion-state-orbit">
+                            {sessionStats.total === 0 ? (
+                                <>
+                                    <div className="completion-logo">
+                                        <img src={`${process.env.PUBLIC_URL}/logo.svg`} alt="Odyssey Logo" className="logo-svg-large" />
+                                    </div>
+                                    <h2 style={{ color: currentTheme.fg }}>No Cards to Review</h2>
+                                    <p style={{ color: currentTheme.fg, opacity: 0.8 }}>
+                                        You're all caught up! Create more annotations to generate study cards.
+                                    </p>
+                                    <button
+                                        className="orbit-primary-button"
+                                        onClick={handleReturnToBook}
+                                        style={{
+                                            backgroundColor: currentTheme.fg,
+                                            color: currentTheme.bg
+                                        }}
+                                    >
+                                        <span>Continue Reading</span>
+                                        <span className="material-symbols-outlined">arrow_forward</span>
+                                    </button>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="completion-asterisk">
+                                        <AsteriskProgressBar
+                                            totalSteps={sessionStats.total}
+                                            currentStep={sessionStats.total}
+                                            size={120}
+                                            activeColor="#ff4d06"
+                                            inactiveColor="rgba(255, 77, 6, 0.2)"
+                                            className="completion-asterisk-element"
+                                        />
+                                    </div>
+                                    <h2 style={{ color: currentTheme.fg }}>Review Complete</h2>
+                                    <div className="completion-stats-orbit">
+                                        <div className="completion-summary">
+                                            <span className="cards-reviewed" style={{ color: currentTheme.fg }}>{sessionStats.total}</span>
+                                            <span className="cards-label" style={{ color: currentTheme.fg, opacity: 0.7 }}>cards reviewed</span>
                                         </div>
-                                        <h2>Review Complete</h2>
-                                        <div className="completion-stats">
-                                            <div className="completion-summary">
-                                                <span className="cards-reviewed">{sessionStats.total}</span>
-                                                <span className="cards-label">cards reviewed</span>
-                                            </div>
-                                            <div className="accuracy-display">
-                                                <span className="accuracy-percentage">
-                                                    {sessionStats.total > 0 ? Math.round((sessionStats.correct / sessionStats.total) * 100) : 0}%
-                                                </span>
-                                                <span className="accuracy-label">accuracy</span>
-                                            </div>
+                                        <div className="accuracy-display">
+                                            <span className="accuracy-percentage" style={{ color: currentTheme.fg }}>
+                                                {Math.round((sessionStats.correct / sessionStats.total) * 100)}%
+                                            </span>
+                                            <span className="accuracy-label" style={{ color: currentTheme.fg, opacity: 0.7 }}>accuracy</span>
                                         </div>
-                                        <button className="primary-button" onClick={handleReturnToBook}>
-                                            <span>Continue Reading</span>
-                                            <span className="material-symbols-outlined">arrow_forward</span>
-                                        </button>
-                                    </>
-                                );
-                            })()}
+                                    </div>
+                                    <button
+                                        className="orbit-primary-button"
+                                        onClick={handleReturnToBook}
+                                        style={{
+                                            backgroundColor: currentTheme.fg,
+                                            color: currentTheme.bg
+                                        }}
+                                    >
+                                        <span>Continue Reading</span>
+                                        <span className="material-symbols-outlined">arrow_forward</span>
+                                    </button>
+                                </>
+                            )}
                         </div>
                     ) : currentCard ? (
-                        <div className="study-session">
-                            <div className="card-container">
-                                <div className="card-question-area">
-                                    <NoteContent 
-                                        content={currentCard.annotation?.question || 'No question available'} 
-                                        className="question-content" 
-                                    />
-                                    
-                                    {!showAnswer ? (
-                                        <div className="reveal-section">
-                                            <button className="reveal-text-button" onClick={handleShowAnswer}>
-                                                <span className="material-symbols-outlined">visibility</span>
-                                                <span>Show Answer</span>
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="card-answer-area">
-                                            <NoteContent 
-                                                content={currentCard.annotation?.answer || null} 
-                                                className="answer-content" 
-                                            />
-                                        </div>
-                                    )}
-                                </div>
-                                
-                                {showAnswer && (
-                                    <div className="card-actions">
-                                        <button 
-                                            className="action-text-button forgot"
-                                            onClick={() => handleReview(1)}
-                                            disabled={loading}
-                                        >
-                                            <span className="material-symbols-outlined">close</span>
-                                            <span>Forgot</span>
-                                        </button>
-                                        <button 
-                                            className="action-text-button remembered"
-                                            onClick={() => handleReview(4)}
-                                            disabled={loading}
-                                        >
-                                            <span className="material-symbols-outlined">check</span>
-                                            <span>Remembered</span>
-                                        </button>
-                                        <button className="source-text-button" onClick={handleViewInDocument}>
-                                            <span className="material-symbols-outlined">open_in_new</span>
-                                            <span>View Source</span>
-                                        </button>
+                        <>
+                            {/* Main Question Display */}
+                            <div className="orbit-question-container">
+                                <NoteContent
+                                    content={currentCard.annotation?.question || 'No question available'}
+                                    className="orbit-question-text"
+                                />
+
+                                {showAnswer && currentCard.annotation?.answer && (
+                                    <div className="orbit-answer-container">
+                                        <NoteContent
+                                            content={currentCard.annotation.answer}
+                                            className="orbit-answer-text"
+                                        />
                                     </div>
                                 )}
                             </div>
-                        </div>
+                        </>
                     ) : (
-                        <div className="empty-state">
+                        <div className="empty-state-orbit">
                             <div className="empty-visual">
-                                <div className="empty-icon-container">
-                                    <span className="material-symbols-outlined">school</span>
+                                <div className="empty-icon-container" style={{ backgroundColor: `${currentTheme.fg}22` }}>
+                                    <span className="material-symbols-outlined" style={{ color: currentTheme.fg }}>school</span>
                                 </div>
                             </div>
-                            <h2>Ready to Learn</h2>
-                            <p>Create annotations in your document to generate study cards automatically.</p>
-                            <button className="primary-button" onClick={handleReturnToBook}>
+                            <h2 style={{ color: currentTheme.fg }}>Ready to Learn</h2>
+                            <p style={{ color: currentTheme.fg, opacity: 0.8 }}>
+                                Create annotations in your document to generate study cards automatically.
+                            </p>
+                            <button
+                                className="orbit-primary-button"
+                                onClick={handleReturnToBook}
+                                style={{
+                                    backgroundColor: currentTheme.fg,
+                                    color: currentTheme.bg
+                                }}
+                            >
                                 <span>Return to Book</span>
                                 <span className="material-symbols-outlined">arrow_forward</span>
                             </button>
                         </div>
                     )}
                 </div>
+
+                {/* Bottom Action Bar */}
+                {currentCard && !reviewComplete && (
+                    <div className="orbit-bottom-bar">
+                        {!showAnswer ? (
+                            <button
+                                className="orbit-show-answer-button"
+                                onClick={handleShowAnswer}
+                                style={{
+                                    backgroundColor: `${currentTheme.fg}22`,
+                                    color: currentTheme.fg
+                                }}
+                            >
+                                <span className="material-symbols-outlined">visibility</span>
+                                <span>Show Answer</span>
+                            </button>
+                        ) : (
+                            <div className="orbit-action-buttons">
+                                <button
+                                    className="orbit-forgot-button"
+                                    onClick={() => handleReview(1)}
+                                    disabled={loading}
+                                    style={{
+                                        backgroundColor: `${currentTheme.fg}22`,
+                                        color: currentTheme.fg
+                                    }}
+                                >
+                                    <span className="material-symbols-outlined">close</span>
+                                    <span>Forgotten</span>
+                                </button>
+                                <button
+                                    className="orbit-remembered-button"
+                                    onClick={() => handleReview(4)}
+                                    disabled={loading}
+                                    style={{
+                                        backgroundColor: `${currentTheme.fg}22`,
+                                        color: currentTheme.fg
+                                    }}
+                                >
+                                    <span className="material-symbols-outlined">check</span>
+                                    <span>Remembered</span>
+                                </button>
+                            </div>
+                        )}
+
+                        {/* Skip button - always visible */}
+                        <button
+                            className="orbit-skip-button"
+                            onClick={() => handleReview(0)}
+                            style={{
+                                color: currentTheme.fg,
+                                opacity: 0.6
+                            }}
+                        >
+                            <span>Skip</span>
+                            <span className="material-symbols-outlined">arrow_forward</span>
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
