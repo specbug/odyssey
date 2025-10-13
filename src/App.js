@@ -204,7 +204,7 @@ const Note = memo(({ note, onSave, onCancel, onEdit, onDelete, isPositioned }) =
     };
 
     return (
-        <div className="note">
+        <div className="note" data-note-id={note.id}>
             <ContentEditable
                 ref={questionRef}
                 className="editable-div"
@@ -222,7 +222,7 @@ const Note = memo(({ note, onSave, onCancel, onEdit, onDelete, isPositioned }) =
                 onPaste={handlePaste}
                 placeholder="Type a response here"
             />
-            <NoteMenu 
+            <NoteMenu
                 noteId={note.id}
                 onEdit={onEdit}
                 onDelete={onDelete}
@@ -343,8 +343,9 @@ const PageRenderer = memo(({ index, style, scale, highlights, pendingHighlight, 
                                     isPositioned={notePositions[note.id] !== undefined}
                                />
                            ) : (
-                            <div 
-                                className={`note ${note.id === activeNoteId ? 'active' : ''}`} 
+                            <div
+                                className={`note ${note.id === activeNoteId ? 'active' : ''}`}
+                                data-note-id={note.id}
                                 onClick={(e) => { e.stopPropagation(); onNoteClick(note.id); }}
                                 onDoubleClick={(e) => { e.stopPropagation(); onNoteEdit(note.id); }}
                             >
@@ -1289,10 +1290,12 @@ function App() {
             </div>
             
             {/* Review Modal */}
-            <ReviewModal 
+            <ReviewModal
                 isOpen={showReviewModal}
                 onClose={() => setShowReviewModal(false)}
                 fileId={fileMetadata?.id}
+                listRef={listRef}
+                highlights={highlights}
             />
         </div>
     );

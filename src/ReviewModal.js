@@ -120,7 +120,7 @@ const TimelineVisualization = ({ currentCard }) => {
     );
 };
 
-const ReviewModal = ({ isOpen, onClose, fileId }) => {
+const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
     const [currentCard, setCurrentCard] = useState(null);
     const [showAnswer, setShowAnswer] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -283,30 +283,68 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
         onClose();
     };
 
-    const handleViewInDocument = () => {
+    const handleViewInDocument = async () => {
         if (!currentCard?.annotation) return;
-        
+
+        const annotationId = currentCard.annotation.annotation_id;
+        const pageIndex = currentCard.annotation.page_index;
+
+        console.log(`📍 Navigating to annotation ${annotationId} on page ${pageIndex + 1}`);
+
         // Close the modal first
         onClose();
-        
-        // Try to scroll to the annotation after a short delay
-        setTimeout(() => {
-            const annotationId = currentCard.annotation.annotation_id;
+
+        // Wait a moment for modal to close
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Use listRef to scroll to the page (this forces the page to render)
+        if (listRef?.current) {
+            listRef.current.scrollToItem(pageIndex, 'center');
+            console.log(`📜 Scrolled to page ${pageIndex + 1} using listRef`);
+        }
+
+        // Wait for page to render and find the element with retries
+        const maxRetries = 10;
+        const retryDelay = 200; // ms
+
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            await new Promise(resolve => setTimeout(resolve, retryDelay));
+
             const element = document.querySelector(`[data-annotation-id="${annotationId}"]`);
             if (element) {
-                element.scrollIntoView({ 
-                    behavior: 'smooth', 
+                console.log(`✅ Found annotation element on attempt ${attempt + 1}`);
+
+                // Scroll to the specific element within the page
+                element.scrollIntoView({
+                    behavior: 'smooth',
                     block: 'center',
                     inline: 'nearest'
                 });
-                // Briefly highlight the annotation
+
+                // Highlight the PDF annotation for longer
                 element.style.transition = 'background-color 0.3s ease';
-                element.style.backgroundColor = 'rgba(255, 77, 6, 0.2)';
+                element.style.backgroundColor = 'rgba(255, 77, 6, 0.3)';
                 setTimeout(() => {
                     element.style.backgroundColor = '';
-                }, 2000);
+                }, 3000);
+
+                // Find and highlight the corresponding note with a red border
+                const noteElement = document.querySelector(`[data-note-id="${annotationId}"]`);
+                if (noteElement) {
+                    noteElement.style.transition = 'border 0.3s ease';
+                    noteElement.style.border = '2px solid #ff5252';
+                    setTimeout(() => {
+                        noteElement.style.border = '';
+                    }, 3000);
+                }
+
+                return; // Success, exit
             }
-        }, 100);
+
+            console.log(`⏳ Attempt ${attempt + 1}/${maxRetries}: Element not found yet, retrying...`);
+        }
+
+        console.warn(`❌ Could not find annotation element after ${maxRetries} attempts`);
     };
 
     if (!isOpen) return null;
