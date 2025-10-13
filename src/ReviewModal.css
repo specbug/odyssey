@@ -416,6 +416,9 @@
 .completion-state {
     text-align: center;
     max-width: 320px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .completion-asterisk {

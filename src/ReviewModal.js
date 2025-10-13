@@ -269,7 +269,7 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                                 if (allCards.length === 0) {
                                     return (
                                         <div className="header-logo">
-                                            <img src="/logo.svg" alt="Odyssey Logo" className="logo-svg" />
+                                            <img src={`${process.env.PUBLIC_URL}/logo.svg`} alt="Odyssey Logo" className="logo-svg" />
                                         </div>
                                     );
                                 }
@@ -290,7 +290,7 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                             })()}
                             {(!currentCard && !reviewComplete) && (
                                 <div className="header-logo">
-                                    <img src="/logo.svg" alt="Odyssey Logo" className="logo-svg" />
+                                    <img src={`${process.env.PUBLIC_URL}/logo.svg`} alt="Odyssey Logo" className="logo-svg" />
                                 </div>
                             )}
                         </div>
@@ -338,46 +338,59 @@ const ReviewModal = ({ isOpen, onClose, fileId }) => {
                     ) : reviewComplete ? (
                         <div className="completion-state">
                             {(() => {
-                                const totalCards = newCards.length + learningCards.length + dueCards.length;
-                                
-                                if (totalCards === 0) {
+                                // Check if any cards were actually reviewed
+                                if (sessionStats.total === 0) {
+                                    // No cards were reviewed - show empty state
                                     return (
-                                        <div className="completion-logo">
-                                            <img src="/logo.svg" alt="Odyssey Logo" className="logo-svg-large" />
-                                        </div>
+                                        <>
+                                            <div className="completion-logo">
+                                                <img src={`${process.env.PUBLIC_URL}/logo.svg`} alt="Odyssey Logo" className="logo-svg-large" />
+                                            </div>
+                                            <h2>No Cards to Review</h2>
+                                            <p>You're all caught up! Create more annotations to generate study cards.</p>
+                                            <button className="primary-button" onClick={handleReturnToBook}>
+                                                <span>Continue Reading</span>
+                                                <span className="material-symbols-outlined">arrow_forward</span>
+                                            </button>
+                                        </>
                                     );
                                 }
-                                
+
+                                // Cards were reviewed - show completion state
+                                const totalCards = sessionStats.total;
+
                                 return (
-                                    <div className="completion-asterisk">
-                                        <AsteriskProgressBar 
-                                            totalSteps={totalCards}
-                                            currentStep={totalCards}
-                                            size={100}
-                                            activeColor="rgba(255, 77, 6, 0.7)"
-                                            inactiveColor="rgba(0, 0, 0, 0.05)"
-                                            className="completion-asterisk-element"
-                                        />
-                                    </div>
+                                    <>
+                                        <div className="completion-asterisk">
+                                            <AsteriskProgressBar
+                                                totalSteps={totalCards}
+                                                currentStep={totalCards}
+                                                size={100}
+                                                activeColor="rgba(255, 77, 6, 0.7)"
+                                                inactiveColor="rgba(0, 0, 0, 0.05)"
+                                                className="completion-asterisk-element"
+                                            />
+                                        </div>
+                                        <h2>Review Complete</h2>
+                                        <div className="completion-stats">
+                                            <div className="completion-summary">
+                                                <span className="cards-reviewed">{sessionStats.total}</span>
+                                                <span className="cards-label">cards reviewed</span>
+                                            </div>
+                                            <div className="accuracy-display">
+                                                <span className="accuracy-percentage">
+                                                    {sessionStats.total > 0 ? Math.round((sessionStats.correct / sessionStats.total) * 100) : 0}%
+                                                </span>
+                                                <span className="accuracy-label">accuracy</span>
+                                            </div>
+                                        </div>
+                                        <button className="primary-button" onClick={handleReturnToBook}>
+                                            <span>Continue Reading</span>
+                                            <span className="material-symbols-outlined">arrow_forward</span>
+                                        </button>
+                                    </>
                                 );
                             })()}
-                            <h2>Review Complete</h2>
-                            <div className="completion-stats">
-                                <div className="completion-summary">
-                                    <span className="cards-reviewed">{sessionStats.total}</span>
-                                    <span className="cards-label">cards reviewed</span>
-                                </div>
-                                <div className="accuracy-display">
-                                    <span className="accuracy-percentage">
-                                        {sessionStats.total > 0 ? Math.round((sessionStats.correct / sessionStats.total) * 100) : 0}%
-                                    </span>
-                                    <span className="accuracy-label">accuracy</span>
-                                </div>
-                            </div>
-                            <button className="primary-button" onClick={handleReturnToBook}>
-                                <span>Continue Reading</span>
-                                <span className="material-symbols-outlined">arrow_forward</span>
-                            </button>
                         </div>
                     ) : currentCard ? (
                         <div className="study-session">
