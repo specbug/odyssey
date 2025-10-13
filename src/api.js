@@ -124,6 +124,25 @@ class ApiService {
         }
     }
 
+    async updateTotalPages(fileId, totalPages) {
+        try {
+            const response = await fetch(`${this.baseUrl}/files/${fileId}/pages`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ total_pages: totalPages }),
+            });
+            if (!response.ok) {
+                throw new Error('Failed to update total pages');
+            }
+            return await response.json();
+        } catch (error) {
+            console.error('Update total pages error:', error);
+            throw error;
+        }
+    }
+
     async createAnnotation(fileId, annotation) {
         try {
             const response = await fetch(`${this.baseUrl}/files/${fileId}/annotations`, {

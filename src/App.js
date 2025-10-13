@@ -553,9 +553,19 @@ function App() {
         window.location.reload();
     };
 
-    const onDocumentLoadSuccess = useCallback(({ numPages }) => {
+    const onDocumentLoadSuccess = useCallback(async ({ numPages }) => {
         setNumPages(numPages);
-    }, []);
+
+        // Store total pages in database if not already set
+        if (fileMetadata?.id && fileMetadata.total_pages !== numPages) {
+            try {
+                await apiService.updateTotalPages(fileMetadata.id, numPages);
+                console.log(`📄 Saved total pages (${numPages}) for file ${fileMetadata.id}`);
+            } catch (error) {
+                console.warn('Failed to save total pages:', error);
+            }
+        }
+    }, [fileMetadata]);
 
     // Restore scroll position after document loads
     useEffect(() => {

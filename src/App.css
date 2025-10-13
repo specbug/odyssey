@@ -100,9 +100,12 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  gap: 2px;
+  gap: 3px;
   justify-content: center;
+  align-items: flex-start;
   margin-left: 2px;
+  padding: 2px 0;
+  overflow: visible;
 }
 
 .error-message {
@@ -185,16 +188,19 @@
 }
 
 .file-name {
-  font-family: 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
-  font-weight: 500;
-  font-size: 20px;
-  color: rgba(29, 29, 31, 0.85);
-  letter-spacing: 0.05em;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: rgba(29, 29, 31, 0.9);
+  letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
-  max-width: 450px;
+  text-overflow: ellipsis;
+  max-width: 500px;
   transition: color 0.2s ease;
   text-transform: uppercase;
+  line-height: 1.4;
+  display: block;
 }
 
 .toolbar-button {

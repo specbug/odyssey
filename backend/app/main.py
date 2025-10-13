@@ -21,6 +21,7 @@ from .schemas import (
     FileUploadResponse,
     ZoomLevelUpdate,
     ReadPositionUpdate,
+    TotalPagesUpdate,
     StudyCardCreate,
     StudyCardResponse,
     StudyCardUpdate,
@@ -329,6 +330,23 @@ async def update_read_position(
 
     # Update read position
     file.last_read_position = position_data.last_read_position
+    db.commit()
+    db.refresh(file)
+
+    return file
+
+
+@app.patch("/files/{file_id}/pages", response_model=PDFFileResponse)
+async def update_total_pages(
+    file_id: int, pages_data: TotalPagesUpdate, db: Session = Depends(get_db)
+):
+    """Update the total number of pages for a specific file."""
+    file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    # Update total pages
+    file.total_pages = pages_data.total_pages
     db.commit()
     db.refresh(file)
 

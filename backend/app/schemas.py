@@ -20,6 +20,7 @@ class PDFFileResponse(PDFFileBase):
     file_hash: str
     zoom_level: float = 1.2
     last_read_position: int = 0
+    total_pages: Optional[int] = None
     upload_date: datetime
     last_accessed: datetime
     annotation_count: Optional[int] = 0
@@ -79,6 +80,10 @@ class ZoomLevelUpdate(BaseModel):
 
 class ReadPositionUpdate(BaseModel):
     last_read_position: int = Field(..., ge=0, description="Last read page index (0-based)")
+
+
+class TotalPagesUpdate(BaseModel):
+    total_pages: int = Field(..., ge=1, description="Total number of pages in the PDF")
 
 
 # Spaced Repetition Schemas
