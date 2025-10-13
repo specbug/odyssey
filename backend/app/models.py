@@ -25,6 +25,7 @@ class PDFFile(Base):
     mime_type = Column(String)
     zoom_level = Column(Float, default=1.2)  # User's preferred zoom level for this file
     last_read_position = Column(Integer, default=0)  # Last read page index (0-based)
+    total_pages = Column(Integer, nullable=True)  # Total number of pages in PDF
     upload_date = Column(DateTime(timezone=True), server_default=func.now())
     last_accessed = Column(DateTime(timezone=True), server_default=func.now())
 
