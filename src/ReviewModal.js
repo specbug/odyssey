@@ -636,7 +636,7 @@ const COLOR_THEMES = [
     { bg: '#D8863B', fg: '#FFFFFF', name: 'Dull Orange' },
     { bg: '#738595', fg: '#FFFFFF', name: 'Steel' },
     { bg: '#AA23FF', fg: '#FFFFFF', name: 'Electric Purple' },
-    { bg: '#08FF08', fg: '#FFFFFF', name: 'Fluorescent Green' },
+    // { bg: '#08FF08', fg: '#FFFFFF', name: 'Fluorescent Green' },
     { bg: '#9B7A01', fg: '#FFFFFF', name: 'Yellowish Brown' },
     { bg: '#F29E8E', fg: '#FFFFFF', name: 'Blush' },
     { bg: '#6FC276', fg: '#FFFFFF', name: 'Soft Green' },
@@ -1509,7 +1509,7 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
                                     }}
                                     title="1: Completely forgot"
                                 >
-                                    <span className="material-symbols-outlined" style={{ color: '#ff4444' }}>close</span>
+                                    <span className="material-symbols-outlined">close</span>
                                     <span>Again</span>
                                 </button>
                                 <button
@@ -1522,7 +1522,7 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
                                     }}
                                     title="2: Remembered with difficulty"
                                 >
-                                    <span className="material-symbols-outlined" style={{ color: '#ff9944' }}>trending_down</span>
+                                    <span className="material-symbols-outlined">trending_down</span>
                                     <span>Hard</span>
                                 </button>
                                 <button
@@ -1535,7 +1535,7 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
                                     }}
                                     title="3: Remembered normally"
                                 >
-                                    <span className="material-symbols-outlined" style={{ color: '#44cc44' }}>check</span>
+                                    <span className="material-symbols-outlined">check</span>
                                     <span>Good</span>
                                 </button>
                                 <button
@@ -1548,7 +1548,7 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
                                     }}
                                     title="4: Remembered instantly"
                                 >
-                                    <span className="material-symbols-outlined" style={{ color: '#4444ff' }}>bolt</span>
+                                    <span className="material-symbols-outlined">bolt</span>
                                     <span>Easy</span>
                                 </button>
                             </div>
