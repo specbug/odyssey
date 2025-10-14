@@ -731,18 +731,18 @@ async def get_card_progression(
 async def review_card(
     card_id: int, review_data: CardReviewCreate, db: Session = Depends(get_db)
 ):
-    """Review a card using SM-2 algorithm."""
+    """Review a card using FSRS algorithm with 4-button rating system."""
     try:
-        # Validate quality rating
-        if review_data.quality < 0 or review_data.quality > 5:
+        # Validate rating (1-4: Again, Hard, Good, Easy)
+        if review_data.rating < 1 or review_data.rating > 4:
             raise HTTPException(
-                status_code=400, detail="Quality rating must be between 0 and 5"
+                status_code=400, detail="Rating must be between 1 and 4 (1=Again, 2=Hard, 3=Good, 4=Easy)"
             )
 
         result = SpacedRepetitionService.review_card(
             db=db,
             card_id=card_id,
-            quality=review_data.quality,
+            rating=review_data.rating,
             time_taken=review_data.time_taken,
             session_id=review_data.session_id,
         )

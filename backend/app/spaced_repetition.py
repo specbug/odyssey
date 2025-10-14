@@ -1,105 +1,134 @@
 """
-Spaced Repetition Logic using Modified SM-2 Algorithm with Immediate Feedback
+Spaced Repetition Logic using FSRS (Free Spaced Repetition Scheduler) Algorithm
+
+This module provides a clean implementation of the FSRS algorithm for optimal
+spaced repetition scheduling with 4-button review system.
 """
 
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
-from supermemo2 import first_review, review
+from fsrs import FSRS, Card, Rating, ReviewLog
 
 from .models import StudyCard, CardReview, ReviewSession, Annotation
 from .schemas import StudyCardResponse, CardReviewCreate, CardReviewResult
 
 
 class SpacedRepetitionService:
-    """Service class for handling spaced repetition logic with immediate feedback."""
+    """Service class for handling FSRS spaced repetition logic."""
 
-    # Learning intervals for failed cards (in minutes)
-    LEARNING_INTERVALS = [1, 10, 1440]  # 1 min, 10 min, 1 day
+    # Initialize FSRS scheduler with default parameters (0.9 retention rate)
+    scheduler = FSRS()
 
-    # Quality labels for user interface
-    QUALITY_LABELS = {
-        0: "Blackout",
-        1: "Wrong",
-        2: "Hard",
-        3: "Good",
-        4: "Easy",
-        5: "Perfect",
+    # Rating labels for user interface
+    RATING_LABELS = {
+        Rating.Again: "Forgot",
+        Rating.Hard: "Hard",
+        Rating.Good: "Good",
+        Rating.Easy: "Easy",
     }
+
+    @staticmethod
+    def _fsrs_card_to_study_card(fsrs_card: Card, study_card: StudyCard) -> None:
+        """Update StudyCard database model from FSRS Card object."""
+        study_card.difficulty = fsrs_card.difficulty
+        study_card.stability = fsrs_card.stability
+        study_card.elapsed_days = fsrs_card.elapsed_days
+        study_card.scheduled_days = fsrs_card.scheduled_days
+        study_card.reps = fsrs_card.reps
+        study_card.lapses = fsrs_card.lapses
+        study_card.state = fsrs_card.state.name
+        study_card.last_review = fsrs_card.last_review
+        study_card.due = fsrs_card.due
+
+    @staticmethod
+    def _study_card_to_fsrs_card(study_card: StudyCard) -> Card:
+        """Convert StudyCard database model to FSRS Card object."""
+        from fsrs import State
+
+        # Map string state to FSRS State enum
+        state_map = {
+            "New": State.New,
+            "Learning": State.Learning,
+            "Review": State.Review,
+            "Relearning": State.Relearning,
+        }
+
+        return Card(
+            difficulty=study_card.difficulty,
+            stability=study_card.stability,
+            elapsed_days=study_card.elapsed_days,
+            scheduled_days=study_card.scheduled_days,
+            reps=study_card.reps,
+            lapses=study_card.lapses,
+            state=state_map.get(study_card.state, State.New),
+            last_review=study_card.last_review,
+            due=study_card.due,
+        )
 
     @staticmethod
     def get_card_timeline(card: StudyCard) -> Dict:
         """
-        Calculate timeline for a study card showing future review dates based on different quality ratings.
+        Calculate timeline for a study card showing future review dates based on different ratings.
 
         Args:
             card: The study card to calculate timeline for
 
         Returns:
-            Dictionary containing timeline data for each quality rating (0-5)
+            Dictionary containing timeline data for each rating (Again, Hard, Good, Easy)
         """
         current_time = datetime.utcnow()
         timeline_points = []
 
         # Get current card state
-        current_state = SpacedRepetitionService._get_card_state_label(card)
+        current_state = card.state
 
-        # Calculate timeline for each quality rating
-        for quality in range(6):  # 0-5
-            # Create a copy of the card to simulate review
-            simulated_card = SpacedRepetitionService._create_card_copy(card)
+        # Convert to FSRS card
+        fsrs_card = SpacedRepetitionService._study_card_to_fsrs_card(card)
 
-            # Simulate the review process
-            if quality >= 3:  # Successful review
-                SpacedRepetitionService._simulate_successful_review(
-                    simulated_card, quality
-                )
-            else:  # Failed review
-                SpacedRepetitionService._simulate_failed_review(simulated_card, quality)
+        # Calculate timeline for each rating
+        for rating in [Rating.Again, Rating.Hard, Rating.Good, Rating.Easy]:
+            # Get scheduling info from FSRS
+            scheduling_info = SpacedRepetitionService.scheduler.repeat(fsrs_card, current_time)
+            scheduled_card = scheduling_info[rating].card
+            review_log = scheduling_info[rating].review_log
 
             # Calculate interval information
-            interval_days = None
-            interval_minutes = None
-            interval_text = ""
+            interval_days = scheduled_card.scheduled_days
+            next_due = scheduled_card.due
 
-            if simulated_card.is_learning:
-                # Learning cards use minute intervals
-                if simulated_card.learning_step < len(
-                    SpacedRepetitionService.LEARNING_INTERVALS
-                ):
-                    interval_minutes = SpacedRepetitionService.LEARNING_INTERVALS[
-                        simulated_card.learning_step
-                    ]
+            # Format interval text
+            if interval_days == 0:
+                interval_text = "< 1 day"
+            elif interval_days == 1:
+                interval_text = "1 day"
+            elif interval_days < 30:
+                interval_text = f"{interval_days} days"
+            elif interval_days < 365:
+                months = interval_days // 30
+                remaining_days = interval_days % 30
+                if remaining_days == 0:
+                    interval_text = f"{months} mo"
                 else:
-                    interval_minutes = 1440  # 1 day
-
-                if interval_minutes < 60:
-                    interval_text = f"{interval_minutes} min"
-                elif interval_minutes < 1440:
-                    interval_text = f"{interval_minutes // 60} hours"
-                else:
-                    interval_text = f"{interval_minutes // 1440} days"
+                    interval_text = f"{months} mo {remaining_days} d"
             else:
-                # Graduated cards use day intervals
-                interval_days = simulated_card.interval
-                if interval_days == 1:
-                    interval_text = "1 day"
+                years = interval_days // 365
+                remaining_days = interval_days % 365
+                if remaining_days == 0:
+                    interval_text = f"{years} yr"
                 else:
-                    interval_text = f"{interval_days} days"
+                    interval_text = f"{years} yr {remaining_days} d"
 
             # Create timeline point
             timeline_point = {
-                "quality": quality,
-                "quality_label": SpacedRepetitionService.QUALITY_LABELS[quality],
-                "next_review_date": simulated_card.next_review_date,
+                "rating": rating.value,
+                "rating_label": SpacedRepetitionService.RATING_LABELS[rating],
+                "next_review_date": next_due,
                 "interval_days": interval_days,
-                "interval_minutes": interval_minutes,
                 "interval_text": interval_text,
-                "card_state": SpacedRepetitionService._get_card_state_label(
-                    simulated_card
-                ),
-                "easiness_after": simulated_card.easiness,
-                "repetitions_after": simulated_card.repetitions,
+                "card_state": scheduled_card.state.name,
+                "difficulty_after": scheduled_card.difficulty,
+                "stability_after": scheduled_card.stability,
             }
 
             timeline_points.append(timeline_point)
@@ -108,10 +137,10 @@ class SpacedRepetitionService:
         timeline_data = {
             "card_id": card.id,
             "current_state": current_state,
-            "current_interval": card.interval,
-            "current_easiness": card.easiness,
-            "current_repetitions": card.repetitions,
-            "next_review_date": card.next_review_date,
+            "current_difficulty": card.difficulty,
+            "current_stability": card.stability,
+            "current_scheduled_days": card.scheduled_days,
+            "next_review_date": card.due,
             "timeline_points": timeline_points,
             "generated_at": current_time,
         }
@@ -121,7 +150,7 @@ class SpacedRepetitionService:
     @staticmethod
     def get_card_progression(card: StudyCard, steps: int = 4) -> Dict:
         """
-        Calculate future progression intervals assuming user remembers each review correctly.
+        Calculate future progression intervals assuming user rates Good each time.
 
         Args:
             card: The study card to calculate progression for
@@ -133,210 +162,69 @@ class SpacedRepetitionService:
         current_time = datetime.utcnow()
         progression_intervals = []
 
-        # Create a copy of the card for simulation
-        simulated_card = SpacedRepetitionService._create_card_copy(card)
+        # Convert to FSRS card for simulation
+        fsrs_card = SpacedRepetitionService._study_card_to_fsrs_card(card)
+        simulation_time = current_time
 
         for step in range(steps):
-            # Simulate a successful review with quality 4 (Easy/Remembered)
-            SpacedRepetitionService._simulate_successful_review(simulated_card, 4)
+            # Simulate a Good review
+            scheduling_info = SpacedRepetitionService.scheduler.repeat(fsrs_card, simulation_time)
+            fsrs_card = scheduling_info[Rating.Good].card
 
             # Calculate interval information
-            if simulated_card.is_learning:
-                # Learning cards use minute intervals
-                if simulated_card.learning_step < len(
-                    SpacedRepetitionService.LEARNING_INTERVALS
-                ):
-                    interval_minutes = SpacedRepetitionService.LEARNING_INTERVALS[
-                        simulated_card.learning_step
-                    ]
-                else:
-                    interval_minutes = 1440  # 1 day
+            interval_days = fsrs_card.scheduled_days
+            next_due = fsrs_card.due
 
-                # Convert to abbreviated format
-                if interval_minutes < 60:
-                    interval_text = f"{interval_minutes}m"
-                elif interval_minutes < 1440:
-                    interval_text = f"{interval_minutes // 60}h"
+            # Format interval text
+            if interval_days < 7:
+                interval_text = f"{interval_days}d"
+            elif interval_days < 30:
+                weeks = interval_days // 7
+                remaining_days = interval_days % 7
+                if remaining_days == 0:
+                    interval_text = f"{weeks}w"
                 else:
-                    interval_text = f"{interval_minutes // 1440}d"
-
-                interval_days = None
+                    interval_text = f"{weeks}w{remaining_days}d"
+            elif interval_days < 365:
+                months = interval_days // 30
+                remaining_days = interval_days % 30
+                if remaining_days == 0:
+                    interval_text = f"{months}mo"
+                else:
+                    interval_text = f"{months}mo{remaining_days}d"
             else:
-                # Graduated cards use day intervals
-                interval_days = simulated_card.interval
-                interval_minutes = None
-
-                # Convert to abbreviated format
-                if interval_days < 7:
-                    interval_text = f"{interval_days}d"
-                elif interval_days < 30:
-                    weeks = interval_days // 7
-                    remaining_days = interval_days % 7
-                    if remaining_days == 0:
-                        interval_text = f"{weeks}w"
-                    else:
-                        interval_text = f"{weeks}w{remaining_days}d"
-                elif interval_days < 365:
-                    months = interval_days // 30
-                    remaining_days = interval_days % 30
-                    if remaining_days == 0:
-                        interval_text = f"{months}mo"
-                    else:
-                        interval_text = f"{months}mo{remaining_days}d"
+                years = interval_days // 365
+                remaining_days = interval_days % 365
+                if remaining_days == 0:
+                    interval_text = f"{years}y"
                 else:
-                    years = interval_days // 365
-                    remaining_days = interval_days % 365
-                    if remaining_days == 0:
-                        interval_text = f"{years}y"
-                    else:
-                        interval_text = f"{years}y{remaining_days}d"
+                    interval_text = f"{years}y{remaining_days}d"
 
             progression_intervals.append(
                 {
                     "step": step + 1,
                     "interval_text": interval_text,
                     "interval_days": interval_days,
-                    "interval_minutes": interval_minutes,
-                    "next_review_date": simulated_card.next_review_date,
-                    "card_state": SpacedRepetitionService._get_card_state_label(
-                        simulated_card
-                    ),
-                    "easiness": simulated_card.easiness,
-                    "repetitions": simulated_card.repetitions,
+                    "next_review_date": next_due,
+                    "card_state": fsrs_card.state.name,
+                    "difficulty": fsrs_card.difficulty,
+                    "stability": fsrs_card.stability,
                 }
             )
 
+            # Move simulation time forward
+            simulation_time = next_due
+
         return {
             "card_id": card.id,
-            "current_state": SpacedRepetitionService._get_card_state_label(card),
+            "current_state": card.state,
             "progression_intervals": progression_intervals,
             "generated_at": current_time,
         }
 
     @staticmethod
-    def _create_card_copy(card: StudyCard) -> StudyCard:
-        """Create a copy of a study card for simulation purposes."""
-        simulated_card = StudyCard(
-            id=card.id,
-            annotation_id=card.annotation_id,
-            easiness=card.easiness,
-            interval=card.interval,
-            repetitions=card.repetitions,
-            is_new=card.is_new,
-            is_learning=card.is_learning,
-            is_graduated=card.is_graduated,
-            learning_step=card.learning_step,
-            created_date=card.created_date,
-            last_review_date=card.last_review_date,
-            next_review_date=card.next_review_date,
-        )
-        return simulated_card
-
-    @staticmethod
-    def _simulate_successful_review(card: StudyCard, quality: int):
-        """Simulate successful review without modifying the original card."""
-        current_time = datetime.utcnow()
-
-        if card.is_new:
-            # First successful review of a new card
-            card.is_new = False
-            card.is_learning = True
-            card.is_graduated = False
-            card.learning_step = 0
-            card.repetitions = 1
-            card.interval = 1  # Start with 1 day
-            card.next_review_date = current_time + timedelta(days=1)
-        elif card.is_learning:
-            # Successful review of a learning card
-            if quality >= 4:  # Easy - graduate the card
-                card.is_learning = False
-                card.is_graduated = True
-                card.learning_step = 0
-                # Use SM-2 for the first graduated interval
-                card.repetitions = 2
-                card.interval = 4  # Standard SM-2 second interval
-                card.next_review_date = current_time + timedelta(days=4)
-            else:  # Good - continue learning
-                card.learning_step += 1
-                if card.learning_step >= len(
-                    SpacedRepetitionService.LEARNING_INTERVALS
-                ):
-                    # Graduate after completing all learning steps
-                    card.is_learning = False
-                    card.is_graduated = True
-                    card.learning_step = 0
-                    card.repetitions = 2
-                    card.interval = 4
-                    card.next_review_date = current_time + timedelta(days=4)
-                else:
-                    # Continue with next learning step
-                    interval_minutes = SpacedRepetitionService.LEARNING_INTERVALS[
-                        card.learning_step
-                    ]
-                    card.next_review_date = current_time + timedelta(
-                        minutes=interval_minutes
-                    )
-        else:
-            # Graduated card - use SM-2 algorithm
-            result = review(
-                quality=quality,
-                easiness=card.easiness,
-                interval=card.interval,
-                repetitions=card.repetitions,
-                review_datetime=current_time,
-            )
-
-            card.easiness = result["easiness"]
-            card.interval = result["interval"]
-            card.repetitions = result["repetitions"]
-
-            # Convert string datetime to datetime object if needed
-            if isinstance(result["review_datetime"], str):
-                from datetime import datetime as dt
-
-                card.next_review_date = dt.fromisoformat(
-                    result["review_datetime"].replace("Z", "+00:00")
-                )
-            else:
-                card.next_review_date = result["review_datetime"]
-
-    @staticmethod
-    def _simulate_failed_review(card: StudyCard, quality: int):
-        """Simulate failed review without modifying the original card."""
-        current_time = datetime.utcnow()
-
-        # All failed cards go to learning state
-        card.is_new = False
-        card.is_learning = True
-        card.is_graduated = False
-        card.learning_step = 0
-        card.repetitions = 0
-
-        # Reset interval to first learning step
-        card.interval = SpacedRepetitionService.LEARNING_INTERVALS[0]
-        card.next_review_date = current_time + timedelta(
-            minutes=SpacedRepetitionService.LEARNING_INTERVALS[0]
-        )
-
-        # Reduce easiness for supermemo2 algorithm
-        if card.easiness > 1.3:
-            card.easiness = max(1.3, card.easiness - 0.2)
-
-    @staticmethod
-    def _get_card_state_label(card: StudyCard) -> str:
-        """Get human-readable label for card state."""
-        if card.is_new:
-            return "new"
-        elif card.is_learning:
-            return "learning"
-        elif card.is_graduated:
-            return "graduated"
-        else:
-            return "unknown"
-
-    @staticmethod
     def create_study_card(db: Session, annotation_id: int) -> StudyCard:
-        """Create a new study card from an annotation.
+        """Create a new study card from an annotation using FSRS.
 
         Due to 1:1 constraint, each annotation can have exactly one study card.
         If a study card already exists for this annotation, returns the existing one.
@@ -354,18 +242,23 @@ class SpacedRepetitionService:
         if existing_card:
             return existing_card
 
-        # Create new study card with required annotation_id
+        # Create new FSRS card (starts in New state)
+        fsrs_card = Card()
+        now = datetime.utcnow()
+
+        # Create new study card with FSRS initialization
         try:
             study_card = StudyCard(
-                annotation_id=annotation_id,  # Now required (NOT NULL)
-                easiness=2.5,
-                interval=1,
-                repetitions=0,
-                is_new=True,
-                is_learning=False,
-                is_graduated=False,
-                next_review_date=datetime.utcnow(),  # New cards available immediately
-                learning_step=0,  # Track which learning step we're on
+                annotation_id=annotation_id,
+                difficulty=fsrs_card.difficulty,
+                stability=fsrs_card.stability,
+                elapsed_days=fsrs_card.elapsed_days,
+                scheduled_days=fsrs_card.scheduled_days,
+                reps=fsrs_card.reps,
+                lapses=fsrs_card.lapses,
+                state=fsrs_card.state.name,
+                last_review=None,
+                due=now,  # New cards are available immediately
             )
 
             db.add(study_card)
@@ -391,13 +284,13 @@ class SpacedRepetitionService:
 
     @staticmethod
     def get_due_cards(db: Session, limit: int = 50) -> Dict[str, List[StudyCard]]:
-        """Get cards that are due for review, properly categorized."""
+        """Get cards that are due for review, properly categorized by FSRS state."""
         now = datetime.utcnow()
 
-        # Get all cards that are due for review (including those without annotations)
+        # Get all cards that are due for review
         all_due_cards = (
             db.query(StudyCard)
-            .filter(StudyCard.next_review_date <= now)
+            .filter(StudyCard.due <= now)
             .limit(limit)
             .all()
         )
@@ -417,30 +310,39 @@ class SpacedRepetitionService:
                     # If annotation loading fails, continue without it
                     pass
 
-        # Categorize cards
-        new_cards = [card for card in all_due_cards if card.is_new]
+        # Categorize cards by FSRS state
+        new_cards = [card for card in all_due_cards if card.state == "New"]
         learning_cards = [
-            card for card in all_due_cards if not card.is_new and card.is_learning
+            card for card in all_due_cards
+            if card.state in ["Learning", "Relearning"]
         ]
-        due_cards = [
-            card for card in all_due_cards if not card.is_new and not card.is_learning
+        review_cards = [
+            card for card in all_due_cards if card.state == "Review"
         ]
 
         return {
-            "due_cards": due_cards,
-            "new_cards": new_cards,
-            "learning_cards": learning_cards,
+            "due_cards": review_cards,  # Review state cards
+            "new_cards": new_cards,  # New cards
+            "learning_cards": learning_cards,  # Learning/Relearning cards
         }
 
     @staticmethod
     def review_card(
         db: Session,
         card_id: int,
-        quality: int,
+        rating: int,
         time_taken: Optional[int] = None,
         session_id: Optional[int] = None,
     ) -> CardReviewResult:
-        """Review a card using modified SM-2 algorithm with immediate feedback."""
+        """Review a card using FSRS algorithm with 4-button rating system.
+
+        Args:
+            db: Database session
+            card_id: ID of the card to review
+            rating: Rating from 1-4 (Again=1, Hard=2, Good=3, Easy=4)
+            time_taken: Optional time taken in seconds
+            session_id: Optional review session ID
+        """
         # Get the card first
         card = db.query(StudyCard).filter(StudyCard.id == card_id).first()
         if not card:
@@ -449,7 +351,6 @@ class SpacedRepetitionService:
         # Try to load annotation relationship if it exists
         if card.annotation_id:
             try:
-                # Load the annotation relationship
                 annotation = (
                     db.query(Annotation)
                     .filter(Annotation.id == card.annotation_id)
@@ -458,37 +359,50 @@ class SpacedRepetitionService:
                 if annotation:
                     card.annotation = annotation
             except Exception:
-                # If annotation loading fails, continue without it
                 pass
 
+        # Convert rating (1-4) to FSRS Rating enum
+        rating_map = {
+            1: Rating.Again,
+            2: Rating.Hard,
+            3: Rating.Good,
+            4: Rating.Easy,
+        }
+
+        if rating not in rating_map:
+            raise ValueError(f"Invalid rating: {rating}. Must be 1-4 (Again, Hard, Good, Easy)")
+
+        fsrs_rating = rating_map[rating]
+
         # Store pre-review state
-        easiness_before = card.easiness
-        interval_before = card.interval
-        repetitions_before = card.repetitions
-        was_new = card.is_new
-        was_learning = card.is_learning
+        state_before = card.state
+        difficulty_before = card.difficulty
+        stability_before = card.stability
 
-        # Update last review date
-        card.last_review_date = datetime.utcnow()
+        # Convert to FSRS card and perform review
+        fsrs_card = SpacedRepetitionService._study_card_to_fsrs_card(card)
+        now = datetime.utcnow()
 
-        # Handle review based on quality
-        if quality >= 3:  # Successful review (3-5)
-            SpacedRepetitionService._handle_successful_review(card, quality)
-        else:  # Failed review (0-2)
-            SpacedRepetitionService._handle_failed_review(card, quality)
+        # Get scheduling info from FSRS
+        scheduling_info = SpacedRepetitionService.scheduler.repeat(fsrs_card, now)
+        scheduled_card_info = scheduling_info[fsrs_rating]
+
+        # Update card with new FSRS state
+        SpacedRepetitionService._fsrs_card_to_study_card(scheduled_card_info.card, card)
 
         # Create review record
         review_record = CardReview(
             card_id=card_id,
             session_id=session_id,
-            quality=quality,
+            rating=rating,
             time_taken=time_taken,
-            easiness_before=easiness_before,
-            interval_before=interval_before,
-            repetitions_before=repetitions_before,
-            easiness_after=card.easiness,
-            interval_after=card.interval,
-            repetitions_after=card.repetitions,
+            state_before=state_before,
+            difficulty_before=difficulty_before,
+            stability_before=stability_before,
+            state_after=card.state,
+            difficulty_after=card.difficulty,
+            stability_after=card.stability,
+            scheduled_days_after=card.scheduled_days,
         )
 
         db.add(review_record)
@@ -497,167 +411,80 @@ class SpacedRepetitionService:
         db.refresh(review_record)
 
         # Generate result message
-        message = SpacedRepetitionService._generate_review_message(card, quality)
+        message = SpacedRepetitionService._generate_review_message(card, rating)
 
         return CardReviewResult(
             card=StudyCardResponse.from_orm(card),
             review=review_record,
-            next_review_date=card.next_review_date,
+            next_review_date=card.due,
             message=message,
         )
 
     @staticmethod
-    def _handle_successful_review(card: StudyCard, quality: int):
-        """Handle successful review (quality >= 3)."""
-        if card.is_new:
-            # First successful review of a new card
-            card.is_new = False
-            card.is_learning = True
-            card.is_graduated = False
-            card.learning_step = 0
-            card.repetitions = 1
-            card.interval = 1  # Start with 1 day
-            card.next_review_date = datetime.utcnow() + timedelta(days=1)
-        elif card.is_learning:
-            # Successful review of a learning card
-            if quality >= 4:  # Easy - graduate the card
-                card.is_learning = False
-                card.is_graduated = True
-                card.learning_step = 0
-                # Use SM-2 for the first graduated interval
-                card.repetitions = 2
-                card.interval = 4  # Standard SM-2 second interval
-                card.next_review_date = datetime.utcnow() + timedelta(days=4)
-            else:  # Good - continue learning
-                card.learning_step += 1
-                if card.learning_step >= len(
-                    SpacedRepetitionService.LEARNING_INTERVALS
-                ):
-                    # Graduate after completing all learning steps
-                    card.is_learning = False
-                    card.is_graduated = True
-                    card.learning_step = 0
-                    card.repetitions = 2
-                    card.interval = 4
-                    card.next_review_date = datetime.utcnow() + timedelta(days=4)
-                else:
-                    # Continue with next learning step
-                    interval_minutes = SpacedRepetitionService.LEARNING_INTERVALS[
-                        card.learning_step
-                    ]
-                    card.next_review_date = datetime.utcnow() + timedelta(
-                        minutes=interval_minutes
-                    )
-        else:
-            # Graduated card - use SM-2 algorithm
-            result = review(
-                quality=quality,
-                easiness=card.easiness,
-                interval=card.interval,
-                repetitions=card.repetitions,
-                review_datetime=datetime.utcnow(),
-            )
-
-            card.easiness = result["easiness"]
-            card.interval = result["interval"]
-            card.repetitions = result["repetitions"]
-
-            # Convert string datetime to datetime object if needed
-            if isinstance(result["review_datetime"], str):
-                # Parse ISO format datetime string manually
-                from datetime import datetime as dt
-
-                card.next_review_date = dt.fromisoformat(
-                    result["review_datetime"].replace("Z", "+00:00")
-                )
-            else:
-                card.next_review_date = result["review_datetime"]
-
-    @staticmethod
-    def _handle_failed_review(card: StudyCard, quality: int):
-        """Handle failed review (quality < 3)."""
-        # All failed cards go to learning state
-        card.is_new = False
-        card.is_learning = True
-        card.is_graduated = False
-        card.learning_step = 0
-        card.repetitions = 0
-
-        # Reset interval to first learning step - store as minutes for learning cards
-        card.interval = SpacedRepetitionService.LEARNING_INTERVALS[
-            0
-        ]  # Store as minutes
-        card.next_review_date = datetime.utcnow() + timedelta(
-            minutes=SpacedRepetitionService.LEARNING_INTERVALS[0]
-        )
-
-        # Reduce easiness for supermemo2 algorithm
-        if card.easiness > 1.3:
-            card.easiness = max(1.3, card.easiness - 0.2)
-
-    @staticmethod
-    def _generate_review_message(card: StudyCard, quality: int) -> str:
+    def _generate_review_message(card: StudyCard, rating: int) -> str:
         """Generate appropriate message based on review outcome."""
-        if quality >= 4:
-            if card.is_graduated:
-                return f"Excellent! Next review in {card.interval} days."
-            else:
-                interval_minutes = (
-                    SpacedRepetitionService.LEARNING_INTERVALS[card.learning_step]
-                    if card.learning_step
-                    < len(SpacedRepetitionService.LEARNING_INTERVALS)
-                    else 1440
-                )
-                if interval_minutes < 60:
-                    return f"Great! Next review in {interval_minutes} minutes."
-                elif interval_minutes < 1440:
-                    return f"Great! Next review in {interval_minutes // 60} hours."
-                else:
-                    return f"Great! Next review in {interval_minutes // 1440} days."
-        elif quality >= 3:
-            if card.is_graduated:
-                return f"Good! Next review in {card.interval} days."
-            else:
-                interval_minutes = (
-                    SpacedRepetitionService.LEARNING_INTERVALS[card.learning_step]
-                    if card.learning_step
-                    < len(SpacedRepetitionService.LEARNING_INTERVALS)
-                    else 1440
-                )
-                if interval_minutes < 60:
-                    return f"Good! Next review in {interval_minutes} minutes."
-                elif interval_minutes < 1440:
-                    return f"Good! Next review in {interval_minutes // 60} hours."
-                else:
-                    return f"Good! Next review in {interval_minutes // 1440} days."
+        interval_days = card.scheduled_days
+
+        # Format interval for message
+        if interval_days == 0:
+            interval_str = "less than 1 day"
+        elif interval_days == 1:
+            interval_str = "1 day"
+        elif interval_days < 30:
+            interval_str = f"{interval_days} days"
+        elif interval_days < 365:
+            months = interval_days // 30
+            interval_str = f"about {months} month{'s' if months > 1 else ''}"
         else:
-            return "Keep practicing! This card will reappear in 1 minute."
+            years = interval_days // 365
+            interval_str = f"about {years} year{'s' if years > 1 else ''}"
+
+        rating_messages = {
+            1: f"Keep practicing! This card will return in {interval_str}.",
+            2: f"Getting there. Next review in {interval_str}.",
+            3: f"Good! Next review in {interval_str}.",
+            4: f"Excellent! Next review in {interval_str}.",
+        }
+
+        return rating_messages.get(rating, f"Next review in {interval_str}.")
 
     @staticmethod
     def get_review_options(card: StudyCard) -> List[Dict]:
-        """Get preview of review options for a card."""
-        options = []
+        """Get preview of review options for a card showing FSRS scheduling."""
+        fsrs_card = SpacedRepetitionService._study_card_to_fsrs_card(card)
+        now = datetime.utcnow()
 
-        # Simplified quality options for UI
-        quality_options = [
-            (1, "Wrong", "I got it wrong", "1 min"),
-            (
-                4,
-                "Remembered",
-                "I got it right",
-                "4 days" if card.is_graduated else "1 day",
-            ),
+        # Get scheduling info from FSRS for all ratings
+        scheduling_info = SpacedRepetitionService.scheduler.repeat(fsrs_card, now)
+
+        options = []
+        rating_info = [
+            (1, Rating.Again, "Forgot", "I completely forgot"),
+            (2, Rating.Hard, "Hard", "I remembered with difficulty"),
+            (3, Rating.Good, "Good", "I remembered normally"),
+            (4, Rating.Easy, "Easy", "I remembered instantly"),
         ]
 
-        return [
-            {
-                "quality": quality,
+        for rating_val, fsrs_rating, short_desc, long_desc in rating_info:
+            scheduled_card = scheduling_info[fsrs_rating].card
+            interval_days = scheduled_card.scheduled_days
+
+            # Format interval text
+            if interval_days == 0:
+                interval_text = "< 1 day"
+            elif interval_days == 1:
+                interval_text = "1 day"
+            else:
+                interval_text = f"{interval_days} days"
+
+            options.append({
+                "rating": rating_val,
                 "short_description": short_desc,
                 "long_description": long_desc,
                 "next_interval_text": interval_text,
-            }
-            for quality, short_desc, long_desc, interval_text in quality_options
-        ]
+            })
+
+        return options
 
     @staticmethod
     def create_review_session(
@@ -680,8 +507,9 @@ class SpacedRepetitionService:
         # Update session statistics
         reviews = db.query(CardReview).filter(CardReview.session_id == session_id).all()
         session.cards_reviewed = len(reviews)
-        session.correct_answers = sum(1 for r in reviews if r.quality >= 3)
-        session.incorrect_answers = sum(1 for r in reviews if r.quality < 3)
+        # In FSRS, rating 1 (Again) means incorrect, 2-4 mean correct with varying difficulty
+        session.correct_answers = sum(1 for r in reviews if r.rating >= 2)
+        session.incorrect_answers = sum(1 for r in reviews if r.rating == 1)
         session.session_end = datetime.utcnow()
 
         db.commit()
@@ -692,12 +520,14 @@ class SpacedRepetitionService:
     def get_study_stats(db: Session) -> Dict:
         """Get overall study statistics."""
         total_cards = db.query(StudyCard).count()
-        new_cards = db.query(StudyCard).filter(StudyCard.is_new == True).count()
+        new_cards = db.query(StudyCard).filter(StudyCard.state == "New").count()
         learning_cards = (
-            db.query(StudyCard).filter(StudyCard.is_learning == True).count()
+            db.query(StudyCard)
+            .filter(StudyCard.state.in_(["Learning", "Relearning"]))
+            .count()
         )
-        graduated_cards = (
-            db.query(StudyCard).filter(StudyCard.is_graduated == True).count()
+        review_cards = (
+            db.query(StudyCard).filter(StudyCard.state == "Review").count()
         )
 
         # Cards due today
@@ -706,11 +536,8 @@ class SpacedRepetitionService:
         due_today = (
             db.query(StudyCard)
             .filter(
-                StudyCard.next_review_date
-                >= datetime.combine(today, datetime.min.time()),
-                StudyCard.next_review_date
-                < datetime.combine(tomorrow, datetime.min.time()),
-                StudyCard.is_new == False,
+                StudyCard.due >= datetime.combine(today, datetime.min.time()),
+                StudyCard.due < datetime.combine(tomorrow, datetime.min.time()),
             )
             .count()
         )
@@ -719,6 +546,6 @@ class SpacedRepetitionService:
             "total_cards": total_cards,
             "new_cards": new_cards,
             "learning_cards": learning_cards,
-            "graduated_cards": graduated_cards,
+            "review_cards": review_cards,
             "due_today": due_today,
         }
