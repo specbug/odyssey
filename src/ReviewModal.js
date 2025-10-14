@@ -4,7 +4,7 @@ import './ReviewModal.css';
 import 'katex/dist/katex.min.css';
 import { InlineMath, BlockMath } from 'react-katex';
 import AsteriskProgressBar from './AsteriskProgressBar';
-import { hasCloze, parseClozeForIndex, getContrastText } from './clozeUtils';
+import { hasCloze, parseClozeForIndex, getContrastText, extractClozeIndices } from './clozeUtils';
 
 // Vibrant color themes inspired by Orbit
 // const COLOR_THEMES = [
@@ -1116,13 +1116,18 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
     const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 });
     const [currentThemeIndex, setCurrentThemeIndex] = useState(0);
     const [showContextMenu, setShowContextMenu] = useState(false);
-    const [currentClozeIndex, setCurrentClozeIndex] = useState(1); // Track which cloze we're showing
     const contextMenuRef = useRef(null);
 
-    // Determine if current card is a cloze card and get its indices
-    const isClozeCard = useMemo(() => {
-        if (!currentCard?.annotation) return false;
-        return hasCloze(currentCard.annotation.question) || hasCloze(currentCard.annotation.answer);
+    // Determine if current card is a cloze card and get its cloze index
+    const { isClozeCard, currentClozeIndex } = useMemo(() => {
+        if (!currentCard?.annotation) return { isClozeCard: false, currentClozeIndex: 1 };
+
+        const isCloze = hasCloze(currentCard.annotation.question) || hasCloze(currentCard.annotation.answer);
+
+        // Use the cloze_index from the card (backend provides this for cloze cards)
+        const clozeIndex = currentCard.cloze_index || 1;
+
+        return { isClozeCard: isCloze, currentClozeIndex: clozeIndex };
     }, [currentCard]);
 
     useEffect(() => {
@@ -1178,22 +1183,45 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
 
     const loadDueCards = async () => {
         if (!fileId) return;
-        
+
         setLoading(true);
         try {
             // First, get all annotations for this file
             const annotations = await apiService.getAnnotations(fileId);
-            
-            // Create study cards for annotations that don't have them
-            const studyCardPromises = annotations.map(async (annotation) => {
-                try {
-                    return await apiService.createStudyCard(annotation.id);
-                } catch (error) {
-                    console.log(`Study card may already exist for annotation ${annotation.id}`);
-                    return null;
+
+            // Create study cards for annotations
+            // For cloze annotations, create one card per cloze index
+            const studyCardPromises = annotations.flatMap(async (annotation) => {
+                // Check if this is a cloze card
+                const isCloze = annotation.card_type === 'cloze' ||
+                                hasCloze(annotation.question) ||
+                                hasCloze(annotation.answer);
+
+                if (isCloze) {
+                    // Get all cloze indices from the annotation
+                    const indices = extractClozeIndices(annotation.question) .concat(extractClozeIndices(annotation.answer));
+                    const uniqueIndices = [...new Set(indices)].sort((a, b) => a - b);
+
+                    // Create one card per cloze index
+                    return Promise.all(uniqueIndices.map(async (clozeIndex) => {
+                        try {
+                            return await apiService.createStudyCard(annotation.id, clozeIndex);
+                        } catch (error) {
+                            console.log(`Study card may already exist for annotation ${annotation.id} cloze ${clozeIndex}`);
+                            return null;
+                        }
+                    }));
+                } else {
+                    // Basic card - create just one study card
+                    try {
+                        return [await apiService.createStudyCard(annotation.id)];
+                    } catch (error) {
+                        console.log(`Study card may already exist for annotation ${annotation.id}`);
+                        return [null];
+                    }
                 }
             });
-            
+
             await Promise.all(studyCardPromises);
             
             // Now get the due cards
