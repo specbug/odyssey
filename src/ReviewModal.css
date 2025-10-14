@@ -781,6 +781,56 @@
 }
 
 /* ============================================
+   CLOZE DELETION STYLING
+   ============================================ */
+
+/* Cloze blank - elegant yellow underline */
+.cloze-blank {
+    display: inline-block;
+    min-width: 60px;
+    padding: 0 4px;
+    margin: 0 2px;
+    border-bottom: 3px solid #ffcb2e;
+    color: inherit;
+    letter-spacing: 0.5px;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Cloze reveal - beautiful yellow highlighting */
+.cloze-reveal {
+    display: inline;
+    background: rgba(255, 203, 46, 0.35);
+    padding: 2px 6px;
+    margin: 0 1px;
+    border-radius: 4px;
+    color: inherit;
+    box-shadow: 0 0 0 1px rgba(255, 203, 46, 0.2);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    animation: revealGlow 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes revealGlow {
+    0% {
+        background: rgba(255, 203, 46, 0.1);
+        box-shadow: 0 0 0 1px rgba(255, 203, 46, 0.1);
+    }
+    50% {
+        background: rgba(255, 203, 46, 0.5);
+        box-shadow: 0 0 8px rgba(255, 203, 46, 0.3);
+    }
+    100% {
+        background: rgba(255, 203, 46, 0.35);
+        box-shadow: 0 0 0 1px rgba(255, 203, 46, 0.2);
+    }
+}
+
+/* Ensure cloze elements work well with LaTeX */
+.cloze-blank .katex,
+.cloze-reveal .katex {
+    display: inline;
+}
+
+/* ============================================
    ANIMATIONS & TRANSITIONS
    ============================================ */
 @keyframes fadeIn {

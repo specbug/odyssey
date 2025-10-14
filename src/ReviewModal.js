@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import apiService from './api';
 import './ReviewModal.css';
 import 'katex/dist/katex.min.css';
 import { InlineMath, BlockMath } from 'react-katex';
 import AsteriskProgressBar from './AsteriskProgressBar';
+import { hasCloze, parseClozeForIndex, getContrastText } from './clozeUtils';
 
 // Vibrant color themes inspired by Orbit
 // const COLOR_THEMES = [
@@ -1003,6 +1004,54 @@ const NoteContent = React.memo(({ content, className }) => {
     return <div className={`note-content ${className}`}>{renderLatex(content)}</div>;
 });
 
+// Cloze Content Component - Handles cloze deletion display with theme-aware styling
+const ClozeContent = React.memo(({ content, clozeIndex, showAnswer, className, backgroundColor }) => {
+    const { questionHtml, answerHtml } = useMemo(() => {
+        if (!hasCloze(content)) {
+            return { questionHtml: content, answerHtml: content };
+        }
+        return parseClozeForIndex(content, clozeIndex);
+    }, [content, clozeIndex]);
+
+    const displayContent = showAnswer ? answerHtml : questionHtml;
+
+    // Calculate if we need light or dark cloze styling based on background
+    const textColor = useMemo(() => {
+        if (backgroundColor) {
+            return getContrastText(backgroundColor);
+        }
+        return null;
+    }, [backgroundColor]);
+
+    // Add inline style element for theme-aware cloze colors
+    const clozeStyles = useMemo(() => {
+        if (!textColor) return null;
+
+        const isDark = textColor === '#ffffff';
+        // For dark backgrounds, use brighter yellow; for light backgrounds, use darker yellow
+        const blankColor = isDark ? '#ffeb3b' : '#f9a825';
+        const revealBg = isDark ? 'rgba(255, 235, 59, 0.3)' : 'rgba(255, 203, 46, 0.35)';
+        const revealShadow = isDark ? 'rgba(255, 235, 59, 0.3)' : 'rgba(255, 203, 46, 0.2)';
+
+        return `
+            .orbit-question-container .cloze-blank {
+                border-bottom-color: ${blankColor};
+            }
+            .orbit-question-container .cloze-reveal {
+                background: ${revealBg};
+                box-shadow: 0 0 0 1px ${revealShadow};
+            }
+        `;
+    }, [textColor]);
+
+    return (
+        <>
+            {clozeStyles && <style>{clozeStyles}</style>}
+            <NoteContent content={displayContent} className={className} />
+        </>
+    );
+});
+
 // Timeline Component
 const TimelineVisualization = ({ currentCard }) => {
     const [progression, setProgression] = useState(null);
@@ -1067,7 +1116,14 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
     const [sessionStats, setSessionStats] = useState({ correct: 0, total: 0 });
     const [currentThemeIndex, setCurrentThemeIndex] = useState(0);
     const [showContextMenu, setShowContextMenu] = useState(false);
+    const [currentClozeIndex, setCurrentClozeIndex] = useState(1); // Track which cloze we're showing
     const contextMenuRef = useRef(null);
+
+    // Determine if current card is a cloze card and get its indices
+    const isClozeCard = useMemo(() => {
+        if (!currentCard?.annotation) return false;
+        return hasCloze(currentCard.annotation.question) || hasCloze(currentCard.annotation.answer);
+    }, [currentCard]);
 
     useEffect(() => {
         if (isOpen) {
@@ -1441,12 +1497,25 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
                         <>
                             {/* Main Question Display */}
                             <div className="orbit-question-container">
-                                <NoteContent
-                                    content={currentCard.annotation?.question || 'No question available'}
-                                    className="orbit-question-text"
-                                />
+                                {isClozeCard ? (
+                                    /* Cloze Card: Show question with blanks/reveals */
+                                    <ClozeContent
+                                        content={currentCard.annotation?.question || 'No question available'}
+                                        clozeIndex={currentClozeIndex}
+                                        showAnswer={showAnswer}
+                                        className="orbit-question-text"
+                                        backgroundColor={currentTheme.bg}
+                                    />
+                                ) : (
+                                    /* Basic Card: Show question normally */
+                                    <NoteContent
+                                        content={currentCard.annotation?.question || 'No question available'}
+                                        className="orbit-question-text"
+                                    />
+                                )}
 
-                                {showAnswer && currentCard.annotation?.answer && (
+                                {/* Show answer section only for basic cards */}
+                                {!isClozeCard && showAnswer && currentCard.annotation?.answer && (
                                     <div className="orbit-answer-container">
                                         <NoteContent
                                             content={currentCard.annotation.answer}

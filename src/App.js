@@ -11,6 +11,7 @@ import apiService from './api';
 import HomePage from './HomePage';
 import ReviewModal from './ReviewModal';
 import LoadingBar from './LoadingBar';
+import { hasCloze, extractClozeIndices, stripClozeSyntax } from './clozeUtils';
 
 // Use local PDF.js worker - works better with nginx
 pdfjs.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL}/pdf.worker.min.mjs`;
@@ -601,14 +602,28 @@ function App() {
             const annotations = await apiService.getAnnotations(fileId);
             
             // Convert backend annotations to frontend format with fallback chain
-            const frontendNotes = annotations.map(annotation => ({
-                id: annotation.annotation_id,
-                question: annotation.question,
-                answer: annotation.answer,
-                highlightedText: annotation.highlighted_text,
-                isEditing: false,
-                backendId: annotation.id // Store backend ID for updates
-            }));
+            const frontendNotes = annotations.map(annotation => {
+                // Parse cloze indices if they exist
+                let clozeIndices = [];
+                try {
+                    if (annotation.cloze_indices) {
+                        clozeIndices = JSON.parse(annotation.cloze_indices);
+                    }
+                } catch (e) {
+                    console.warn('Failed to parse cloze indices', e);
+                }
+
+                return {
+                    id: annotation.annotation_id,
+                    question: annotation.question,
+                    answer: annotation.answer,
+                    highlightedText: annotation.highlighted_text,
+                    isEditing: false,
+                    backendId: annotation.id, // Store backend ID for updates
+                    cardType: annotation.card_type || 'basic', // Default to basic if not set
+                    clozeIndices: clozeIndices
+                };
+            });
             
             const frontendHighlights = await Promise.all(annotations.map(async (annotation) => {
                 const highlight = await resolveAnnotationLocation(annotation);
@@ -1029,14 +1044,21 @@ function App() {
         }
 
         try {
+            // Detect if this is a cloze card by checking both question and answer
+            const isClozeCard = hasCloze(updatedNote.question) || hasCloze(updatedNote.answer);
+            const cardType = isClozeCard ? 'cloze' : 'basic';
+            const clozeIndices = isClozeCard ?
+                [...new Set([...extractClozeIndices(updatedNote.question), ...extractClozeIndices(updatedNote.answer)])] :
+                [];
+
             // Prepare enriched position data
             const enrichedPositionData = {
                 // Legacy pixel coordinates for backward compatibility
                 pixel_rects: highlight.rects,
-                
+
                 // New normalized coordinates
                 normalized_rects: highlight.normalizedRects || [],
-                
+
                 // Text anchoring data
                 text_anchor: highlight.textAnchor || {
                     selected_text: updatedNote.highlightedText,
@@ -1045,7 +1067,7 @@ function App() {
                     char_start: -1,
                     char_end: -1
                 },
-                
+
                 // Metadata
                 metadata: {
                     page_text_hash: highlight.textAnchor?.page_text_hash || '',
@@ -1061,11 +1083,13 @@ function App() {
                     question: updatedNote.question,
                     answer: updatedNote.answer,
                     highlighted_text: updatedNote.highlightedText,
-                    position_data: JSON.stringify(enrichedPositionData)
+                    position_data: JSON.stringify(enrichedPositionData),
+                    card_type: cardType,
+                    cloze_indices: JSON.stringify(clozeIndices)
                 };
-                
+
                 await apiService.updateAnnotation(updatedNote.backendId, annotationData);
-                console.log('Updated annotation in backend with enriched data');
+                console.log(`Updated annotation in backend with enriched data (${cardType} card)`);
             } else {
                 // Create new annotation
                 const annotationData = {
@@ -1074,18 +1098,24 @@ function App() {
                     question: updatedNote.question,
                     answer: updatedNote.answer,
                     highlighted_text: updatedNote.highlightedText,
-                    position_data: JSON.stringify(enrichedPositionData)
+                    position_data: JSON.stringify(enrichedPositionData),
+                    card_type: cardType,
+                    cloze_indices: JSON.stringify(clozeIndices)
                 };
-                
+
                 const response = await apiService.createAnnotation(fileMetadata.id, annotationData);
                 updatedNote.backendId = response.id;
-                console.log('Created annotation in backend with enriched data');
+                console.log(`Created annotation in backend with enriched data (${cardType} card)`);
             }
+
+            // Update frontend note with card type info
+            updatedNote.cardType = cardType;
+            updatedNote.clozeIndices = clozeIndices;
         } catch (error) {
             console.error('Failed to save annotation to backend:', error);
             // Continue with frontend save even if backend fails
         }
-        
+
         setNotes(notes => notes.map(n => n.id === updatedNote.id ? updatedNote : n));
     }, [fileMetadata, highlights, scale]);
 
