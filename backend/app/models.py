@@ -7,6 +7,7 @@ from sqlalchemy import (
     Float,
     Boolean,
     ForeignKey,
+    UniqueConstraint,
 )
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
@@ -56,22 +57,26 @@ class Annotation(Base):
 class StudyCard(Base):
     """A card that can be studied using FSRS spaced repetition.
 
-    Each study card has a 1:1 relationship with an annotation.
-    When an annotation is deleted, its study card is automatically deleted (CASCADE).
+    For basic cards: 1:1 relationship with an annotation.
+    For cloze cards: Multiple cards per annotation (one per cloze index).
+    When an annotation is deleted, its study cards are automatically deleted (CASCADE).
 
     Uses FSRS (Free Spaced Repetition Scheduler) algorithm for optimal scheduling.
     """
 
     __tablename__ = "study_cards"
+    __table_args__ = (
+        UniqueConstraint('annotation_id', 'cloze_index', name='uq_annotation_cloze'),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     annotation_id = Column(
         Integer,
         ForeignKey("annotations.id", ondelete="CASCADE"),
         nullable=False,
-        unique=True,
         index=True,
     )
+    cloze_index = Column(Integer, nullable=True, default=None)  # For cloze deletions (c1, c2, etc.)
 
     # FSRS Algorithm fields
     difficulty = Column(Float, default=0.0)  # FSRS difficulty parameter (0-10)

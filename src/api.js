@@ -230,9 +230,14 @@ class ApiService {
 
     // Spaced Repetition API Methods
 
-    async createStudyCard(annotationId) {
+    async createStudyCard(annotationId, clozeIndex = null) {
         try {
-            const response = await fetch(`${this.baseUrl}/study-cards?annotation_id=${annotationId}`, {
+            let url = `${this.baseUrl}/study-cards?annotation_id=${annotationId}`;
+            if (clozeIndex !== null) {
+                url += `&cloze_index=${clozeIndex}`;
+            }
+
+            const response = await fetch(url, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

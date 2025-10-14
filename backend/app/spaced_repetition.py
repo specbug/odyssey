@@ -227,21 +227,26 @@ class SpacedRepetitionService:
         }
 
     @staticmethod
-    def create_study_card(db: Session, annotation_id: int) -> StudyCard:
+    def create_study_card(db: Session, annotation_id: int, cloze_index: Optional[int] = None) -> StudyCard:
         """Create a new study card from an annotation using FSRS.
 
-        Due to 1:1 constraint, each annotation can have exactly one study card.
-        If a study card already exists for this annotation, returns the existing one.
+        For basic cards: cloze_index should be None (one card per annotation).
+        For cloze cards: cloze_index should be set (multiple cards per annotation, one per cloze).
+        If a study card already exists for this annotation+cloze_index, returns the existing one.
         """
         # Validate that annotation exists
         annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
         if not annotation:
             raise ValueError(f"Annotation with ID {annotation_id} not found")
 
-        # Check if study card already exists for this annotation
-        existing_card = (
-            db.query(StudyCard).filter(StudyCard.annotation_id == annotation_id).first()
-        )
+        # Check if study card already exists for this annotation + cloze_index combination
+        query = db.query(StudyCard).filter(StudyCard.annotation_id == annotation_id)
+        if cloze_index is not None:
+            query = query.filter(StudyCard.cloze_index == cloze_index)
+        else:
+            query = query.filter(StudyCard.cloze_index.is_(None))
+
+        existing_card = query.first()
 
         if existing_card:
             return existing_card
@@ -254,6 +259,7 @@ class SpacedRepetitionService:
         try:
             study_card = StudyCard(
                 annotation_id=annotation_id,
+                cloze_index=cloze_index,
                 difficulty=fsrs_card.difficulty,
                 stability=fsrs_card.stability,
                 elapsed_days=fsrs_card.elapsed_days,
@@ -274,16 +280,20 @@ class SpacedRepetitionService:
         except Exception as e:
             db.rollback()
             # Check if it's a constraint violation (another card was created concurrently)
-            existing_card = (
-                db.query(StudyCard)
-                .filter(StudyCard.annotation_id == annotation_id)
-                .first()
-            )
+            query = db.query(StudyCard).filter(StudyCard.annotation_id == annotation_id)
+            if cloze_index is not None:
+                query = query.filter(StudyCard.cloze_index == cloze_index)
+            else:
+                query = query.filter(StudyCard.cloze_index.is_(None))
+
+            existing_card = query.first()
             if existing_card:
                 return existing_card
             else:
                 raise ValueError(
-                    f"Failed to create study card for annotation {annotation_id}: {str(e)}"
+                    f"Failed to create study card for annotation {annotation_id}"
+                    + (f" (cloze {cloze_index})" if cloze_index is not None else "")
+                    + f": {str(e)}"
                 )
 
     @staticmethod
