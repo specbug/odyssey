@@ -1504,12 +1504,12 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
                                     onClick={() => handleReview(1)}
                                     disabled={loading}
                                     style={{
-                                        backgroundColor: '#ff4444',
-                                        color: '#ffffff'
+                                        backgroundColor: `${currentTheme.fg}22`,
+                                        color: currentTheme.fg
                                     }}
                                     title="1: Completely forgot"
                                 >
-                                    <span className="material-symbols-outlined">close</span>
+                                    <span className="material-symbols-outlined" style={{ color: '#ff4444' }}>close</span>
                                     <span>Again</span>
                                 </button>
                                 <button
@@ -1517,12 +1517,12 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
                                     onClick={() => handleReview(2)}
                                     disabled={loading}
                                     style={{
-                                        backgroundColor: '#ff9944',
-                                        color: '#ffffff'
+                                        backgroundColor: `${currentTheme.fg}22`,
+                                        color: currentTheme.fg
                                     }}
                                     title="2: Remembered with difficulty"
                                 >
-                                    <span className="material-symbols-outlined">trending_down</span>
+                                    <span className="material-symbols-outlined" style={{ color: '#ff9944' }}>trending_down</span>
                                     <span>Hard</span>
                                 </button>
                                 <button
@@ -1530,12 +1530,12 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
                                     onClick={() => handleReview(3)}
                                     disabled={loading}
                                     style={{
-                                        backgroundColor: '#44cc44',
-                                        color: '#ffffff'
+                                        backgroundColor: `${currentTheme.fg}22`,
+                                        color: currentTheme.fg
                                     }}
                                     title="3: Remembered normally"
                                 >
-                                    <span className="material-symbols-outlined">check</span>
+                                    <span className="material-symbols-outlined" style={{ color: '#44cc44' }}>check</span>
                                     <span>Good</span>
                                 </button>
                                 <button
@@ -1543,12 +1543,12 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
                                     onClick={() => handleReview(4)}
                                     disabled={loading}
                                     style={{
-                                        backgroundColor: '#4444ff',
-                                        color: '#ffffff'
+                                        backgroundColor: `${currentTheme.fg}22`,
+                                        color: currentTheme.fg
                                     }}
                                     title="4: Remembered instantly"
                                 >
-                                    <span className="material-symbols-outlined">bolt</span>
+                                    <span className="material-symbols-outlined" style={{ color: '#4444ff' }}>bolt</span>
                                     <span>Easy</span>
                                 </button>
                             </div>

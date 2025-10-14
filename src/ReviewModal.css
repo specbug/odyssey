@@ -518,25 +518,13 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-/* Individual Button Colors (defined in JSX, enhanced here) */
-.fsrs-again-button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 16px rgba(255, 68, 68, 0.4);
-}
-
-.fsrs-hard-button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 16px rgba(255, 153, 68, 0.4);
-}
-
-.fsrs-good-button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 16px rgba(68, 204, 68, 0.4);
-}
-
+/* Button hover states - match Show Answer button style */
+.fsrs-again-button:hover,
+.fsrs-hard-button:hover,
+.fsrs-good-button:hover,
 .fsrs-easy-button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 6px 16px rgba(68, 68, 255, 0.4);
+    transform: translateY(-2px);
+    opacity: 0.9;
 }
 
 .fsrs-again-button:active,
