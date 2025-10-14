@@ -8,7 +8,7 @@ spaced repetition scheduling with 4-button review system.
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
-from fsrs import FSRS, Card, Rating, ReviewLog
+from fsrs import FSRS, Card, Rating
 
 from .models import StudyCard, CardReview, ReviewSession, Annotation
 from .schemas import StudyCardResponse, CardReviewCreate, CardReviewResult
@@ -38,7 +38,7 @@ class SpacedRepetitionService:
         study_card.reps = fsrs_card.reps
         study_card.lapses = fsrs_card.lapses
         study_card.state = fsrs_card.state.name
-        study_card.last_review = fsrs_card.last_review
+        study_card.last_review = datetime.utcnow()  # Track in database, not in FSRS Card
         study_card.due = fsrs_card.due
 
     @staticmethod
@@ -54,17 +54,22 @@ class SpacedRepetitionService:
             "Relearning": State.Relearning,
         }
 
-        return Card(
-            difficulty=study_card.difficulty,
-            stability=study_card.stability,
-            elapsed_days=study_card.elapsed_days,
-            scheduled_days=study_card.scheduled_days,
-            reps=study_card.reps,
-            lapses=study_card.lapses,
-            state=state_map.get(study_card.state, State.New),
-            last_review=study_card.last_review,
-            due=study_card.due,
-        )
+        # Create card and set attributes
+        card = Card()
+        card.difficulty = study_card.difficulty
+        card.stability = study_card.stability
+        card.elapsed_days = study_card.elapsed_days
+        card.scheduled_days = study_card.scheduled_days
+        card.reps = study_card.reps
+        card.lapses = study_card.lapses
+        card.state = state_map.get(study_card.state, State.New)
+        card.due = study_card.due if study_card.due else datetime.utcnow()
+
+        # Set last_review if the card has been reviewed before
+        if study_card.last_review:
+            card.last_review = study_card.last_review
+
+        return card
 
     @staticmethod
     def get_card_timeline(card: StudyCard) -> Dict:
@@ -91,7 +96,6 @@ class SpacedRepetitionService:
             # Get scheduling info from FSRS
             scheduling_info = SpacedRepetitionService.scheduler.repeat(fsrs_card, current_time)
             scheduled_card = scheduling_info[rating].card
-            review_log = scheduling_info[rating].review_log
 
             # Calculate interval information
             interval_days = scheduled_card.scheduled_days

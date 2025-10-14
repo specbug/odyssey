@@ -486,13 +486,83 @@
     font-size: 22px;
 }
 
-/* Action Buttons (Forgotten / Remembered) */
+/* Action Buttons - FSRS 4-Button Layout */
 .orbit-action-buttons {
     display: flex;
-    gap: 24px;
+    gap: 16px;
     align-items: center;
+    justify-content: center;
 }
 
+.orbit-action-buttons.fsrs-four-buttons {
+    gap: 12px;
+}
+
+/* FSRS Button Base Styles */
+.fsrs-again-button,
+.fsrs-hard-button,
+.fsrs-good-button,
+.fsrs-easy-button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 28px;
+    border: none;
+    border-radius: 12px;
+    font-size: 17px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    font-family: inherit;
+    letter-spacing: -0.01em;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Individual Button Colors (defined in JSX, enhanced here) */
+.fsrs-again-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(255, 68, 68, 0.4);
+}
+
+.fsrs-hard-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(255, 153, 68, 0.4);
+}
+
+.fsrs-good-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(68, 204, 68, 0.4);
+}
+
+.fsrs-easy-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 16px rgba(68, 68, 255, 0.4);
+}
+
+.fsrs-again-button:active,
+.fsrs-hard-button:active,
+.fsrs-good-button:active,
+.fsrs-easy-button:active {
+    transform: translateY(0);
+}
+
+.fsrs-again-button:disabled,
+.fsrs-hard-button:disabled,
+.fsrs-good-button:disabled,
+.fsrs-easy-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.fsrs-again-button .material-symbols-outlined,
+.fsrs-hard-button .material-symbols-outlined,
+.fsrs-good-button .material-symbols-outlined,
+.fsrs-easy-button .material-symbols-outlined {
+    font-size: 20px;
+}
+
+/* Legacy 2-button styles (keep for backward compatibility) */
 .orbit-forgot-button,
 .orbit-remembered-button {
     display: flex;
@@ -614,6 +684,22 @@
     .orbit-action-buttons {
         flex-direction: column;
         width: 100%;
+        gap: 12px;
+    }
+
+    .orbit-action-buttons.fsrs-four-buttons {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+
+    .fsrs-again-button,
+    .fsrs-hard-button,
+    .fsrs-good-button,
+    .fsrs-easy-button {
+        width: 100%;
+        justify-content: center;
+        padding: 14px 20px;
     }
 
     .orbit-forgot-button,
@@ -676,6 +762,19 @@
     .orbit-remembered-button {
         padding: 14px 32px;
         font-size: 16px;
+    }
+
+    .fsrs-again-button,
+    .fsrs-hard-button,
+    .fsrs-good-button,
+    .fsrs-easy-button {
+        padding: 12px 16px;
+        font-size: 15px;
+        gap: 8px;
+    }
+
+    .orbit-action-buttons.fsrs-four-buttons {
+        grid-template-columns: 1fr 1fr;
     }
 
     .completion-state-orbit h2 {
