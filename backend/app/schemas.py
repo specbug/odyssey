@@ -86,17 +86,14 @@ class TotalPagesUpdate(BaseModel):
     total_pages: int = Field(..., ge=1, description="Total number of pages in the PDF")
 
 
-# Spaced Repetition Schemas
+# Spaced Repetition Schemas (FSRS)
 
 
 class StudyCardBase(BaseModel):
     annotation_id: int
-    easiness: float = 2.5
-    interval: int = 1
-    repetitions: int = 0
-    is_new: bool = True
-    is_learning: bool = False
-    is_graduated: bool = False
+    difficulty: float = 0.0
+    stability: float = 0.0
+    state: str = "New"
 
 
 class StudyCardCreate(StudyCardBase):
@@ -104,36 +101,37 @@ class StudyCardCreate(StudyCardBase):
 
 
 class StudyCardUpdate(BaseModel):
-    easiness: Optional[float] = None
-    interval: Optional[int] = None
-    repetitions: Optional[int] = None
-    is_new: Optional[bool] = None
-    is_learning: Optional[bool] = None
-    is_graduated: Optional[bool] = None
-    last_review_date: Optional[datetime] = None
-    next_review_date: Optional[datetime] = None
+    difficulty: Optional[float] = None
+    stability: Optional[float] = None
+    elapsed_days: Optional[int] = None
+    scheduled_days: Optional[int] = None
+    reps: Optional[int] = None
+    lapses: Optional[int] = None
+    state: Optional[str] = None
+    last_review: Optional[datetime] = None
+    due: Optional[datetime] = None
 
 
 class StudyCardResponse(StudyCardBase):
     id: int
     annotation_id: Optional[int] = None  # Allow None for cards without annotations
-    easiness: float = 2.5
-    interval: int = 1
-    repetitions: int = 0
-    is_new: bool = True
-    is_learning: bool = False
-    is_graduated: bool = False
+    difficulty: float = 0.0
+    stability: float = 0.0
+    elapsed_days: int = 0
+    scheduled_days: int = 0
+    reps: int = 0
+    lapses: int = 0
+    state: str = "New"
+    last_review: Optional[datetime] = None
     created_date: datetime
-    last_review_date: Optional[datetime] = None
-    next_review_date: Optional[datetime] = None
+    due: Optional[datetime] = None
     annotation: Optional[AnnotationResponse] = None
 
-    @validator("interval", pre=True)
-    def convert_interval_to_int(cls, v):
-        """Convert float interval to int."""
-        if isinstance(v, float):
-            return int(round(v))
-        return v
+    # Backward compatibility property
+    @property
+    def next_review_date(self):
+        """Alias for 'due' to maintain backward compatibility."""
+        return self.due
 
     class Config:
         from_attributes = True
@@ -168,7 +166,7 @@ class ReviewSessionResponse(ReviewSessionBase):
 
 class CardReviewBase(BaseModel):
     card_id: int
-    quality: int = Field(..., ge=0, le=5, description="SM-2 quality rating (0-5)")
+    rating: int = Field(..., ge=1, le=4, description="FSRS rating (1=Again, 2=Hard, 3=Good, 4=Easy)")
     time_taken: Optional[int] = None  # Time in seconds
 
 
@@ -180,19 +178,20 @@ class CardReviewResponse(CardReviewBase):
     id: int
     session_id: Optional[int] = None
     review_date: datetime
-    easiness_before: Optional[float] = None
-    interval_before: Optional[int] = None
-    repetitions_before: Optional[int] = None
-    easiness_after: Optional[float] = None
-    interval_after: Optional[int] = None
-    repetitions_after: Optional[int] = None
+    state_before: Optional[str] = None
+    difficulty_before: Optional[float] = None
+    stability_before: Optional[float] = None
+    state_after: Optional[str] = None
+    difficulty_after: Optional[float] = None
+    stability_after: Optional[float] = None
+    scheduled_days_after: Optional[int] = None
 
     class Config:
         from_attributes = True
 
 
 class CardReviewResult(BaseModel):
-    """Result of reviewing a card with SM-2 algorithm."""
+    """Result of reviewing a card with FSRS algorithm."""
 
     card: StudyCardResponse
     review: CardReviewResponse
@@ -212,10 +211,10 @@ class DueCardsResponse(BaseModel):
 
 
 class ReviewOptions(BaseModel):
-    """Options for reviewing a card based on SM-2 algorithm."""
+    """Options for reviewing a card based on FSRS algorithm."""
 
     card_id: int
-    options: List[dict]  # List of quality options with preview data
+    options: List[dict]  # List of rating options with preview data
 
 
 # Timeline Schemas
@@ -224,47 +223,44 @@ class ReviewOptions(BaseModel):
 class TimelinePoint(BaseModel):
     """A single point in the timeline showing when a card will appear next."""
 
-    quality: int = Field(..., ge=0, le=5, description="SM-2 quality rating (0-5)")
-    quality_label: str = Field(
+    rating: int = Field(..., ge=1, le=4, description="FSRS rating (1=Again, 2=Hard, 3=Good, 4=Easy)")
+    rating_label: str = Field(
         ...,
-        description="Human-readable label for the quality (e.g., 'Wrong', 'Good', 'Easy')",
+        description="Human-readable label for the rating (e.g., 'Forgot', 'Hard', 'Good', 'Easy')",
     )
     next_review_date: datetime = Field(
         ..., description="When the card will appear next"
     )
-    interval_days: Optional[int] = Field(
-        None, description="Interval in days (None for learning cards in minutes)"
-    )
-    interval_minutes: Optional[int] = Field(
-        None, description="Interval in minutes (for learning cards)"
+    interval_days: int = Field(
+        ..., description="Interval in days"
     )
     interval_text: str = Field(
-        ..., description="Human-readable interval text (e.g., '1 min', '4 days')"
+        ..., description="Human-readable interval text (e.g., '1 day', '4 days')"
     )
     card_state: str = Field(
-        ..., description="Card state after review (new, learning, graduated)"
+        ..., description="Card state after review (New, Learning, Review, Relearning)"
     )
-    easiness_after: float = Field(..., description="Easiness factor after review")
-    repetitions_after: int = Field(
-        ..., description="Number of repetitions after review"
+    difficulty_after: float = Field(..., description="FSRS difficulty after review")
+    stability_after: float = Field(
+        ..., description="FSRS stability after review"
     )
 
 
 class CardTimeline(BaseModel):
-    """Timeline for a study card showing future review dates based on different quality ratings."""
+    """Timeline for a study card showing future review dates based on different ratings."""
 
     card_id: int
     current_state: str = Field(
-        ..., description="Current card state (new, learning, graduated)"
+        ..., description="Current card state (New, Learning, Review, Relearning)"
     )
-    current_interval: int = Field(..., description="Current interval")
-    current_easiness: float = Field(..., description="Current easiness factor")
-    current_repetitions: int = Field(..., description="Current number of repetitions")
+    current_difficulty: float = Field(..., description="Current FSRS difficulty")
+    current_stability: float = Field(..., description="Current FSRS stability")
+    current_scheduled_days: int = Field(..., description="Current scheduled days")
     next_review_date: Optional[datetime] = Field(
         None, description="Current next review date"
     )
     timeline_points: List[TimelinePoint] = Field(
-        ..., description="Timeline points for each quality rating"
+        ..., description="Timeline points for each rating (4 options)"
     )
     generated_at: datetime = Field(..., description="When this timeline was generated")
 

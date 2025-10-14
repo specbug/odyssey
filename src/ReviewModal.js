@@ -636,14 +636,14 @@ const COLOR_THEMES = [
     { bg: '#D8863B', fg: '#FFFFFF', name: 'Dull Orange' },
     { bg: '#738595', fg: '#FFFFFF', name: 'Steel' },
     { bg: '#AA23FF', fg: '#FFFFFF', name: 'Electric Purple' },
-    { bg: '#08FF08', fg: '#FFFFFF', name: 'Fluorescent Green' },
+    // { bg: '#08FF08', fg: '#FFFFFF', name: 'Fluorescent Green' },
     { bg: '#9B7A01', fg: '#FFFFFF', name: 'Yellowish Brown' },
     { bg: '#F29E8E', fg: '#FFFFFF', name: 'Blush' },
     { bg: '#6FC276', fg: '#FFFFFF', name: 'Soft Green' },
     { bg: '#FF5B00', fg: '#FFFFFF', name: 'Bright Orange' },
     { bg: '#FDFF52', fg: '#000000', name: 'Lemon' },
     { bg: '#866F85', fg: '#FFFFFF', name: 'Purple Grey' },
-    { bg: '#8FFE09', fg: '#FFFFFF', name: 'Acid Green' },
+    // { bg: '#8FFE09', fg: '#FFFFFF', name: 'Acid Green' },
     { bg: '#EECFFE', fg: '#000000', name: 'Pale Lavender' },
     { bg: '#510AC9', fg: '#FFFFFF', name: 'Violet Blue' },
     { bg: '#4F9153', fg: '#FFFFFF', name: 'Light Forest Green' },
@@ -1177,20 +1177,20 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
         setShowAnswer(true);
     };
 
-    const handleReview = async (quality) => {
+    const handleReview = async (rating) => {
         if (!currentCard) return;
 
         setLoading(true);
         try {
             await apiService.reviewCard(currentCard.id, {
                 card_id: currentCard.id,
-                quality: quality,
+                rating: rating,  // FSRS rating: 1=Again, 2=Hard, 3=Good, 4=Easy
                 time_taken: 30 // You could track actual time here
             });
 
-            // Update session stats
+            // Update session stats (in FSRS, rating >= 2 means correct)
             setSessionStats(prev => ({
-                correct: prev.correct + (quality >= 3 ? 1 : 0),
+                correct: prev.correct + (rating >= 2 ? 1 : 0),
                 total: prev.total + 1
             }));
 
@@ -1498,46 +1498,61 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
                                 <span>Show Answer</span>
                             </button>
                         ) : (
-                            <div className="orbit-action-buttons">
+                            <div className="orbit-action-buttons fsrs-four-buttons">
                                 <button
-                                    className="orbit-forgot-button"
+                                    className="fsrs-again-button"
                                     onClick={() => handleReview(1)}
                                     disabled={loading}
                                     style={{
                                         backgroundColor: `${currentTheme.fg}22`,
                                         color: currentTheme.fg
                                     }}
+                                    title="1: Completely forgot"
                                 >
                                     <span className="material-symbols-outlined">close</span>
-                                    <span>Forgotten</span>
+                                    <span>Again</span>
                                 </button>
                                 <button
-                                    className="orbit-remembered-button"
+                                    className="fsrs-hard-button"
+                                    onClick={() => handleReview(2)}
+                                    disabled={loading}
+                                    style={{
+                                        backgroundColor: `${currentTheme.fg}22`,
+                                        color: currentTheme.fg
+                                    }}
+                                    title="2: Remembered with difficulty"
+                                >
+                                    <span className="material-symbols-outlined">trending_down</span>
+                                    <span>Hard</span>
+                                </button>
+                                <button
+                                    className="fsrs-good-button"
+                                    onClick={() => handleReview(3)}
+                                    disabled={loading}
+                                    style={{
+                                        backgroundColor: `${currentTheme.fg}22`,
+                                        color: currentTheme.fg
+                                    }}
+                                    title="3: Remembered normally"
+                                >
+                                    <span className="material-symbols-outlined">check</span>
+                                    <span>Good</span>
+                                </button>
+                                <button
+                                    className="fsrs-easy-button"
                                     onClick={() => handleReview(4)}
                                     disabled={loading}
                                     style={{
                                         backgroundColor: `${currentTheme.fg}22`,
                                         color: currentTheme.fg
                                     }}
+                                    title="4: Remembered instantly"
                                 >
-                                    <span className="material-symbols-outlined">check</span>
-                                    <span>Remembered</span>
+                                    <span className="material-symbols-outlined">bolt</span>
+                                    <span>Easy</span>
                                 </button>
                             </div>
                         )}
-
-                        {/* Skip button - always visible */}
-                        <button
-                            className="orbit-skip-button"
-                            onClick={() => handleReview(0)}
-                            style={{
-                                color: currentTheme.fg,
-                                opacity: 0.6
-                            }}
-                        >
-                            <span>Skip</span>
-                            <span className="material-symbols-outlined">arrow_forward</span>
-                        </button>
                     </div>
                 )}
             </div>

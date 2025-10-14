@@ -54,10 +54,12 @@ class Annotation(Base):
 
 
 class StudyCard(Base):
-    """A card that can be studied using spaced repetition.
+    """A card that can be studied using FSRS spaced repetition.
 
     Each study card has a 1:1 relationship with an annotation.
     When an annotation is deleted, its study card is automatically deleted (CASCADE).
+
+    Uses FSRS (Free Spaced Repetition Scheduler) algorithm for optimal scheduling.
     """
 
     __tablename__ = "study_cards"
@@ -71,28 +73,28 @@ class StudyCard(Base):
         index=True,
     )
 
-    # SM-2 Algorithm fields
-    easiness = Column(Float, default=2.5)  # Easiness factor (default 2.5)
-    interval = Column(Integer, default=1)  # Days until next review
-    repetitions = Column(Integer, default=0)  # Number of successful repetitions
-
-    # Card state
-    is_new = Column(Boolean, default=True)  # True if card hasn't been reviewed
-    is_learning = Column(Boolean, default=False)  # True if card is in learning phase
-    is_graduated = Column(
-        Boolean, default=False
-    )  # True if card has graduated from learning
-    learning_step = Column(
-        Integer, default=0
-    )  # Track which learning step for failed cards
+    # FSRS Algorithm fields
+    difficulty = Column(Float, default=0.0)  # FSRS difficulty parameter (0-10)
+    stability = Column(Float, default=0.0)  # Memory stability in days
+    elapsed_days = Column(Integer, default=0)  # Days since last review
+    scheduled_days = Column(Integer, default=0)  # Days scheduled for this review
+    reps = Column(Integer, default=0)  # Total number of reviews
+    lapses = Column(Integer, default=0)  # Number of times forgotten
+    state = Column(String, default="New")  # New, Learning, Review, or Relearning
+    last_review = Column(DateTime(timezone=True))  # Last review timestamp
 
     # Timestamps
     created_date = Column(DateTime(timezone=True), server_default=func.now())
-    last_review_date = Column(DateTime(timezone=True))
-    next_review_date = Column(DateTime(timezone=True))
+    due = Column(DateTime(timezone=True))  # When the card is due for review
+
+    # For backward compatibility with frontend
+    @property
+    def next_review_date(self):
+        """Alias for 'due' to maintain backward compatibility."""
+        return self.due
 
     # Relationships
-    annotation = relationship("Annotation", backref="study_card")  # Changed to singular
+    annotation = relationship("Annotation", backref="study_card")
     reviews = relationship(
         "CardReview",
         back_populates="card",
@@ -101,7 +103,7 @@ class StudyCard(Base):
     )
 
     def __repr__(self):
-        return f"<StudyCard(id={self.id}, annotation_id={self.annotation_id}, interval={self.interval})>"
+        return f"<StudyCard(id={self.id}, annotation_id={self.annotation_id}, state={self.state}, due={self.due})>"
 
 
 class ReviewSession(Base):
@@ -127,7 +129,7 @@ class ReviewSession(Base):
 
 
 class CardReview(Base):
-    """Individual card review with SM-2 algorithm data."""
+    """Individual card review with FSRS algorithm data."""
 
     __tablename__ = "card_reviews"
 
@@ -140,18 +142,19 @@ class CardReview(Base):
     )
 
     # Review data
-    quality = Column(Integer)  # 0-5 quality rating from SM-2
+    rating = Column(Integer)  # 1-4 rating: Again(1), Hard(2), Good(3), Easy(4)
     review_date = Column(DateTime(timezone=True), server_default=func.now())
 
-    # SM-2 algorithm state before review
-    easiness_before = Column(Float)
-    interval_before = Column(Integer)
-    repetitions_before = Column(Integer)
+    # FSRS algorithm state before review
+    state_before = Column(String)  # New, Learning, Review, or Relearning
+    difficulty_before = Column(Float)
+    stability_before = Column(Float)
 
-    # SM-2 algorithm state after review
-    easiness_after = Column(Float)
-    interval_after = Column(Integer)
-    repetitions_after = Column(Integer)
+    # FSRS algorithm state after review
+    state_after = Column(String)
+    difficulty_after = Column(Float)
+    stability_after = Column(Float)
+    scheduled_days_after = Column(Integer)  # Days until next review
 
     # Time tracking
     time_taken = Column(Integer)  # Time taken in seconds
@@ -161,4 +164,4 @@ class CardReview(Base):
     session = relationship("ReviewSession", back_populates="reviews")
 
     def __repr__(self):
-        return f"<CardReview(id={self.id}, card_id={self.card_id}, quality={self.quality})>"
+        return f"<CardReview(id={self.id}, card_id={self.card_id}, rating={self.rating})>"
