@@ -643,7 +643,7 @@ const COLOR_THEMES = [
     { bg: '#FF5B00', fg: '#FFFFFF', name: 'Bright Orange' },
     { bg: '#FDFF52', fg: '#000000', name: 'Lemon' },
     { bg: '#866F85', fg: '#FFFFFF', name: 'Purple Grey' },
-    { bg: '#8FFE09', fg: '#FFFFFF', name: 'Acid Green' },
+    // { bg: '#8FFE09', fg: '#FFFFFF', name: 'Acid Green' },
     { bg: '#EECFFE', fg: '#000000', name: 'Pale Lavender' },
     { bg: '#510AC9', fg: '#FFFFFF', name: 'Violet Blue' },
     { bg: '#4F9153', fg: '#FFFFFF', name: 'Light Forest Green' },
