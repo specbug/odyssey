@@ -44,7 +44,7 @@ export const parseClozeForIndex = (text, clozeIndex) => {
         const idx = parseInt(index, 10);
         if (idx === clozeIndex) {
             clozeContent = content;
-            return '<span class="cloze-blank">______</span>';
+            return '<span class="cloze-blank"></span>';
         }
         return content;
     });

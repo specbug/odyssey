@@ -115,6 +115,7 @@ class StudyCardUpdate(BaseModel):
 class StudyCardResponse(StudyCardBase):
     id: int
     annotation_id: Optional[int] = None  # Allow None for cards without annotations
+    cloze_index: Optional[int] = None  # For cloze deletion cards (c1, c2, etc.)
     difficulty: float = 0.0
     stability: float = 0.0
     elapsed_days: int = 0

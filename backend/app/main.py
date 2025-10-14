@@ -616,15 +616,15 @@ async def delete_all_annotations(file_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/study-cards", response_model=StudyCardResponse)
-async def create_study_card(annotation_id: int, db: Session = Depends(get_db)):
-    """Create a study card from an annotation."""
+async def create_study_card(annotation_id: int, cloze_index: Optional[int] = None, db: Session = Depends(get_db)):
+    """Create a study card from an annotation. For cloze cards, specify cloze_index (1, 2, etc.)."""
     try:
         # Check if annotation exists
         annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
         if not annotation:
             raise HTTPException(status_code=404, detail="Annotation not found")
 
-        study_card = SpacedRepetitionService.create_study_card(db, annotation_id)
+        study_card = SpacedRepetitionService.create_study_card(db, annotation_id, cloze_index)
         return study_card
     except Exception as e:
         raise HTTPException(
