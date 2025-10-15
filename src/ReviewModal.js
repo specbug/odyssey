@@ -279,10 +279,10 @@ const ReviewModal = ({ isOpen, onClose, fileId, listRef, highlights }) => {
             });
 
             await Promise.all(studyCardPromises);
-            
-            // Now get the due cards
-            const cardsData = await apiService.getDueCards();
-            console.log('Cards data received:', cardsData); // Debug log
+
+            // Now get the due cards for this specific file
+            const cardsData = await apiService.getDueCards(fileId);
+            console.log('Cards data received for fileId:', fileId, cardsData); // Debug log
             
             // Handle the updated response structure
             const allCards = [

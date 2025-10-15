@@ -255,9 +255,13 @@ class ApiService {
         }
     }
 
-    async getDueCards(limit = 50) {
+    async getDueCards(fileId = null, limit = 50) {
         try {
-            const response = await fetch(`${this.baseUrl}/study-cards/due?limit=${limit}`);
+            let url = `${this.baseUrl}/study-cards/due?limit=${limit}`;
+            if (fileId) {
+                url += `&file_id=${fileId}`;
+            }
+            const response = await fetch(url);
             if (!response.ok) {
                 throw new Error('Failed to fetch due cards');
             }

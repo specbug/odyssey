@@ -69,16 +69,21 @@
   backdrop-filter: blur(40px) saturate(180%);
   -webkit-backdrop-filter: blur(40px) saturate(180%);
   border-bottom: 0.5px solid rgba(0, 0, 0, 0.04);
-  box-shadow: 
+  box-shadow:
     0 1px 0 0 rgba(255, 255, 255, 0.6) inset,
     0 1px 30px rgba(0, 0, 0, 0.02);
   z-index: 100;
   flex-shrink: 0;
-  position: relative;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
   color: var(--orbit-ink);
   animation: toolbarSlideIn 0.6s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
   opacity: 0;
   transform: translateY(-8px);
+  transition: transform 0.35s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
 @keyframes toolbarSlideIn {
@@ -88,24 +93,16 @@
   }
 }
 
+.toolbar-hidden {
+  transform: translateY(-100%) !important;
+}
+
 .toolbar-left {
   display: flex;
   align-items: center;
   flex: 1;
   min-width: 0;
   gap: 0;
-}
-
-.file-info-container {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 3px;
-  justify-content: center;
-  align-items: flex-start;
-  margin-left: 2px;
-  padding: 2px 0;
-  overflow: visible;
 }
 
 .error-message {
@@ -185,22 +182,6 @@
 .app-title.clickable-title:active {
   transform: translateY(0) scale(0.98);
   transition: all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1);
-}
-
-.file-name {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
-  font-weight: 600;
-  font-size: 18px;
-  color: rgba(29, 29, 31, 0.9);
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 500px;
-  transition: color 0.2s ease;
-  text-transform: uppercase;
-  line-height: 1.4;
-  display: block;
 }
 
 .toolbar-button {
@@ -372,54 +353,105 @@
   text-shadow: 0 0 4px rgba(255, 255, 255, 0.05);
 }
 
+/* Zoom Controls - Refined elegant design */
 .zoom-controls {
   display: flex;
   align-items: center;
   gap: 0;
-  background: rgba(0, 0, 0, 0.03);
-  border: 0.5px solid rgba(0, 0, 0, 0.06);
-  border-radius: 10px;
-  padding: 3px;
-  box-shadow: 
-    0 1px 0 0 rgba(255, 255, 255, 0.4) inset,
-    0 1px 3px rgba(0, 0, 0, 0.02);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0.55) 100%);
+  border: 0.5px solid rgba(0, 0, 0, 0.04);
+  border-radius: 12px;
+  padding: 4px;
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.6) inset,
+    0 1px 3px rgba(0, 0, 0, 0.03),
+    0 2px 8px rgba(0, 0, 0, 0.02);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.zoom-controls:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.65) 100%);
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.7) inset,
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.03);
 }
 
 .zoom-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
-  color: rgba(29, 29, 31, 0.7);
+  color: rgba(29, 29, 31, 0.65);
   border: none;
-  border-radius: 7px;
-  padding: 6px 10px;
+  border-radius: 8px;
+  padding: 6px;
+  width: 32px;
+  height: 32px;
   cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0.0, 0.2, 1);
-  font-family: 'R Plex Mono', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
-  font-weight: 500;
-  font-size: 13px;
-  line-height: 1;
-  min-width: 32px;
+  transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.zoom-controls button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 8px;
+  opacity: 0;
+  transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.zoom-controls button:hover::before {
+  opacity: 1;
 }
 
 .zoom-controls button:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: rgba(29, 29, 31, 0.85);
-  transform: scale(1.05);
+  color: rgba(29, 29, 31, 0.9);
+  transform: scale(1.08);
 }
 
 .zoom-controls button:active {
-  background: rgba(0, 0, 0, 0.08);
   transform: scale(0.95);
   transition: all 0.1s cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
-.zoom-controls span {
-  font-weight: 500;
-  color: rgba(29, 29, 31, 0.8);
+.zoom-controls button:active::before {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.zoom-controls button .material-icons {
+  font-size: 18px !important;
+  transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+.zoom-controls button:hover .material-icons {
+  transform: scale(1.1);
+}
+
+.zoom-controls .zoom-percentage {
+  font-weight: 600;
+  color: rgba(29, 29, 31, 0.85);
   font-family: 'R Plex Mono', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
   font-size: 13px;
-  padding: 0 8px;
-  letter-spacing: -0.01em;
+  padding: 0 10px;
+  letter-spacing: -0.02em;
   font-feature-settings: 'tnum' 1;
+  min-width: 46px;
+  text-align: center;
+  transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+  user-select: none;
+}
+
+.zoom-controls:hover .zoom-percentage {
+  color: rgba(29, 29, 31, 0.95);
 }
 
 /* Review Button - Apple-worthy design */
@@ -434,13 +466,13 @@
   background: linear-gradient(135deg, rgba(255, 77, 6, 0.16) 0%, rgba(255, 107, 53, 0.1) 100%);
   border: 0.5px solid rgba(255, 77, 6, 0.12);
   border-radius: 12px;
-  box-shadow: 
+  box-shadow:
     0 1px 0 0 rgba(255, 255, 255, 0.5) inset,
     0 1px 3px rgba(255, 77, 6, 0.05);
   transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
   cursor: pointer;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .toolbar-button.review-button::before {
@@ -504,6 +536,58 @@
 .toolbar-button.review-button:hover .review-text {
   color: rgba(29, 29, 31, 0.95);
   text-shadow: 0 0 4px rgba(255, 77, 6, 0.05);
+}
+
+/* Review Badge - Elegant notification indicator */
+.review-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: linear-gradient(135deg, #ff4d06 0%, #ff6b35 100%);
+  color: white;
+  border-radius: 10px;
+  font-family: 'R Plex Mono', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 2px 6px rgba(255, 77, 6, 0.4),
+    0 4px 12px rgba(255, 77, 6, 0.2),
+    0 0 0 2px rgba(255, 255, 255, 0.9);
+  animation: badgeAppear 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  z-index: 10;
+  font-feature-settings: 'tnum' 1;
+  transition: all 0.25s cubic-bezier(0.4, 0.0, 0.2, 1);
+}
+
+@keyframes badgeAppear {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.toolbar-button.review-button:hover .review-badge {
+  box-shadow:
+    0 3px 8px rgba(255, 77, 6, 0.5),
+    0 6px 16px rgba(255, 77, 6, 0.3),
+    0 0 0 2px rgba(255, 255, 255, 1);
+  transform: scale(1.05);
 }
 
 /* Compact design for smaller screens */
@@ -700,6 +784,8 @@
     flex-grow: 1;
     overflow-y: auto;
     position: relative;
+    padding-top: 64px;
+    margin-top: -64px;
 }
 
 .page-and-notes-container {
