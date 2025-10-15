@@ -297,17 +297,24 @@ class SpacedRepetitionService:
                 )
 
     @staticmethod
-    def get_due_cards(db: Session, limit: int = 50) -> Dict[str, List[StudyCard]]:
-        """Get cards that are due for review, properly categorized by FSRS state."""
+    def get_due_cards(db: Session, limit: int = 50, file_id: Optional[int] = None) -> Dict[str, List[StudyCard]]:
+        """Get cards that are due for review, properly categorized by FSRS state.
+
+        Args:
+            db: Database session
+            limit: Maximum number of cards to return
+            file_id: Optional file ID to filter cards for a specific PDF file
+        """
         now = datetime.utcnow()
 
-        # Get all cards that are due for review
-        all_due_cards = (
-            db.query(StudyCard)
-            .filter(StudyCard.due <= now)
-            .limit(limit)
-            .all()
-        )
+        # Build query for cards that are due for review
+        query = db.query(StudyCard).filter(StudyCard.due <= now)
+
+        # Filter by file_id if provided
+        if file_id is not None:
+            query = query.join(Annotation).filter(Annotation.file_id == file_id)
+
+        all_due_cards = query.limit(limit).all()
 
         # Load annotations for cards that have them
         for card in all_due_cards:

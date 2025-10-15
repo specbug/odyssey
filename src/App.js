@@ -11,6 +11,7 @@ import apiService from './api';
 import HomePage from './HomePage';
 import ReviewModal from './ReviewModal';
 import LoadingBar from './LoadingBar';
+import HeaderInfo from './HeaderInfo';
 import { hasCloze, extractClozeIndices, stripClozeSyntax } from './clozeUtils';
 
 // Use local PDF.js worker - works better with nginx
@@ -382,6 +383,8 @@ function App() {
     const [showHomePage, setShowHomePage] = useState(true);
     const [showReviewModal, setShowReviewModal] = useState(false);
     const [isLoadingFile, setIsLoadingFile] = useState(false);
+    const [dueCardsCount, setDueCardsCount] = useState(0);
+    const [isHeaderVisible, setIsHeaderVisible] = useState(true);
     const listRef = useRef();
     const pageHeights = useRef({});
     const viewerRef = useRef(null);
@@ -389,6 +392,7 @@ function App() {
     const savePositionTimeout = useRef(null);
     const currentPageIndexRef = useRef(0); // Track current page for immediate saves
     const isNavigatingAwayRef = useRef(false); // Prevent position updates during navigation
+    const lastScrollY = useRef(0); // Track last scroll position for header auto-hide
 
     // Save scale to database whenever it changes (with debouncing)
     useEffect(() => {
@@ -407,6 +411,28 @@ function App() {
         return () => clearTimeout(timeoutId);
     }, [scale, fileMetadata?.id]);
 
+    // Load due cards count when file changes
+    const loadDueCardsCount = useCallback(async () => {
+        if (!fileMetadata?.id) return;
+
+        try {
+            const cardsData = await apiService.getDueCards(fileMetadata.id);
+            const totalDue = (cardsData.due_cards?.length || 0) +
+                            (cardsData.new_cards?.length || 0) +
+                            (cardsData.learning_cards?.length || 0);
+            setDueCardsCount(totalDue);
+        } catch (error) {
+            console.error('Failed to load due cards count:', error);
+            setDueCardsCount(0);
+        }
+    }, [fileMetadata?.id]);
+
+    useEffect(() => {
+        if (fileMetadata?.id) {
+            loadDueCardsCount();
+        }
+    }, [fileMetadata?.id, notes, loadDueCardsCount]); // Reload when notes change
+
     // Handle scroll from react-window List component
     const handleListScroll = useCallback(({ scrollOffset, scrollUpdateWasRequested }) => {
         if (!fileMetadata?.id || !numPages) return;
@@ -416,6 +442,20 @@ function App() {
             console.log('🚫 Ignoring scroll event - navigating away');
             return;
         }
+
+        // Auto-hide header on scroll
+        const scrollThreshold = 50; // Minimum scroll distance before triggering hide
+        if (scrollOffset < scrollThreshold) {
+            // Always show header when at the top
+            setIsHeaderVisible(true);
+        } else if (scrollOffset > lastScrollY.current && scrollOffset > scrollThreshold) {
+            // Scrolling down - hide header
+            setIsHeaderVisible(false);
+        } else if (scrollOffset < lastScrollY.current) {
+            // Scrolling up - show header
+            setIsHeaderVisible(true);
+        }
+        lastScrollY.current = scrollOffset;
 
         // Calculate which page is at the top of the viewport
         let currentPageIndex = 0;
@@ -1233,45 +1273,55 @@ function App() {
     return (
         <div className="App">
             <LoadingBar isLoading={isLoadingFile} />
-            <div className="toolbar">
+            <div className={`toolbar ${!isHeaderVisible ? 'toolbar-hidden' : ''}`}>
               <div className="toolbar-left">
                 <div className="app-title clickable-title" onClick={goToHomePage}>odyssey</div>
-                
-                <div className="file-info-container">
-                  <div className="file-name">
-                    {isUploading ? "Uploading..." : 
-                     fileMetadata ? fileMetadata.display_name : 
-                     "No file selected"}
+
+                <HeaderInfo
+                  fileName={isUploading ? "Uploading..." :
+                           fileMetadata ? fileMetadata.display_name :
+                           "No file selected"}
+                  currentPage={currentPageIndexRef.current}
+                  totalPages={numPages || 0}
+                  notesCount={notes.length}
+                  dueCardsCount={dueCardsCount}
+                />
+
+                {uploadError && (
+                  <div className="error-message">
+                    Error: {uploadError}
                   </div>
-                  {uploadError && (
-                    <div className="error-message">
-                      Error: {uploadError}
-                    </div>
-                  )}
-                  {isLoadingAnnotations && (
-                    <div className="loading-message">
-                      Loading annotations...
-                    </div>
-                  )}
-                </div>
+                )}
+                {isLoadingAnnotations && (
+                  <div className="loading-message">
+                    Loading annotations...
+                  </div>
+                )}
               </div>
               
               <div className="toolbar-right">
                 {/* Review button */}
-                <button 
-                  className="toolbar-button review-button" 
+                <button
+                  className="toolbar-button review-button"
                   onClick={() => setShowReviewModal(true)}
                   title="Review Cards"
                 >
                   <span className="material-icons">memory</span>
                   <span className="review-text">Review</span>
+                  {dueCardsCount > 0 && (
+                    <span className="review-badge">{dueCardsCount}</span>
+                  )}
                 </button>
                 
                 {/* Zoom controls */}
                 <div className="zoom-controls">
-                  <button onClick={() => setScale(s => s > 0.5 ? s - 0.1 : s)}>-</button>
-                  <span>{Math.round(scale * 100)}%</span>
-                  <button onClick={() => setScale(s => s < 3 ? s + 0.1 : s)}>+</button>
+                  <button onClick={() => setScale(s => s > 0.5 ? s - 0.1 : s)} title="Zoom out">
+                    <span className="material-icons">remove</span>
+                  </button>
+                  <span className="zoom-percentage">{Math.round(scale * 100)}%</span>
+                  <button onClick={() => setScale(s => s < 3 ? s + 0.1 : s)} title="Zoom in">
+                    <span className="material-icons">add</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1332,7 +1382,10 @@ function App() {
             {/* Review Modal */}
             <ReviewModal
                 isOpen={showReviewModal}
-                onClose={() => setShowReviewModal(false)}
+                onClose={() => {
+                    setShowReviewModal(false);
+                    loadDueCardsCount(); // Refresh due cards count after review session
+                }}
                 fileId={fileMetadata?.id}
                 listRef={listRef}
                 highlights={highlights}

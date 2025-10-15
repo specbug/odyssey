@@ -1,0 +1,195 @@
+/* Header Info Container */
+.header-info-container {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 6px;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 4px 0;
+  overflow: visible;
+  animation: headerInfoSlideIn 0.6s cubic-bezier(0.4, 0.0, 0.2, 1) forwards;
+  opacity: 0;
+}
+
+@keyframes headerInfoSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Document Title */
+.header-document-title {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  font-weight: 600;
+  font-size: 18px;
+  color: rgba(29, 29, 31, 0.9);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 600px;
+  transition: color 0.2s ease;
+  text-transform: uppercase;
+  line-height: 1.4;
+  display: block;
+}
+
+/* Progress Bar Container */
+.header-progress-bar-container {
+  width: 100%;
+  max-width: 400px;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+  backdrop-filter: blur(10px);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+/* Progress Bar Fill */
+.header-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ff4d06 0%, #ff6b35 50%, #ff8c42 100%);
+  border-radius: 2px;
+  position: relative;
+  transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 0 8px rgba(255, 77, 6, 0.3);
+}
+
+/* Progress Bar Glow Effect */
+.header-progress-bar-glow {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 30%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%);
+  animation: progressGlow 2s ease-in-out infinite;
+}
+
+@keyframes progressGlow {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+/* Metadata Row */
+.header-metadata-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'R Plex Mono', 'Dr', -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(60, 60, 67, 0.7);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  flex-wrap: wrap;
+}
+
+.header-metadata-item {
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.header-metadata-separator {
+  opacity: 0.4;
+  font-weight: 300;
+  user-select: none;
+}
+
+/* Cards Due - Orange Accent */
+.header-cards-due {
+  color: #ff4d06;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+/* LED Indicator - Pulsing Orange Dot */
+.led-indicator {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff4d06;
+  box-shadow:
+    0 0 0 2px rgba(255, 77, 6, 0.2),
+    0 0 8px rgba(255, 77, 6, 0.6);
+  animation: ledPulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes ledPulse {
+  0%, 100% {
+    opacity: 1;
+    box-shadow:
+      0 0 0 2px rgba(255, 77, 6, 0.2),
+      0 0 8px rgba(255, 77, 6, 0.6);
+  }
+  50% {
+    opacity: 0.6;
+    box-shadow:
+      0 0 0 3px rgba(255, 77, 6, 0.3),
+      0 0 12px rgba(255, 77, 6, 0.8),
+      0 0 16px rgba(255, 77, 6, 0.4);
+  }
+}
+
+/* Hover Effects */
+.header-info-container:hover .header-document-title {
+  color: rgba(29, 29, 31, 0.95);
+}
+
+.header-info-container:hover .header-progress-bar-fill {
+  box-shadow: 0 0 12px rgba(255, 77, 6, 0.4);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .header-document-title {
+    font-size: 16px;
+    max-width: 400px;
+  }
+
+  .header-progress-bar-container {
+    max-width: 300px;
+  }
+
+  .header-metadata-row {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .header-document-title {
+    font-size: 15px;
+    max-width: 250px;
+  }
+
+  .header-progress-bar-container {
+    max-width: 200px;
+    height: 2px;
+  }
+
+  .header-metadata-row {
+    font-size: 11px;
+    gap: 6px;
+  }
+
+  .led-indicator {
+    width: 5px;
+    height: 5px;
+  }
+}

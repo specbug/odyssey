@@ -633,10 +633,10 @@ async def create_study_card(annotation_id: int, cloze_index: Optional[int] = Non
 
 
 @app.get("/study-cards/due", response_model=DueCardsResponse)
-async def get_due_cards(limit: int = 50, db: Session = Depends(get_db)):
-    """Get cards that are due for review."""
+async def get_due_cards(limit: int = 50, file_id: Optional[int] = None, db: Session = Depends(get_db)):
+    """Get cards that are due for review. Optionally filter by file_id."""
     try:
-        cards_data = SpacedRepetitionService.get_due_cards(db, limit)
+        cards_data = SpacedRepetitionService.get_due_cards(db, limit, file_id)
 
         # Convert StudyCard objects to StudyCardResponse objects
         due_cards_response = [
