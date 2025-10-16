@@ -918,7 +918,7 @@ const COLOR_THEMES = [
     { bg: '#AE7181', fg: '#FFFFFF', name: 'Mauve' },
     { bg: '#06470C', fg: '#FFFFFF', name: 'Forest Green' },
     { bg: '#13EAC9', fg: '#FFFFFF', name: 'Aqua' },
-    { bg: '#00FFFF', fg: '#FFFFFF', name: 'Cyan' },
+    // { bg: '#00FFFF', fg: '#FFFFFF', name: 'Cyan' },
     { bg: '#D1B26F', fg: '#FFFFFF', name: 'Tan' },
     { bg: '#00035B', fg: '#FFFFFF', name: 'Dark Blue' },
     { bg: '#C79FEF', fg: '#FFFFFF', name: 'Lavender' },
