@@ -60,16 +60,115 @@ const NoteContent = React.memo(({ content, className }) => {
     return <div className={`note-content ${className}`}>{renderLatex(content)}</div>;
 });
 
+// Helper function to render LaTeX within a string
+const renderLatexString = (string, keyPrefix = '') => {
+    if (!string) return null;
+
+    const processedString = string.replace(/<div>/g, ' ').replace(/<\/div>/g, ' ');
+    const latexRegex = /(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$|\\[[\s\S]*?\\\]|\\\(.*?\\\)|\\begin\{equation\}[\s\S]*?\\end\{equation\})/g;
+    const parts = processedString.split(latexRegex);
+
+    return parts.map((part, index) => {
+        if (!part) return null;
+
+        const match = part.match(latexRegex);
+        if (match && match[0] === part) {
+            let isBlock = false;
+            let katexString = '';
+
+            if (part.startsWith('$$')) {
+                isBlock = true;
+                katexString = part.substring(2, part.length - 2);
+            } else if (part.startsWith('\\[')) {
+                isBlock = true;
+                katexString = part.substring(2, part.length - 2);
+            } else if (part.startsWith('\\begin{equation}')) {
+                isBlock = true;
+                katexString = part.substring(16, part.length - 14);
+            } else if (part.startsWith('$')) {
+                isBlock = false;
+                katexString = part.substring(1, part.length - 1);
+            } else if (part.startsWith('\\(')) {
+                isBlock = false;
+                katexString = part.substring(2, part.length - 2);
+            }
+
+            if (katexString) {
+                if (isBlock) {
+                    return <BlockMath key={`${keyPrefix}-latex-${index}`} math={katexString} />;
+                } else {
+                    return <InlineMath key={`${keyPrefix}-latex-${index}`} math={katexString} />;
+                }
+            }
+        }
+
+        return <span key={`${keyPrefix}-text-${index}`} dangerouslySetInnerHTML={{ __html: part }}></span>;
+    });
+};
+
 // Cloze Content Component - Handles cloze deletion display with theme-aware styling
 const ClozeContent = React.memo(({ content, clozeIndex, showAnswer, className, backgroundColor }) => {
-    const { questionHtml, answerHtml } = useMemo(() => {
+    // Render cloze content with LaTeX support in an integrated way
+    const renderedContent = useMemo(() => {
         if (!hasCloze(content)) {
-            return { questionHtml: content, answerHtml: content };
+            return <NoteContent content={content} className={className} />;
         }
-        return parseClozeForIndex(content, clozeIndex);
-    }, [content, clozeIndex]);
 
-    const displayContent = showAnswer ? answerHtml : questionHtml;
+        const clozeRegex = /\{\{c(\d+)::(.+?)\}\}/g;
+        let result = [];
+        let lastIndex = 0;
+        let match;
+        let keyCounter = 0;
+
+        while ((match = clozeRegex.exec(content)) !== null) {
+            const [fullMatch, index, clozeContent] = match;
+            const idx = parseInt(index, 10);
+
+            // Render text before this cloze
+            if (match.index > lastIndex) {
+                const beforeText = content.substring(lastIndex, match.index);
+                const renderedBefore = renderLatexString(beforeText, `before-${keyCounter}`);
+                if (renderedBefore) {
+                    result.push(<span key={`before-${keyCounter}`}>{renderedBefore}</span>);
+                }
+            }
+
+            // Render the cloze
+            if (idx === clozeIndex) {
+                if (showAnswer) {
+                    // Wrap cloze content with LaTeX support in reveal span
+                    result.push(
+                        <span key={`cloze-${keyCounter}`} className="cloze-reveal">
+                            {renderLatexString(clozeContent, `cloze-${keyCounter}`)}
+                        </span>
+                    );
+                } else {
+                    // Show blank
+                    result.push(<span key={`cloze-${keyCounter}`} className="cloze-blank"></span>);
+                }
+            } else {
+                // Other cloze indices - just render the content
+                const renderedOther = renderLatexString(clozeContent, `other-${keyCounter}`);
+                if (renderedOther) {
+                    result.push(<span key={`other-${keyCounter}`}>{renderedOther}</span>);
+                }
+            }
+
+            lastIndex = match.index + fullMatch.length;
+            keyCounter++;
+        }
+
+        // Render remaining text
+        if (lastIndex < content.length) {
+            const remainingText = content.substring(lastIndex);
+            const renderedRemaining = renderLatexString(remainingText, `end-${keyCounter}`);
+            if (renderedRemaining) {
+                result.push(<span key={`end-${keyCounter}`}>{renderedRemaining}</span>);
+            }
+        }
+
+        return <div className={`note-content ${className}`}>{result}</div>;
+    }, [content, clozeIndex, showAnswer, className]);
 
     // Calculate if we need light or dark cloze styling based on background
     const textColor = useMemo(() => {
@@ -103,7 +202,7 @@ const ClozeContent = React.memo(({ content, clozeIndex, showAnswer, className, b
     return (
         <>
             {clozeStyles && <style>{clozeStyles}</style>}
-            <NoteContent content={displayContent} className={className} />
+            {renderedContent}
         </>
     );
 });
