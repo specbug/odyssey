@@ -905,7 +905,7 @@ const COLOR_THEMES = [
     { bg: '#FFB07C', fg: '#FFFFFF', name: 'Peach' },
     { bg: '#C7FDB5', fg: '#000000', name: 'Pale Green' },
     { bg: '#AD8150', fg: '#FFFFFF', name: 'Light Brown' },
-    { bg: '#FF028D', fg: '#FFFFFF', name: 'Hot Pink' },
+    // { bg: '#FF028D', fg: '#FFFFFF', name: 'Hot Pink' },
     { bg: '#CEA2FD', fg: '#FFFFFF', name: 'Lilac' },
     { bg: '#001146', fg: '#FFFFFF', name: 'Navy Blue' },
     { bg: '#0504AA', fg: '#FFFFFF', name: 'Royal Blue' },
