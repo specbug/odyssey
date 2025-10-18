@@ -29,10 +29,8 @@ struct RootView: View {
             .navigationSplitViewColumnWidth(min: 200, ideal: 220)
         } detail: {
             switch appState.activeSection {
-            case .library:
-                LibraryView()
-            case .review:
-                ReviewDeskView()
+            case .browse:
+                BrowseView()
             case .capture:
                 CaptureView()
             }
@@ -43,9 +41,8 @@ struct RootView: View {
 private extension AppState.SidebarSection {
     var iconName: String {
         switch self {
-        case .library: return "books.vertical"
-        case .review: return "bolt.badge.clock"
-        case .capture: return "highlighter"
+        case .browse: return "tray.full"
+        case .capture: return "plus.rectangle.on.folder"
         }
     }
 }
