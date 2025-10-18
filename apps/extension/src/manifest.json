@@ -1,0 +1,31 @@
+{
+  "manifest_version": 3,
+  "name": "Odyssey Notes",
+  "version": "0.1.0",
+  "description": "Highlight and take notes on any webpage.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "sidePanel"
+  ],
+  "host_permissions": [
+    "http://localhost:8000/*"
+  ],
+  "background": {
+    "service_worker": "src/background/index.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["src/content/index.js"],
+      "css": ["src/content/styles.css"]
+    }
+  ],
+  "action": {
+    "default_title": "Odyssey Notes"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  }
+}

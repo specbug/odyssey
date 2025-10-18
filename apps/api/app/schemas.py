@@ -1,8 +1,73 @@
 from pydantic import BaseModel, computed_field, Field, validator
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 
 
+# Source schemas (generic for PDF and webpage)
+
+
+class SourceBase(BaseModel):
+    source_type: Literal["pdf", "webpage"] = "pdf"
+
+
+class SourceCreatePDF(BaseModel):
+    """Schema for creating a PDF source"""
+    source_type: Literal["pdf"] = "pdf"
+    filename: str
+    original_filename: str
+    file_hash: str
+    file_size: int
+    file_path: str
+    mime_type: str
+
+
+class SourceCreateWebPage(BaseModel):
+    """Schema for creating a web page source"""
+    source_type: Literal["webpage"] = "webpage"
+    url: str
+    page_title: str
+
+
+class SourceResponse(BaseModel):
+    """Generic source response (PDF or webpage)"""
+    id: int
+    source_type: str
+
+    # PDF fields (optional)
+    filename: Optional[str] = None
+    original_filename: Optional[str] = None
+    file_hash: Optional[str] = None
+    file_size: Optional[int] = None
+    mime_type: Optional[str] = None
+
+    # Webpage fields (optional)
+    url: Optional[str] = None
+    page_title: Optional[str] = None
+
+    # Common fields
+    zoom_level: float = 1.2
+    last_read_position: int = 0
+    total_pages: Optional[int] = None
+    upload_date: datetime
+    last_accessed: datetime
+    annotation_count: Optional[int] = 0
+
+    @computed_field
+    @property
+    def display_name(self) -> str:
+        """Return display name based on source type"""
+        if self.source_type == "pdf" and self.original_filename:
+            from .utils import strip_file_extension
+            return strip_file_extension(self.original_filename)
+        elif self.source_type == "webpage":
+            return self.page_title or self.url or "Untitled"
+        return "Unknown Source"
+
+    class Config:
+        from_attributes = True
+
+
+# Backwards compatibility aliases
 class PDFFileBase(BaseModel):
     filename: str
     original_filename: str
@@ -39,7 +104,7 @@ class PDFFileResponse(PDFFileBase):
 
 class AnnotationBase(BaseModel):
     annotation_id: str
-    page_index: int
+    page_index: Optional[int] = None  # Optional for web pages (no pages)
     question: str
     answer: str
     highlighted_text: str
@@ -47,7 +112,7 @@ class AnnotationBase(BaseModel):
 
 
 class AnnotationCreate(AnnotationBase):
-    pass  # file_id is passed as path parameter, not in request body
+    pass  # source_id/file_id is passed as path parameter, not in request body
 
 
 class AnnotationUpdate(BaseModel):
@@ -59,9 +124,16 @@ class AnnotationUpdate(BaseModel):
 
 class AnnotationResponse(AnnotationBase):
     id: int
-    file_id: int
+    source_id: int
     created_date: datetime
     updated_date: datetime
+
+    # Backwards compatibility
+    @computed_field
+    @property
+    def file_id(self) -> int:
+        """Alias for source_id to maintain backwards compatibility"""
+        return self.source_id
 
     class Config:
         from_attributes = True

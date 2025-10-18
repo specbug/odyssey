@@ -14,44 +14,67 @@ from sqlalchemy.orm import relationship
 from .database import Base
 
 
-class PDFFile(Base):
-    __tablename__ = "pdf_files"
+class Source(Base):
+    """Generic source model for both PDF files and web pages"""
+    __tablename__ = "sources"
 
     id = Column(Integer, primary_key=True, index=True)
-    filename = Column(String, index=True)
-    original_filename = Column(String)
-    file_hash = Column(String, unique=True, index=True)
-    file_size = Column(Integer)
-    file_path = Column(String)
-    mime_type = Column(String)
-    zoom_level = Column(Float, default=1.2)  # User's preferred zoom level for this file
-    last_read_position = Column(Integer, default=0)  # Last read page index (0-based)
-    total_pages = Column(Integer, nullable=True)  # Total number of pages in PDF
+    source_type = Column(String, default="pdf", index=True)  # 'pdf' or 'webpage'
+
+    # PDF-specific fields (nullable for webpages)
+    filename = Column(String, nullable=True, index=True)
+    original_filename = Column(String, nullable=True)
+    file_hash = Column(String, unique=True, nullable=True, index=True)
+    file_size = Column(Integer, nullable=True)
+    file_path = Column(String, nullable=True)
+    mime_type = Column(String, nullable=True)
+
+    # Web page-specific fields (nullable for PDFs)
+    url = Column(String, nullable=True, index=True)
+    page_title = Column(String, nullable=True)
+
+    # Common fields
+    zoom_level = Column(Float, default=1.2)  # User's preferred zoom level (PDFs) or font size (web)
+    last_read_position = Column(Integer, default=0)  # Last read page/scroll position
+    total_pages = Column(Integer, nullable=True)  # Total pages (PDF) or null (web)
     upload_date = Column(DateTime(timezone=True), server_default=func.now())
     last_accessed = Column(DateTime(timezone=True), server_default=func.now())
 
     def __repr__(self):
-        return f"<PDFFile(filename='{self.filename}', hash='{self.file_hash}')>"
+        if self.source_type == "pdf":
+            return f"<Source(type='pdf', filename='{self.filename}')>"
+        else:
+            return f"<Source(type='webpage', url='{self.url}')>"
+
+
+# Backwards compatibility alias
+PDFFile = Source
 
 
 class Annotation(Base):
     __tablename__ = "annotations"
 
     id = Column(Integer, primary_key=True, index=True)
-    file_id = Column(Integer, index=True)  # References PDFFile.id
+    source_id = Column(Integer, index=True)  # References Source.id (PDF or webpage)
     annotation_id = Column(String, index=True)  # Client-side ID
-    page_index = Column(Integer)
+    page_index = Column(Integer, nullable=True)  # Page number (PDF) or null (web)
     question = Column(Text)
     answer = Column(Text)
     highlighted_text = Column(Text)
-    position_data = Column(Text)  # JSON string for highlight rects
+    position_data = Column(Text)  # JSON string for highlight rects (PDF) or text anchors (web)
     created_date = Column(DateTime(timezone=True), server_default=func.now())
     updated_date = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
+    # Backwards compatibility property
+    @property
+    def file_id(self):
+        """Alias for source_id to maintain backwards compatibility"""
+        return self.source_id
+
     def __repr__(self):
-        return f"<Annotation(file_id={self.file_id}, page={self.page_index})>"
+        return f"<Annotation(source_id={self.source_id}, page={self.page_index})>"
 
 
 class StudyCard(Base):
