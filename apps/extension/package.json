@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && npm run copy-files",
+    "copy-files": "cp src/manifest.json dist/manifest.json && mkdir -p dist/src/content && cp src/content/styles.css dist/src/content/styles.css",
     "preview": "vite preview"
   },
   "dependencies": {
