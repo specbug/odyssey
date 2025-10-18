@@ -12,8 +12,11 @@ import gzip
 import io
 
 from .database import SessionLocal, engine, get_db
-from .models import Base, PDFFile, Annotation, StudyCard, CardReview, ReviewSession
+from .models import Base, Source, PDFFile, Annotation, StudyCard, CardReview, ReviewSession
 from .schemas import (
+    SourceResponse,
+    SourceCreatePDF,
+    SourceCreateWebPage,
     PDFFileResponse,
     AnnotationCreate,
     AnnotationUpdate,
@@ -212,7 +215,7 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
         file_hash = calculate_file_hash_from_bytes(file_content)
 
         # Check for existing file with same hash
-        existing_file = db.query(PDFFile).filter(PDFFile.file_hash == file_hash).first()
+        existing_file = db.query(Source).filter(Source.file_hash == file_hash).first()
 
         if existing_file:
             # Update last accessed time
@@ -233,7 +236,8 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
         file_path = save_uploaded_file(file_content, UPLOAD_DIR, unique_filename)
 
         # Create database record
-        db_file = PDFFile(
+        db_file = Source(
+            source_type="pdf",
             filename=unique_filename,
             original_filename=file.filename,
             file_hash=file_hash,
@@ -270,17 +274,80 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
         )
 
 
+@app.post("/sources/webpage", response_model=SourceResponse)
+async def create_webpage_source(webpage: SourceCreateWebPage, db: Session = Depends(get_db)):
+    """Create a new webpage source for annotations."""
+    try:
+        # Check if webpage source already exists for this URL
+        existing_source = db.query(Source).filter(Source.url == webpage.url).first()
+
+        if existing_source:
+            # Update last accessed time and title
+            existing_source.last_accessed = datetime.utcnow()
+            existing_source.page_title = webpage.page_title
+            db.commit()
+            db.refresh(existing_source)
+
+            # Count annotations
+            annotation_count = db.query(Annotation).filter(Annotation.source_id == existing_source.id).count()
+
+            response_dict = SourceResponse.from_orm(existing_source).dict()
+            response_dict["annotation_count"] = annotation_count
+            return response_dict
+
+        # Create new webpage source
+        db_source = Source(
+            source_type="webpage",
+            url=webpage.url,
+            page_title=webpage.page_title,
+        )
+
+        db.add(db_source)
+        db.commit()
+        db.refresh(db_source)
+
+        response_dict = SourceResponse.from_orm(db_source).dict()
+        response_dict["annotation_count"] = 0
+        return response_dict
+
+    except Exception as e:
+        print(f"❌ Error creating webpage source: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error creating webpage source: {str(e)}")
+
+
+@app.get("/sources", response_model=List[SourceResponse])
+async def list_sources(skip: int = 0, limit: int = 100, source_type: Optional[str] = None, db: Session = Depends(get_db)):
+    """List all sources (PDFs and webpages) with annotation counts."""
+    query = db.query(Source)
+
+    # Filter by source type if provided
+    if source_type:
+        query = query.filter(Source.source_type == source_type)
+
+    sources = query.offset(skip).limit(limit).all()
+
+    # Add annotation count to each source
+    sources_with_counts = []
+    for source in sources:
+        source_dict = SourceResponse.from_orm(source).dict()
+        annotation_count = db.query(Annotation).filter(Annotation.source_id == source.id).count()
+        source_dict["annotation_count"] = annotation_count
+        sources_with_counts.append(source_dict)
+
+    return sources_with_counts
+
+
 @app.get("/files", response_model=List[PDFFileResponse])
 async def list_files(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """List all uploaded PDF files with annotation counts."""
-    files = db.query(PDFFile).offset(skip).limit(limit).all()
+    """List all uploaded PDF files with annotation counts. (Backwards compatible)"""
+    files = db.query(Source).filter(Source.source_type == "pdf").offset(skip).limit(limit).all()
 
     # Add annotation count to each file
     files_with_counts = []
     for file in files:
         file_dict = PDFFileResponse.from_orm(file).dict()
         annotation_count = (
-            db.query(Annotation).filter(Annotation.file_id == file.id).count()
+            db.query(Annotation).filter(Annotation.source_id == file.id).count()
         )
         file_dict["annotation_count"] = annotation_count
         files_with_counts.append(file_dict)
@@ -291,7 +358,7 @@ async def list_files(skip: int = 0, limit: int = 100, db: Session = Depends(get_
 @app.get("/files/{file_id}", response_model=PDFFileResponse)
 async def get_file(file_id: int, db: Session = Depends(get_db)):
     """Get file metadata by ID."""
-    file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
+    file = db.query(Source).filter(Source.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -307,7 +374,7 @@ async def update_file_zoom(
     file_id: int, zoom_data: ZoomLevelUpdate, db: Session = Depends(get_db)
 ):
     """Update the zoom level for a specific file."""
-    file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
+    file = db.query(Source).filter(Source.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -324,7 +391,7 @@ async def update_read_position(
     file_id: int, position_data: ReadPositionUpdate, db: Session = Depends(get_db)
 ):
     """Update the last read position for a specific file."""
-    file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
+    file = db.query(Source).filter(Source.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -341,7 +408,7 @@ async def update_total_pages(
     file_id: int, pages_data: TotalPagesUpdate, db: Session = Depends(get_db)
 ):
     """Update the total number of pages for a specific file."""
-    file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
+    file = db.query(Source).filter(Source.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -356,7 +423,7 @@ async def update_total_pages(
 @app.get("/files/{file_id}/download")
 async def download_file(file_id: int, request: Request, db: Session = Depends(get_db)):
     """Download file by ID with optimized caching."""
-    file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
+    file = db.query(Source).filter(Source.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
@@ -400,12 +467,12 @@ async def download_file(file_id: int, request: Request, db: Session = Depends(ge
 @app.delete("/files/{file_id}")
 async def delete_file(file_id: int, db: Session = Depends(get_db)):
     """Delete file and its annotations."""
-    file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
+    file = db.query(Source).filter(Source.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
     # Delete associated annotations
-    db.query(Annotation).filter(Annotation.file_id == file_id).delete()
+    db.query(Annotation).filter(Annotation.source_id == file_id).delete()
 
     # Delete file from disk
     if os.path.exists(file.file_path):
@@ -440,13 +507,13 @@ async def create_annotation(
         )
 
         # Check if file exists
-        file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
+        file = db.query(Source).filter(Source.id == file_id).first()
         if not file:
             raise HTTPException(status_code=404, detail="File not found")
 
         # Create annotation
         db_annotation = Annotation(
-            file_id=file_id,
+            source_id=file_id,
             annotation_id=annotation.annotation_id,
             page_index=annotation.page_index,
             question=annotation.question,
@@ -479,7 +546,7 @@ async def get_annotations(
     """Get all annotations for a file."""
     annotations = (
         db.query(Annotation)
-        .filter(Annotation.file_id == file_id)
+        .filter(Annotation.source_id == file_id)
         .offset(skip)
         .limit(limit)
         .all()
@@ -558,12 +625,12 @@ async def delete_all_annotations(file_id: int, db: Session = Depends(get_db)):
     """Delete all annotations for a specific file."""
     try:
         # Check if file exists
-        file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
+        file = db.query(Source).filter(Source.id == file_id).first()
         if not file:
             raise HTTPException(status_code=404, detail="File not found")
 
         # Get all annotations for this file
-        annotations = db.query(Annotation).filter(Annotation.file_id == file_id).all()
+        annotations = db.query(Annotation).filter(Annotation.source_id == file_id).all()
 
         if not annotations:
             return {
@@ -593,7 +660,7 @@ async def delete_all_annotations(file_id: int, db: Session = Depends(get_db)):
 
         # Delete all annotations for this file
         deleted_annotations = len(annotations)
-        db.query(Annotation).filter(Annotation.file_id == file_id).delete()
+        db.query(Annotation).filter(Annotation.source_id == file_id).delete()
 
         db.commit()
 
