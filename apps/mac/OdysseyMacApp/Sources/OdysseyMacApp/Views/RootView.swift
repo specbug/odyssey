@@ -31,6 +31,8 @@ struct RootView: View {
             switch appState.activeSection {
             case .browse:
                 BrowseView()
+            case .study:
+                StudyView()
             case .capture:
                 CaptureView()
             }
@@ -42,6 +44,7 @@ private extension AppState.SidebarSection {
     var iconName: String {
         switch self {
         case .browse: return "tray.full"
+        case .study: return "bolt.heart"
         case .capture: return "plus.rectangle.on.folder"
         }
     }
