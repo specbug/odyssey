@@ -173,3 +173,5 @@ pdf_annotations.db
 *.db
 *.sqlite
 *.sqlite3
+# SwiftPM
+.build/
