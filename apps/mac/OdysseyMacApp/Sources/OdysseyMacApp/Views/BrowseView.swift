@@ -18,14 +18,20 @@ struct BrowseView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: OdysseySpacing.lg.value) {
-            header
-            searchBar
-            table
+        ZStack(alignment: .top) {
+            OdysseyColor.canvas
+                .ignoresSafeArea()
+
+            VStack(alignment: .leading, spacing: OdysseySpacing.lg.value) {
+                header
+                searchBar
+                table
+            }
+            .padding(.horizontal, OdysseySpacing.xl.value)
+            .padding(.vertical, OdysseySpacing.xl.value)
+            .frame(maxWidth: 960, alignment: .topLeading)
         }
-        .padding(OdysseySpacing.xl.value)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(NSColor.windowBackgroundColor))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
     private var header: some View {
@@ -36,7 +42,7 @@ struct BrowseView: View {
 
             Text("Manage every card in Odyssey. Filter, edit, or review directly from here.")
                 .font(OdysseyFont.dr(14))
-                .foregroundStyle(OdysseyColor.secondaryText.opacity(0.7))
+                .foregroundStyle(OdysseyColor.mutedText)
         }
     }
 
@@ -49,6 +55,7 @@ struct BrowseView: View {
                 .textFieldStyle(.plain)
                 .font(OdysseyFont.dr(14))
                 .autocorrectionDisabled()
+                .foregroundStyle(OdysseyColor.ink)
 
             Spacer()
 
@@ -59,16 +66,24 @@ struct BrowseView: View {
                     .labelStyle(.titleAndIcon)
                     .font(OdysseyFont.dr(13, weight: .medium))
             }
-            .buttonStyle(.borderedProminent)
-            .tint(OdysseyColor.accent)
+            .buttonStyle(
+                OdysseyPillButtonStyle(
+                    background: OdysseyColor.accent.opacity(0.12),
+                    foreground: OdysseyColor.accent
+                )
+            )
         }
         .padding(.horizontal, OdysseySpacing.md.value)
         .padding(.vertical, OdysseySpacing.sm.value)
         .background(
             RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                .fill(Color.white.opacity(0.96))
-                .shadow(color: .black.opacity(0.05), radius: 18, y: 8)
+                .fill(OdysseyColor.surface)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
+                .stroke(OdysseyColor.border, lineWidth: 1)
+        )
+        .shadow(color: OdysseyColor.shadow, radius: 18, y: 12)
     }
 
     private var table: some View {
@@ -110,9 +125,13 @@ struct BrowseView: View {
         .tableStyle(.inset(alternatesRowBackgrounds: true))
         .background(
             RoundedRectangle(cornerRadius: OdysseyRadius.lg.value, style: .continuous)
-                .fill(Color.white.opacity(0.95))
-                .shadow(color: .black.opacity(0.08), radius: 20, y: 12)
+                .fill(OdysseyColor.surface)
         )
+        .overlay(
+            RoundedRectangle(cornerRadius: OdysseyRadius.lg.value, style: .continuous)
+                .stroke(OdysseyColor.border, lineWidth: 1)
+        )
+        .shadow(color: OdysseyColor.shadow, radius: 24, y: 16)
     }
 }
 
@@ -146,15 +165,15 @@ struct CardSummary: Identifiable, Hashable {
             switch self {
             case .learning: return OdysseyColor.secondaryText
             case .review: return OdysseyColor.accent
-            case .suspended: return Color.gray
+            case .suspended: return Color.gray.opacity(0.8)
             }
         }
 
         var background: Color {
             switch self {
-            case .learning: return OdysseyColor.yellowAccent.opacity(0.25)
-            case .review: return OdysseyColor.accent.opacity(0.2)
-            case .suspended: return Color.gray.opacity(0.2)
+            case .learning: return OdysseyColor.yellowAccent.opacity(0.18)
+            case .review: return OdysseyColor.accent.opacity(0.16)
+            case .suspended: return Color.gray.opacity(0.16)
             }
         }
     }

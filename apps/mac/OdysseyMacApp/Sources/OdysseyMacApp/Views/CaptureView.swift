@@ -7,15 +7,26 @@ struct CaptureView: View {
     @State private var isSubmitting: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: OdysseySpacing.lg.value) {
-            header
-            fields
-            Spacer()
-            actionBar
+        ZStack(alignment: .top) {
+            OdysseyColor.canvas
+                .ignoresSafeArea()
+
+            VStack(spacing: OdysseySpacing.lg.value) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: OdysseySpacing.lg.value) {
+                        header
+                        fields
+                    }
+                    .padding(.horizontal, OdysseySpacing.xl.value)
+                    .padding(.top, OdysseySpacing.xl.value)
+                    .frame(maxWidth: 960, alignment: .leading)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                actionBar
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .padding(OdysseySpacing.xl.value)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Color(NSColor.windowBackgroundColor))
     }
 
     private var header: some View {
@@ -26,7 +37,7 @@ struct CaptureView: View {
 
             Text("Capture a prompt-response pair and link it back to a source for future context.")
                 .font(OdysseyFont.dr(14))
-                .foregroundStyle(OdysseyColor.secondaryText.opacity(0.75))
+                .foregroundStyle(OdysseyColor.mutedText)
         }
     }
 
@@ -51,12 +62,22 @@ struct CaptureView: View {
             VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
                 Label("Source", systemImage: "link")
                     .font(OdysseyFont.dr(12, weight: .medium))
-                    .foregroundStyle(OdysseyColor.secondaryText.opacity(0.8))
+                    .foregroundStyle(OdysseyColor.mutedText)
 
                 TextField("Optional — e.g. 'Neural Nets.pdf · page 32'", text: $source)
-                    .textFieldStyle(.roundedBorder)
+                    .textFieldStyle(.plain)
                     .font(OdysseyFont.dr(13))
                     .autocorrectionDisabled()
+                    .padding(.vertical, OdysseySpacing.sm.value)
+                    .padding(.horizontal, OdysseySpacing.md.value)
+                    .background(
+                        RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
+                            .fill(OdysseyColor.surface)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
+                            .stroke(OdysseyColor.border, lineWidth: 1)
+                    )
             }
         }
     }
@@ -70,17 +91,23 @@ struct CaptureView: View {
                     Text(isSubmitting ? "Saving…" : "Save Card")
                 }
                 .font(OdysseyFont.dr(16, weight: .medium))
-                .padding(.horizontal, OdysseySpacing.xl.value)
-                .padding(.vertical, OdysseySpacing.sm.value)
-                .background(
-                    LinearGradient(colors: [OdysseyColor.accent, OdysseyColor.secondaryBackground], startPoint: .topLeading, endPoint: .bottomTrailing)
-                )
-                .foregroundStyle(.white)
-                .clipShape(RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous))
-                .shadow(color: OdysseyColor.accent.opacity(0.4), radius: 20, y: 16)
+                .frame(maxWidth: 200)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(OdysseyPrimaryButtonStyle())
             .disabled(isSubmitting || question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .opacity(isSubmitting || question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.6 : 1)
+        }
+        .padding(.horizontal, OdysseySpacing.xl.value)
+        .padding(.vertical, OdysseySpacing.lg.value)
+        .frame(maxWidth: .infinity, alignment: .trailing)
+        .background(
+            OdysseyColor.surface
+                .ignoresSafeArea(edges: .bottom)
+        )
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(OdysseyColor.border.opacity(0.6))
+                .frame(height: 0.6)
         }
     }
 
@@ -108,23 +135,28 @@ private struct CardField: View {
         VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
             Label(title, systemImage: systemImage)
                 .font(OdysseyFont.dr(12, weight: .medium))
-                .foregroundStyle(OdysseyColor.secondaryText.opacity(0.8))
+                .foregroundStyle(OdysseyColor.mutedText)
 
             ZStack(alignment: .topLeading) {
                 RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                    .fill(Color.white.opacity(0.96))
-                    .shadow(color: .black.opacity(0.05), radius: 18, y: 10)
+                    .fill(OdysseyColor.surface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
+                            .stroke(OdysseyColor.border, lineWidth: 1)
+                    )
 
                 TextEditor(text: $text)
                     .font(OdysseyFont.dr(15))
                     .padding(.all, OdysseySpacing.md.value)
                     .background(Color.clear)
+                    .scrollContentBackground(.hidden)
                     .frame(minHeight: minHeight)
+                    .foregroundStyle(OdysseyColor.ink)
 
                 if text.isEmpty {
                     Text(placeholder)
                         .font(OdysseyFont.dr(14))
-                        .foregroundStyle(OdysseyColor.secondaryText.opacity(0.5))
+                        .foregroundStyle(OdysseyColor.mutedText.opacity(0.6))
                         .padding(.all, OdysseySpacing.md.value)
                         .allowsHitTesting(false)
                 }

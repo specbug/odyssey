@@ -9,6 +9,12 @@ enum OdysseyColor {
     static let secondaryBackground = DesignTokens.shared.color(for: \DesignTokens.Colors.secondaryBackground)
     static let secondaryText = DesignTokens.shared.color(for: \DesignTokens.Colors.secondaryText)
     static let yellowAccent = DesignTokens.shared.color(for: \DesignTokens.Colors.yellowAccent)
+    static let canvas = DesignTokens.shared.color(for: \DesignTokens.Colors.canvas)
+    static let surface = DesignTokens.shared.color(for: \DesignTokens.Colors.surface)
+    static let surfaceSubtle = DesignTokens.shared.color(for: \DesignTokens.Colors.surfaceSubtle)
+    static let border = DesignTokens.shared.color(for: \DesignTokens.Colors.border)
+    static let mutedText = DesignTokens.shared.color(for: \DesignTokens.Colors.mutedText)
+    static let shadow = DesignTokens.shared.color(for: \DesignTokens.Colors.shadow)
 }
 
 enum OdysseySpacing {
@@ -64,6 +70,12 @@ struct DesignTokens: Decodable {
         let secondaryBackground: String
         let secondaryText: String
         let yellowAccent: String
+        let canvas: String
+        let surface: String
+        let surfaceSubtle: String
+        let border: String
+        let mutedText: String
+        let shadow: String
     }
 
     struct Spacing: Decodable {
@@ -118,7 +130,13 @@ struct DesignTokens: Decodable {
             background: "#FA863D",
             secondaryBackground: "#F4742F",
             secondaryText: "#C74200",
-            yellowAccent: "#FFCB2E"
+            yellowAccent: "#FFCB2E",
+            canvas: "#FBF7F2",
+            surface: "#FFFFFF",
+            surfaceSubtle: "#FEF9F3",
+            border: "#E8E1D8",
+            mutedText: "rgba(0, 0, 0, 0.55)",
+            shadow: "rgba(37, 24, 13, 0.08)"
         ),
         fonts: .init(
             primaryFamily: "Dr, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif",

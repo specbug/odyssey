@@ -3,7 +3,7 @@ import Foundation
 
 @MainActor
 final class AppState: ObservableObject {
-    enum SidebarSection: String, CaseIterable, Identifiable {
+    enum Section: String, CaseIterable, Identifiable {
         case browse = "Browse"
         case study = "Study"
         case capture = "Capture"
@@ -22,7 +22,7 @@ final class AppState: ObservableObject {
         let displayName: String
     }
 
-    @Published var activeSection: SidebarSection = .study
+    @Published var activeSection: Section = .study
     @Published var authState: AuthState = .signedOut
     @Published var isSyncing: Bool = false
     @Published var error: AppError?
