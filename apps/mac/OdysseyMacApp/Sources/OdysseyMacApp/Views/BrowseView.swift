@@ -5,14 +5,9 @@ struct BrowseView: View {
     @State private var cards: [CardSummary] = CardSummary.samples
     @State private var expandedCardId: UUID? = nil
     @State private var hoveredCardId: UUID? = nil
-    @State private var viewMode: ViewMode = .list
     @State private var selectedCards: Set<UUID> = []
     @State private var statusFilter: StatusFilter = .all
     @State private var sortOrder: SortOrder = .dueDate
-
-    enum ViewMode {
-        case list, grid
-    }
 
     enum StatusFilter: String, CaseIterable, Identifiable {
         case all = "All"
@@ -79,14 +74,9 @@ struct BrowseView: View {
             VStack(alignment: .leading, spacing: OdysseySpacing.lg.value) {
                 header
                 searchAndFilters
-
-                if viewMode == .list {
-                    listView
-                } else {
-                    gridView
-                }
+                listView
             }
-            .padding(.horizontal, OdysseySpacing.xl.value)
+            .padding(.horizontal, 48)
             .padding(.vertical, OdysseySpacing.xl.value)
             .frame(maxWidth: 1200, alignment: .topLeading)
 
@@ -99,92 +89,45 @@ struct BrowseView: View {
     }
 
     private var header: some View {
-        VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
-            Text("Browse Cards")
-                .font(OdysseyFont.dr(28, weight: .semibold))
-                .foregroundStyle(OdysseyColor.ink)
-
-            Text("\(filteredCards.count) cards • Click to expand and reveal answers")
-                .font(OdysseyFont.dr(14))
-                .foregroundStyle(OdysseyColor.mutedText)
-        }
+        Text("Browse Cards")
+            .font(OdysseyFont.dr(28, weight: .semibold))
+            .foregroundStyle(OdysseyColor.ink)
     }
 
     private var searchAndFilters: some View {
         VStack(spacing: OdysseySpacing.md.value) {
-            // Search bar with view toggle
+            // Search bar
             HStack(spacing: OdysseySpacing.sm.value) {
-                // Search
-                HStack(spacing: OdysseySpacing.sm.value) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(OdysseyColor.mutedText.opacity(0.7))
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(OdysseyColor.mutedText.opacity(0.7))
 
-                    TextField("Search question, deck, or source…", text: $query)
-                        .textFieldStyle(.plain)
-                        .font(OdysseyFont.dr(15))
-                        .autocorrectionDisabled()
-                        .foregroundStyle(OdysseyColor.ink)
+                TextField("Search question, deck, or source…", text: $query)
+                    .textFieldStyle(.plain)
+                    .font(OdysseyFont.dr(15))
+                    .autocorrectionDisabled()
+                    .foregroundStyle(OdysseyColor.ink)
 
-                    if !query.isEmpty {
-                        Button {
-                            query = ""
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundStyle(OdysseyColor.mutedText.opacity(0.6))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, OdysseySpacing.md.value)
-                .padding(.vertical, OdysseySpacing.sm.value)
-                .background(
-                    RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                        .fill(OdysseyColor.surface)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                        .stroke(query.isEmpty ? OdysseyColor.border : OdysseyColor.accent.opacity(0.5), lineWidth: 1)
-                )
-                .shadow(color: OdysseyColor.shadow, radius: 16, y: 10)
-
-                // View mode toggle
-                HStack(spacing: 0) {
+                if !query.isEmpty {
                     Button {
-                        viewMode = .list
+                        query = ""
                     } label: {
-                        Image(systemName: "list.bullet")
-                            .frame(width: 32, height: 32)
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundStyle(OdysseyColor.mutedText.opacity(0.6))
                     }
                     .buttonStyle(.plain)
-                    .background(
-                        RoundedRectangle(cornerRadius: OdysseyRadius.sm.value, style: .continuous)
-                            .fill(viewMode == .list ? OdysseyColor.accent.opacity(0.12) : Color.clear)
-                    )
-                    .foregroundStyle(viewMode == .list ? OdysseyColor.accent : OdysseyColor.mutedText)
-
-                    Button {
-                        viewMode = .grid
-                    } label: {
-                        Image(systemName: "square.grid.2x2")
-                            .frame(width: 32, height: 32)
-                    }
-                    .buttonStyle(.plain)
-                    .background(
-                        RoundedRectangle(cornerRadius: OdysseyRadius.sm.value, style: .continuous)
-                            .fill(viewMode == .grid ? OdysseyColor.accent.opacity(0.12) : Color.clear)
-                    )
-                    .foregroundStyle(viewMode == .grid ? OdysseyColor.accent : OdysseyColor.mutedText)
                 }
-                .padding(OdysseySpacing.xxs.value)
-                .background(
-                    RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                        .fill(OdysseyColor.surface)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                        .stroke(OdysseyColor.border, lineWidth: 1)
-                )
             }
+            .padding(.horizontal, OdysseySpacing.md.value)
+            .padding(.vertical, OdysseySpacing.sm.value)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(OdysseyColor.surface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .stroke(query.isEmpty ? OdysseyColor.border : OdysseyColor.accent.opacity(0.5), lineWidth: 1)
+            )
+            .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
 
             // Filters and Sort
             HStack(spacing: OdysseySpacing.md.value) {
@@ -232,14 +175,14 @@ struct BrowseView: View {
 
                 Spacer()
 
-                if selectedCards.isEmpty {
-                    Text("\(filteredCards.count) cards")
-                        .font(OdysseyFont.dr(13, weight: .medium))
-                        .foregroundStyle(OdysseyColor.mutedText)
-                } else {
+                if !selectedCards.isEmpty {
                     Text("\(selectedCards.count) selected")
                         .font(OdysseyFont.dr(13, weight: .medium))
                         .foregroundStyle(OdysseyColor.accent)
+                } else {
+                    Text("\(filteredCards.count) cards")
+                        .font(OdysseyFont.dr(13, weight: .medium))
+                        .foregroundStyle(OdysseyColor.mutedText)
                 }
             }
         }
@@ -272,38 +215,9 @@ struct BrowseView: View {
                     }
                 }
             }
+            .padding(.bottom, selectedCards.isEmpty ? 0 : 100)
         }
-    }
-
-    private var gridView: some View {
-        ScrollView {
-            LazyVGrid(
-                columns: [
-                    GridItem(.adaptive(minimum: 320, maximum: 400), spacing: OdysseySpacing.lg.value)
-                ],
-                spacing: OdysseySpacing.lg.value
-            ) {
-                ForEach(filteredCards) { card in
-                    CardGridItem(
-                        card: card,
-                        isExpanded: expandedCardId == card.id,
-                        isSelected: selectedCards.contains(card.id),
-                        onTap: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                expandedCardId = expandedCardId == card.id ? nil : card.id
-                            }
-                        },
-                        onSelect: {
-                            if selectedCards.contains(card.id) {
-                                selectedCards.remove(card.id)
-                            } else {
-                                selectedCards.insert(card.id)
-                            }
-                        }
-                    )
-                }
-            }
-        }
+        .scrollBounceBehavior(.basedOnSize)
     }
 
     private var bulkActionsBar: some View {
@@ -326,8 +240,8 @@ struct BrowseView: View {
                 }
                 .buttonStyle(
                     OdysseyPillButtonStyle(
-                        background: OdysseyColor.surfaceSubtle,
-                        foreground: OdysseyColor.mutedText
+                        background: OdysseyColor.browseColors[9].opacity(0.15),
+                        foreground: OdysseyColor.browseColors[9]
                     )
                 )
 
@@ -340,8 +254,8 @@ struct BrowseView: View {
                 }
                 .buttonStyle(
                     OdysseyPillButtonStyle(
-                        background: OdysseyColor.accent.opacity(0.12),
-                        foreground: OdysseyColor.accent
+                        background: OdysseyColor.browseColors[3].opacity(0.15),
+                        foreground: OdysseyColor.browseColors[3]
                     )
                 )
 
@@ -354,8 +268,8 @@ struct BrowseView: View {
                 }
                 .buttonStyle(
                     OdysseyPillButtonStyle(
-                        background: OdysseyColor.destructive.opacity(0.12),
-                        foreground: OdysseyColor.destructive
+                        background: OdysseyColor.browseColors[11].opacity(0.15),
+                        foreground: OdysseyColor.browseColors[11]
                     )
                 )
 
@@ -422,37 +336,46 @@ private struct CardRow: View {
                         .foregroundStyle(OdysseyColor.ink)
                         .multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.disabled)
 
                     // Metadata
                     HStack(spacing: OdysseySpacing.sm.value) {
-                        // Deck badge
+                        // Deck (plain text)
                         Text(card.deck)
                             .font(OdysseyFont.dr(12, weight: .medium))
                             .foregroundStyle(OdysseyColor.mutedText)
-                            .padding(.horizontal, OdysseySpacing.sm.value)
-                            .padding(.vertical, OdysseySpacing.xxs.value)
-                            .background(
-                                Capsule()
-                                    .fill(OdysseyColor.surfaceSubtle)
-                            )
 
-                        // Status badge
-                        StatusBadge(status: card.status)
+                        // Status (plain text)
+                        Text(card.status.label)
+                            .font(OdysseyFont.dr(12, weight: .medium))
+                            .foregroundStyle(OdysseyColor.mutedText.opacity(0.8))
 
-                        // Due date
+                        // Due date (plain text)
                         Text(card.dueDescription)
                             .font(OdysseyFont.dr(12, weight: .medium))
-                            .foregroundStyle(card.dueColor)
+                            .foregroundStyle(OdysseyColor.mutedText.opacity(0.8))
 
                         Spacer()
 
-                        // Source (on hover)
-                        if isHovered {
-                            Label(card.source, systemImage: "link")
-                                .font(OdysseyFont.dr(12))
-                                .foregroundStyle(OdysseyColor.mutedText)
-                                .transition(.opacity)
+                        // Source chip (always visible on hover)
+                        HStack(spacing: 4) {
+                            Image(systemName: "link")
+                                .font(.system(size: 10))
+                            Text(card.source)
+                                .font(OdysseyFont.dr(11, weight: .medium))
+                                .lineLimit(1)
+                                .truncationMode(.tail)
                         }
+                        .foregroundStyle(OdysseyColor.mutedText)
+                        .padding(.horizontal, OdysseySpacing.sm.value)
+                        .padding(.vertical, OdysseySpacing.xxs.value)
+                        .background(
+                            Capsule()
+                                .fill(OdysseyColor.surfaceSubtle)
+                        )
+                        .frame(maxWidth: 200)
+                        .opacity(isHovered ? 1 : 0)
+                        .animation(.timingCurve(0.4, 0.0, 0.2, 1, duration: 0.5), value: isHovered)
                     }
 
                     // Answer (expanded)
@@ -470,10 +393,7 @@ private struct CardRow: View {
                                 .font(OdysseyFont.dr(16))
                                 .foregroundStyle(OdysseyColor.ink)
                                 .multilineTextAlignment(.leading)
-
-                            Label(card.source, systemImage: "link")
-                                .font(OdysseyFont.dr(12))
-                                .foregroundStyle(OdysseyColor.mutedText)
+                                .textSelection(.disabled)
                         }
                         .padding(.top, OdysseySpacing.sm.value)
                         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -515,97 +435,19 @@ private struct CardRow: View {
         }
         .frame(minHeight: 100)
         .background(
-            RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(OdysseyColor.surface)
         )
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(
-                    isSelected ? OdysseyColor.accent : (isHovered ? OdysseyColor.border.opacity(1) : OdysseyColor.border.opacity(0.6)),
+                    isSelected ? OdysseyColor.accent : (isHovered ? Color(red: 255/255, green: 77/255, blue: 6/255).opacity(0.2) : Color.black.opacity(0.06)),
                     lineWidth: isSelected ? 2 : 1
                 )
         )
-        .shadow(color: OdysseyColor.shadow.opacity(isHovered ? 0.15 : 0.08), radius: isHovered ? 20 : 12, y: isHovered ? 12 : 8)
-        .scaleEffect(isHovered ? 1.005 : 1)
-        .animation(.easeInOut(duration: 0.2), value: isHovered)
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onTap)
-    }
-}
-
-// MARK: - Card Grid Item
-
-private struct CardGridItem: View {
-    let card: CardSummary
-    let isExpanded: Bool
-    let isSelected: Bool
-    let onTap: () -> Void
-    let onSelect: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: OdysseySpacing.md.value) {
-            // Header
-            HStack {
-                Text(card.deck)
-                    .font(OdysseyFont.dr(11, weight: .medium))
-                    .foregroundStyle(OdysseyColor.mutedText)
-                    .textCase(.uppercase)
-
-                Spacer()
-
-                Button(action: onSelect) {
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 16))
-                        .foregroundStyle(isSelected ? OdysseyColor.accent : OdysseyColor.mutedText.opacity(0.4))
-                }
-                .buttonStyle(.plain)
-            }
-
-            // Question
-            Text(card.front)
-                .font(OdysseyFont.dr(16, weight: .semibold))
-                .foregroundStyle(OdysseyColor.ink)
-                .lineLimit(isExpanded ? nil : 3)
-                .multilineTextAlignment(.leading)
-
-            // Answer (if expanded)
-            if isExpanded {
-                Divider()
-
-                Text("Answer")
-                    .font(OdysseyFont.dr(11, weight: .medium))
-                    .foregroundStyle(OdysseyColor.mutedText)
-                    .textCase(.uppercase)
-
-                Text(card.back)
-                    .font(OdysseyFont.dr(14))
-                    .foregroundStyle(OdysseyColor.ink)
-                    .lineLimit(4)
-                    .multilineTextAlignment(.leading)
-            }
-
-            Spacer()
-
-            // Footer
-            HStack {
-                StatusBadge(status: card.status)
-                Spacer()
-                Text(card.dueDescription)
-                    .font(OdysseyFont.dr(11, weight: .medium))
-                    .foregroundStyle(card.dueColor)
-            }
-        }
-        .padding(OdysseySpacing.md.value)
-        .frame(minHeight: 240)
-        .background(
-            RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                .fill(OdysseyColor.surface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                .stroke(isSelected ? OdysseyColor.accent : OdysseyColor.border, lineWidth: isSelected ? 2 : 1)
-        )
-        .shadow(color: OdysseyColor.shadow, radius: 12, y: 8)
+        .shadow(color: Color.black.opacity(isHovered ? 0.08 : 0.04), radius: isHovered ? 8 : 2, y: isHovered ? 2 : 1)
+        .animation(.timingCurve(0.4, 0.0, 0.2, 1, duration: 0.5), value: isHovered)
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
     }
@@ -642,18 +484,14 @@ struct CardSummary: Identifiable, Hashable {
         }
 
         var foreground: Color {
-            switch self {
-            case .learning: return OdysseyColor.secondaryText
-            case .review: return OdysseyColor.accent
-            case .suspended: return Color.gray.opacity(0.8)
-            }
+            return .white
         }
 
         var background: Color {
             switch self {
-            case .learning: return OdysseyColor.yellowAccent.opacity(0.18)
-            case .review: return OdysseyColor.accent.opacity(0.16)
-            case .suspended: return Color.gray.opacity(0.16)
+            case .learning: return OdysseyColor.browseColors[8] // Yellow
+            case .review: return OdysseyColor.browseColors[11] // Red
+            case .suspended: return Color.gray.opacity(0.6)
             }
         }
     }
@@ -683,11 +521,11 @@ struct CardSummary: Identifiable, Hashable {
     var dueColor: Color {
         switch dueInHours {
         case ..<0:
-            return OdysseyColor.accent
+            return OdysseyColor.browseColors[11] // Red for overdue
         case 0...1:
-            return OdysseyColor.secondaryText
+            return OdysseyColor.browseColors[8] // Yellow for due now
         default:
-            return Color.green.opacity(0.8)
+            return OdysseyColor.browseColors[6] // Green for future
         }
     }
 }
@@ -725,8 +563,113 @@ extension CardSummary {
             source: "Personal notes",
             status: .suspended,
             dueInHours: 0
+        ),
+        .init(
+            deck: "Machine Learning",
+            front: "Explain the mathematical derivation of backpropagation through a multi-layer perceptron, including the role of the chain rule and how gradients flow through non-linear activation functions. How does this relate to vanishing and exploding gradient problems?",
+            back: """
+            Backpropagation computes gradients by applying the chain rule recursively from output to input layers. Consider a simple MLP with layers L₁, L₂, ..., Lₙ.
+
+            For each layer l, we compute ∂L/∂Wₗ where L is the loss function. Using the chain rule:
+            ∂L/∂Wₗ = ∂L/∂aₗ × ∂aₗ/∂zₗ × ∂zₗ/∂Wₗ
+
+            where aₗ is the activation output and zₗ is the pre-activation (weighted sum). The gradient flows backward through each layer, multiplying by the local gradients of activations like σ'(z) for sigmoid or ReLU'(z).
+
+            [See Figure 3.2 for gradient flow diagram]
+
+            The vanishing gradient problem occurs when |∂aₗ/∂zₗ| < 1 repeatedly, causing gradients to exponentially decay as they propagate backward. This is particularly severe with sigmoid activations where σ'(z) ∈ (0, 0.25]. Conversely, exploding gradients occur when products exceed 1, leading to numerical instability.
+
+            Modern solutions include:
+            • ReLU and variants (Leaky ReLU, ELU) with better gradient properties
+            • Batch normalization to maintain stable activation statistics
+            • Residual connections (ResNets) providing gradient highways
+            • Careful weight initialization (Xavier, He initialization)
+
+            [LaTeX formula for gradient computation shown in equation 4.7]
+            """,
+            source: "Deep Learning • Goodfellow et al. Chapter 6",
+            status: .learning,
+            dueInHours: 2
+        ),
+        .init(
+            deck: "Algorithms",
+            front: "What is the time complexity of the merge sort algorithm?",
+            back: "O(n log n) in all cases - best, average, and worst case. The algorithm divides the array into halves recursively (log n levels) and merges them (n operations per level).",
+            source: "CLRS Chapter 2",
+            status: .review,
+            dueInHours: 48
+        ),
+        .init(
+            deck: "Quantum Computing",
+            front: "Explain quantum entanglement and its role in quantum computing.",
+            back: "Quantum entanglement is a phenomenon where two or more qubits become correlated such that the state of one cannot be described independently of the others, even when separated by large distances. In quantum computing, entanglement enables quantum parallelism and is essential for algorithms like Shor's and quantum error correction.",
+            source: "Nielsen & Chuang • Quantum Computation and Quantum Information",
+            status: .learning,
+            dueInHours: 6
+        ),
+        .init(
+            deck: "System Design",
+            front: "How would you design a URL shortener like bit.ly?",
+            back: "Key components: 1) Hashing service to generate short codes (base62 encoding of auto-increment ID or hash collision handling), 2) Database (key-value store) mapping short codes to original URLs, 3) Redirection service (301/302), 4) Rate limiting, 5) Analytics tracking, 6) CDN for global distribution. Consider sharding strategy for scale.",
+            source: "System Design Interview Vol 1 • Chapter 8",
+            status: .suspended,
+            dueInHours: 0
+        ),
+        .init(
+            deck: "Databases",
+            front: "What is database normalization and why is it important?",
+            back: "Normalization is the process of organizing data to minimize redundancy and dependency. It involves dividing large tables into smaller ones and defining relationships. Benefits include reduced data redundancy, improved data integrity, easier maintenance, and more efficient queries.",
+            source: "Database Systems Concepts • Chapter 7",
+            status: .review,
+            dueInHours: 72
+        ),
+        .init(
+            deck: "Computer Networks",
+            front: "Explain the TCP three-way handshake.",
+            back: "1) SYN: Client sends SYN packet with initial sequence number to server. 2) SYN-ACK: Server responds with SYN-ACK, acknowledging client's sequence number and sending its own. 3) ACK: Client sends ACK to server. Connection established. This ensures both sides are ready to transmit data and agree on initial sequence numbers.",
+            source: "Computer Networking: A Top-Down Approach • Chapter 3",
+            status: .learning,
+            dueInHours: 1
+        ),
+        .init(
+            deck: "Cryptography",
+            front: "What is the difference between symmetric and asymmetric encryption?",
+            back: "Symmetric encryption uses the same key for encryption and decryption (e.g., AES). It's fast but requires secure key exchange. Asymmetric encryption uses a public-private key pair (e.g., RSA). Public key encrypts, private key decrypts. Slower but solves key distribution problem. Often used together: asymmetric for key exchange, symmetric for data.",
+            source: "Applied Cryptography • Schneier • Chapter 2",
+            status: .review,
+            dueInHours: -2
+        ),
+        .init(
+            deck: "Programming Languages",
+            front: "What is the difference between a compiler and an interpreter?",
+            back: "A compiler translates entire source code to machine code before execution (e.g., C, C++). Results in faster execution but longer initial compilation. An interpreter executes code line-by-line at runtime (e.g., Python, JavaScript). Slower execution but faster development cycle. JIT compilers combine both approaches.",
+            source: "Compilers: Principles, Techniques, and Tools • Chapter 1",
+            status: .review,
+            dueInHours: 24
+        ),
+        .init(
+            deck: "Operating Systems",
+            front: "Explain the difference between a process and a thread.",
+            back: "A process is an independent program in execution with its own memory space. A thread is a lightweight unit of execution within a process, sharing the process's memory space. Multiple threads in a process can run concurrently, enabling parallelism. Threads are cheaper to create and context switch than processes.",
+            source: "Operating System Concepts • Silberschatz • Chapter 4",
+            status: .learning,
+            dueInHours: 12
         )
     ]
+}
+
+// MARK: - Color Helpers
+
+private extension String {
+    func browseColor() -> Color {
+        let hash = abs(self.hashValue)
+        return OdysseyColor.browseColors[hash % OdysseyColor.browseColors.count]
+    }
+
+    func browseForegroundColor() -> Color {
+        // Use white text for better contrast with vibrant colors
+        return .white
+    }
 }
 
 #Preview {

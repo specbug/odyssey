@@ -17,6 +17,22 @@ enum OdysseyColor {
     static let border = DesignTokens.shared.color(for: \DesignTokens.Colors.border)
     static let mutedText = DesignTokens.shared.color(for: \DesignTokens.Colors.mutedText)
     static let shadow = DesignTokens.shared.color(for: \DesignTokens.Colors.shadow)
+
+    // Browse theme colors
+    static let browseColors: [Color] = [
+        DesignTokens.shared.color(for: \DesignTokens.Colors.browsePink),
+        DesignTokens.shared.color(for: \DesignTokens.Colors.browsePurple),
+        DesignTokens.shared.color(for: \DesignTokens.Colors.browseViolet),
+        DesignTokens.shared.color(for: \DesignTokens.Colors.browseBlue),
+        DesignTokens.shared.color(for: \DesignTokens.Colors.browseCyan),
+        DesignTokens.shared.color(for: \DesignTokens.Colors.browseTeal),
+        DesignTokens.shared.color(for: \DesignTokens.Colors.browseGreen),
+        DesignTokens.shared.color(for: \DesignTokens.Colors.browseLime),
+        DesignTokens.shared.color(for: \DesignTokens.Colors.browseYellow),
+        DesignTokens.shared.color(for: \DesignTokens.Colors.browseOrange),
+        DesignTokens.shared.color(for: \DesignTokens.Colors.browseCoral),
+        DesignTokens.shared.color(for: \DesignTokens.Colors.browseRed)
+    ]
 }
 
 enum OdysseySpacing {
@@ -86,6 +102,18 @@ struct DesignTokens: Decodable {
         let border: String
         let mutedText: String
         let shadow: String
+        let browsePink: String
+        let browsePurple: String
+        let browseViolet: String
+        let browseBlue: String
+        let browseCyan: String
+        let browseTeal: String
+        let browseGreen: String
+        let browseLime: String
+        let browseYellow: String
+        let browseOrange: String
+        let browseCoral: String
+        let browseRed: String
     }
 
     struct Spacing: Decodable {
@@ -146,12 +174,24 @@ struct DesignTokens: Decodable {
             secondaryText: "#C74200",
             yellowAccent: "#FFCB2E",
             destructive: "#ED3749",
-            canvas: "#FBF7F2",
+            canvas: "#fafbfc",
             surface: "#FFFFFF",
             surfaceSubtle: "#FEF9F3",
             border: "#E8E1D8",
             mutedText: "rgba(0, 0, 0, 0.55)",
-            shadow: "rgba(37, 24, 13, 0.08)"
+            shadow: "rgba(37, 24, 13, 0.08)",
+            browsePink: "#f56bb5",
+            browsePurple: "#d071ef",
+            browseViolet: "#ad89fb",
+            browseBlue: "#72aef8",
+            browseCyan: "#65c6f6",
+            browseTeal: "#52dada",
+            browseGreen: "#63d463",
+            browseLime: "#8fd43a",
+            browseYellow: "#fac800",
+            browseOrange: "#e0a642",
+            browseCoral: "#fa863d",
+            browseRed: "#ff5252"
         ),
         fonts: .init(
             primaryFamily: "Dr, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif",
