@@ -85,7 +85,11 @@ struct RootView: View {
                 } label: {
                     VStack(spacing: OdysseySpacing.xxs.value) {
                         Text(section.rawValue)
+#if os(macOS)
+                            .font(.system(size: 14, weight: isActive ? .semibold : .medium, design: .default))
+#else
                             .font(OdysseyFont.dr(14, weight: isActive ? .semibold : .medium))
+#endif
                             .kerning(-0.2)
                             .foregroundStyle(isActive ? OdysseyColor.ink : OdysseyColor.mutedText)
 
