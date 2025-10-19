@@ -2,11 +2,13 @@
   "colors": {
     "ink": "rgba(0, 0, 0, 0.8)",
     "white": "#FFFFFF",
-    "accent": "#ED3749",
+    "accent": "#ff4d06",
+    "accentHover": "#ff6b35",
     "background": "#FA863D",
     "secondaryBackground": "#F4742F",
     "secondaryText": "#C74200",
     "yellowAccent": "#FFCB2E",
+    "destructive": "#ED3749",
     "canvas": "#FBF7F2",
     "surface": "#FFFFFF",
     "surfaceSubtle": "#FEF9F3",
@@ -26,7 +28,10 @@
     "md": 16,
     "lg": 24,
     "xl": 32,
-    "xxl": 40
+    "xxl": 40,
+    "xxxl": 48,
+    "xxxxl": 56,
+    "xxxxxl": 60
   },
   "radius": {
     "sm": 8,

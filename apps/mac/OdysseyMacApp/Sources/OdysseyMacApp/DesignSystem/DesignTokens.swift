@@ -5,10 +5,12 @@ enum OdysseyColor {
     static let ink = DesignTokens.shared.color(for: \DesignTokens.Colors.ink)
     static let white = DesignTokens.shared.color(for: \DesignTokens.Colors.white)
     static let accent = DesignTokens.shared.color(for: \DesignTokens.Colors.accent)
+    static let accentHover = DesignTokens.shared.color(for: \DesignTokens.Colors.accentHover)
     static let background = DesignTokens.shared.color(for: \DesignTokens.Colors.background)
     static let secondaryBackground = DesignTokens.shared.color(for: \DesignTokens.Colors.secondaryBackground)
     static let secondaryText = DesignTokens.shared.color(for: \DesignTokens.Colors.secondaryText)
     static let yellowAccent = DesignTokens.shared.color(for: \DesignTokens.Colors.yellowAccent)
+    static let destructive = DesignTokens.shared.color(for: \DesignTokens.Colors.destructive)
     static let canvas = DesignTokens.shared.color(for: \DesignTokens.Colors.canvas)
     static let surface = DesignTokens.shared.color(for: \DesignTokens.Colors.surface)
     static let surfaceSubtle = DesignTokens.shared.color(for: \DesignTokens.Colors.surfaceSubtle)
@@ -25,6 +27,9 @@ enum OdysseySpacing {
     case lg
     case xl
     case xxl
+    case xxxl
+    case xxxxl
+    case xxxxxl
 
     var value: CGFloat {
         switch self {
@@ -35,6 +40,9 @@ enum OdysseySpacing {
         case .lg: return DesignTokens.shared.spacing.lg
         case .xl: return DesignTokens.shared.spacing.xl
         case .xxl: return DesignTokens.shared.spacing.xxl
+        case .xxxl: return DesignTokens.shared.spacing.xxxl
+        case .xxxxl: return DesignTokens.shared.spacing.xxxxl
+        case .xxxxxl: return DesignTokens.shared.spacing.xxxxxl
         }
     }
 }
@@ -66,10 +74,12 @@ struct DesignTokens: Decodable {
         let ink: String
         let white: String
         let accent: String
+        let accentHover: String
         let background: String
         let secondaryBackground: String
         let secondaryText: String
         let yellowAccent: String
+        let destructive: String
         let canvas: String
         let surface: String
         let surfaceSubtle: String
@@ -87,6 +97,9 @@ struct DesignTokens: Decodable {
         let lg: CGFloat
         let xl: CGFloat
         let xxl: CGFloat
+        let xxxl: CGFloat
+        let xxxxl: CGFloat
+        let xxxxxl: CGFloat
     }
 
     struct Radius: Decodable {
@@ -126,11 +139,13 @@ struct DesignTokens: Decodable {
         colors: .init(
             ink: "#000000CC",
             white: "#FFFFFF",
-            accent: "#ED3749",
+            accent: "#ff4d06",
+            accentHover: "#ff6b35",
             background: "#FA863D",
             secondaryBackground: "#F4742F",
             secondaryText: "#C74200",
             yellowAccent: "#FFCB2E",
+            destructive: "#ED3749",
             canvas: "#FBF7F2",
             surface: "#FFFFFF",
             surfaceSubtle: "#FEF9F3",
@@ -142,7 +157,7 @@ struct DesignTokens: Decodable {
             primaryFamily: "Dr, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif",
             monospaceFamily: "\"R Plex Mono\", source-code-pro, Menlo, Monaco, Consolas, \"Courier New\", monospace"
         ),
-        spacing: .init(grid: 8, xxs: 4, xs: 8, sm: 12, md: 16, lg: 24, xl: 32, xxl: 40),
+        spacing: .init(grid: 8, xxs: 4, xs: 8, sm: 12, md: 16, lg: 24, xl: 32, xxl: 40, xxxl: 48, xxxxl: 56, xxxxxl: 60),
         radius: .init(sm: 8, md: 12, lg: 16)
     )
 }
