@@ -34,15 +34,18 @@ struct RootView: View {
 
     private var topBar: some View {
         VStack(spacing: 0) {
-            HStack(spacing: OdysseySpacing.lg.value) {
-                brand
+            ZStack {
+                HStack(spacing: OdysseySpacing.sm.value) {
+                    brand
+                    Spacer()
+                    trailingControls
+                }
+
                 navControl
-                Spacer(minLength: OdysseySpacing.lg.value)
-                trailingControls
+                    .frame(width: 320)
             }
-            .padding(.horizontal, OdysseySpacing.xl.value)
-            .padding(.vertical, OdysseySpacing.sm.value)
-            .frame(maxWidth: 940)
+            .padding(.horizontal, OdysseySpacing.lg.value)
+            .padding(.vertical, OdysseySpacing.xxs.value)
         }
         .frame(maxWidth: .infinity)
         .background(
@@ -54,65 +57,56 @@ struct RootView: View {
                 .fill(OdysseyColor.border.opacity(0.6))
                 .frame(height: 0.6)
         }
-        .shadow(color: OdysseyColor.shadow, radius: 24, y: 18)
+        .frame(height: 52, alignment: .center)
     }
 
     private var brand: some View {
-        HStack(spacing: OdysseySpacing.xs.value) {
-            Image(systemName: "sun.max.fill")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(OdysseyColor.accent)
-            Text("odyssey")
-                .font(OdysseyFont.dr(18, weight: .semibold))
-                .foregroundStyle(OdysseyColor.ink)
+#if os(macOS)
+        Group {
+            if let logo = odysseyLogo {
+                Image(nsImage: logo)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 24, height: 24)
+                    .accessibilityLabel("Odyssey")
+            }
         }
-        .padding(.vertical, OdysseySpacing.xxs.value)
-        .padding(.horizontal, OdysseySpacing.xs.value)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(OdysseyColor.surfaceSubtle)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(OdysseyColor.border, lineWidth: 1)
-        )
+#else
+        EmptyView()
+#endif
     }
 
     private var navControl: some View {
-        HStack(spacing: OdysseySpacing.xxs.value) {
+        HStack(spacing: OdysseySpacing.lg.value) {
             ForEach(AppState.Section.allCases) { section in
                 let isActive = section == appState.activeSection
                 Button {
                     appState.activeSection = section
                 } label: {
-                    HStack(spacing: OdysseySpacing.xxs.value) {
-                        Image(systemName: section.iconName)
-                            .font(.system(size: 12, weight: .semibold))
+                    VStack(spacing: OdysseySpacing.xxs.value) {
                         Text(section.rawValue)
-                            .font(OdysseyFont.dr(13, weight: isActive ? .medium : .regular))
+                            .font(OdysseyFont.dr(14, weight: isActive ? .semibold : .medium))
+                            .kerning(-0.2)
+                            .foregroundStyle(isActive ? OdysseyColor.ink : OdysseyColor.mutedText)
+
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [OdysseyColor.accent, OdysseyColor.accentHover],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                            )
+                            .frame(height: 2)
+                            .opacity(isActive ? 1 : 0)
+                            .animation(.easeInOut(duration: 0.2), value: isActive)
                     }
-                    .foregroundStyle(isActive ? OdysseyColor.accent : OdysseyColor.mutedText)
                     .padding(.vertical, OdysseySpacing.xs.value)
-                    .padding(.horizontal, OdysseySpacing.sm.value)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(isActive ? OdysseyColor.surfaceSubtle : Color.clear)
-                    )
                 }
                 .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, OdysseySpacing.xxs.value)
-        .padding(.horizontal, OdysseySpacing.xs.value)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(OdysseyColor.surface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(OdysseyColor.border, lineWidth: 1)
-        )
-        .shadow(color: OdysseyColor.shadow, radius: 14, y: 10)
+        .padding(.horizontal, OdysseySpacing.sm.value)
     }
 
     private var trailingControls: some View {
@@ -123,12 +117,6 @@ struct RootView: View {
                     .controlSize(.small)
             }
 
-            if let name = sessionDisplayName {
-                Text(name)
-                    .font(OdysseyFont.dr(13, weight: .medium))
-                    .foregroundStyle(OdysseyColor.mutedText)
-            }
-
             Menu {
                 Button("Settings") {
                     openSettings()
@@ -137,18 +125,16 @@ struct RootView: View {
                     appState.signOut()
                 }
             } label: {
-                Image(systemName: "ellipsis.circle")
-                    .font(.system(size: 18, weight: .medium))
-                    .frame(width: 32, height: 32)
-                    .foregroundStyle(OdysseyColor.mutedText)
-                    .background(
-                        Circle()
-                            .fill(OdysseyColor.surfaceSubtle)
-                    )
-                    .overlay(
-                        Circle()
-                            .stroke(OdysseyColor.border, lineWidth: 0.8)
-                    )
+                ZStack {
+                    RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
+                        .fill(OdysseyColor.surfaceSubtle.opacity(0.7))
+                    RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
+                        .stroke(OdysseyColor.border, lineWidth: 0.8)
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(OdysseyColor.ink)
+                }
+                .frame(width: 34, height: 30)
             }
             .menuStyle(.borderlessButton)
         }
@@ -168,28 +154,21 @@ struct RootView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private var sessionDisplayName: String? {
-        if case let .signedIn(session) = appState.authState {
-            return session.displayName
-        }
-        return nil
-    }
-
     private func openSettings() {
 #if os(macOS)
         NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
 #endif
     }
-}
 
-private extension AppState.Section {
-    var iconName: String {
-        switch self {
-        case .browse: return "tray.full"
-        case .study: return "bolt.heart"
-        case .capture: return "plus.rectangle.on.folder"
+#if os(macOS)
+    private var odysseyLogo: NSImage? {
+        guard let url = Bundle.module.url(forResource: "odyssey-logo", withExtension: "png"),
+              let image = NSImage(contentsOf: url) else {
+            return nil
         }
+        return image
     }
+#endif
 }
 
 #Preview {
