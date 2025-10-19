@@ -4,15 +4,18 @@ struct BrowseView: View {
     @State private var query: String = ""
     @State private var cards: [CardSummary] = CardSummary.samples
     @State private var expandedCardId: UUID? = nil
-    @State private var hoveredCardId: UUID? = nil
     @State private var selectedCards: Set<UUID> = []
-    @State private var statusFilter: StatusFilter = .all
+    @State private var stateFilter: StateFilter = .all
+    @State private var deckFilter: String? = nil
+    @State private var tagFilter: String? = nil
     @State private var sortOrder: SortOrder = .dueDate
 
-    enum StatusFilter: String, CaseIterable, Identifiable {
+    enum StateFilter: String, CaseIterable, Identifiable {
         case all = "All"
-        case learning = "Learning"
+        case new = "New"
         case review = "Review"
+        case learning = "Learning"
+        case buried = "Buried"
         case suspended = "Suspended"
 
         var id: String { rawValue }
@@ -27,6 +30,14 @@ struct BrowseView: View {
         var id: String { rawValue }
     }
 
+    var availableDecks: [String] {
+        Array(Set(cards.map { $0.deck })).sorted()
+    }
+
+    var availableTags: [String] {
+        Array(Set(cards.map { $0.tag })).sorted()
+    }
+
     var filteredCards: [CardSummary] {
         var filtered = cards
 
@@ -35,20 +46,33 @@ struct BrowseView: View {
             filtered = filtered.filter {
                 $0.front.localizedCaseInsensitiveContains(query) ||
                 $0.deck.localizedCaseInsensitiveContains(query) ||
-                $0.source.localizedCaseInsensitiveContains(query)
+                $0.source.localizedCaseInsensitiveContains(query) ||
+                $0.tag.localizedCaseInsensitiveContains(query)
             }
         }
 
-        // Apply status filter
-        if statusFilter != .all {
+        // Apply state filter
+        if stateFilter != .all {
             filtered = filtered.filter { card in
-                switch statusFilter {
+                switch stateFilter {
                 case .all: return true
-                case .learning: return card.status == .learning
-                case .review: return card.status == .review
-                case .suspended: return card.status == .suspended
+                case .new: return card.state == .new
+                case .review: return card.state == .review
+                case .learning: return card.state == .learning
+                case .buried: return card.state == .buried
+                case .suspended: return card.state == .suspended
                 }
             }
+        }
+
+        // Apply deck filter
+        if let deckFilter {
+            filtered = filtered.filter { $0.deck == deckFilter }
+        }
+
+        // Apply tag filter
+        if let tagFilter {
+            filtered = filtered.filter { $0.tag == tagFilter }
         }
 
         // Apply sort
@@ -78,7 +102,7 @@ struct BrowseView: View {
             }
             .padding(.horizontal, 48)
             .padding(.vertical, OdysseySpacing.xl.value)
-            .frame(maxWidth: 1200, alignment: .topLeading)
+            .frame(maxWidth: 1320, alignment: .topLeading)
 
             // Bulk actions bar
             if !selectedCards.isEmpty {
@@ -90,7 +114,7 @@ struct BrowseView: View {
 
     private var header: some View {
         Text("Browse Cards")
-            .font(OdysseyFont.dr(28, weight: .semibold))
+            .font(.system(size: 28, weight: .semibold))
             .foregroundStyle(OdysseyColor.ink)
     }
 
@@ -103,7 +127,7 @@ struct BrowseView: View {
 
                 TextField("Search question, deck, or source…", text: $query)
                     .textFieldStyle(.plain)
-                    .font(OdysseyFont.dr(15))
+                    .font(.system(size: 15))
                     .autocorrectionDisabled()
                     .foregroundStyle(OdysseyColor.ink)
 
@@ -131,24 +155,74 @@ struct BrowseView: View {
 
             // Filters and Sort
             HStack(spacing: OdysseySpacing.md.value) {
-                // Status filter
+                // State filter
                 Menu {
-                    ForEach(StatusFilter.allCases) { filter in
+                    ForEach(StateFilter.allCases) { filter in
                         Button(filter.rawValue) {
-                            statusFilter = filter
+                            stateFilter = filter
                         }
                     }
                 } label: {
                     HStack(spacing: OdysseySpacing.xs.value) {
                         Image(systemName: "line.3.horizontal.decrease.circle")
-                        Text("Status: \(statusFilter.rawValue)")
-                            .font(OdysseyFont.dr(13, weight: .medium))
+                        Text("State: \(stateFilter.rawValue)")
+                            .font(.system(size: 13, weight: .medium))
                     }
                 }
                 .buttonStyle(
                     OdysseyPillButtonStyle(
-                        background: statusFilter == .all ? OdysseyColor.surfaceSubtle : OdysseyColor.accent.opacity(0.12),
-                        foreground: statusFilter == .all ? OdysseyColor.mutedText : OdysseyColor.accent
+                        background: stateFilter == .all ? OdysseyColor.border.opacity(0.25) : OdysseyColor.accent.opacity(0.16),
+                        foreground: stateFilter == .all ? OdysseyColor.mutedText : OdysseyColor.accent
+                    )
+                )
+
+                // Deck filter
+                Menu {
+                    Button("All Decks") {
+                        deckFilter = nil
+                    }
+
+                    ForEach(availableDecks, id: \.self) { deck in
+                        Button(deck) {
+                            deckFilter = deck
+                        }
+                    }
+                } label: {
+                    HStack(spacing: OdysseySpacing.xs.value) {
+                        Image(systemName: "square.grid.2x2")
+                        Text("Deck: \(deckFilter ?? "All")")
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                }
+                .buttonStyle(
+                    OdysseyPillButtonStyle(
+                        background: deckFilter == nil ? OdysseyColor.border.opacity(0.25) : OdysseyColor.border.opacity(0.35),
+                        foreground: OdysseyColor.mutedText
+                    )
+                )
+
+                // Tag filter
+                Menu {
+                    Button("All Tags") {
+                        tagFilter = nil
+                    }
+
+                    ForEach(availableTags, id: \.self) { tag in
+                        Button(tag) {
+                            tagFilter = tag
+                        }
+                    }
+                } label: {
+                    HStack(spacing: OdysseySpacing.xs.value) {
+                        Image(systemName: "tag")
+                        Text("Tag: \(tagFilter ?? "All")")
+                            .font(.system(size: 13, weight: .medium))
+                    }
+                }
+                .buttonStyle(
+                    OdysseyPillButtonStyle(
+                        background: tagFilter == nil ? OdysseyColor.border.opacity(0.25) : OdysseyColor.border.opacity(0.35),
+                        foreground: OdysseyColor.mutedText
                     )
                 )
 
@@ -163,12 +237,12 @@ struct BrowseView: View {
                     HStack(spacing: OdysseySpacing.xs.value) {
                         Image(systemName: "arrow.up.arrow.down")
                         Text("Sort: \(sortOrder.rawValue)")
-                            .font(OdysseyFont.dr(13, weight: .medium))
+                            .font(.system(size: 13, weight: .medium))
                     }
                 }
                 .buttonStyle(
                     OdysseyPillButtonStyle(
-                        background: OdysseyColor.surfaceSubtle,
+                        background: OdysseyColor.border.opacity(0.25),
                         foreground: OdysseyColor.mutedText
                     )
                 )
@@ -177,11 +251,11 @@ struct BrowseView: View {
 
                 if !selectedCards.isEmpty {
                     Text("\(selectedCards.count) selected")
-                        .font(OdysseyFont.dr(13, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(OdysseyColor.accent)
                 } else {
                     Text("\(filteredCards.count) cards")
-                        .font(OdysseyFont.dr(13, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                         .foregroundStyle(OdysseyColor.mutedText)
                 }
             }
@@ -190,12 +264,11 @@ struct BrowseView: View {
 
     private var listView: some View {
         ScrollView {
-            VStack(spacing: OdysseySpacing.md.value) {
+            LazyVStack(spacing: OdysseySpacing.lg.value) {
                 ForEach(filteredCards) { card in
                     CardRow(
                         card: card,
                         isExpanded: expandedCardId == card.id,
-                        isHovered: hoveredCardId == card.id,
                         isSelected: selectedCards.contains(card.id),
                         onTap: {
                             withAnimation(.easeInOut(duration: 0.3)) {
@@ -210,12 +283,11 @@ struct BrowseView: View {
                             }
                         }
                     )
-                    .onHover { hovering in
-                        hoveredCardId = hovering ? card.id : nil
-                    }
                 }
             }
             .padding(.bottom, selectedCards.isEmpty ? 0 : 100)
+            .padding(.vertical, OdysseySpacing.lg.value)
+            .padding(.horizontal, OdysseySpacing.lg.value)
         }
         .scrollBounceBehavior(.basedOnSize)
     }
@@ -226,7 +298,7 @@ struct BrowseView: View {
 
             HStack(spacing: OdysseySpacing.md.value) {
                 Text("\(selectedCards.count) cards selected")
-                    .font(OdysseyFont.dr(14, weight: .medium))
+                    .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(OdysseyColor.ink)
 
                 Spacer()
@@ -236,12 +308,12 @@ struct BrowseView: View {
                     selectedCards.removeAll()
                 } label: {
                     Label("Suspend", systemImage: "pause.circle")
-                        .font(OdysseyFont.dr(13, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                 }
                 .buttonStyle(
                     OdysseyPillButtonStyle(
-                        background: OdysseyColor.browseColors[9].opacity(0.15),
-                        foreground: OdysseyColor.browseColors[9]
+                        background: OdysseyColor.browseColors[8].opacity(0.15),
+                        foreground: OdysseyColor.browseColors[8].opacity(0.85)
                     )
                 )
 
@@ -250,7 +322,7 @@ struct BrowseView: View {
                     selectedCards.removeAll()
                 } label: {
                     Label("Change Deck", systemImage: "folder")
-                        .font(OdysseyFont.dr(13, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                 }
                 .buttonStyle(
                     OdysseyPillButtonStyle(
@@ -264,7 +336,7 @@ struct BrowseView: View {
                     selectedCards.removeAll()
                 } label: {
                     Label("Delete", systemImage: "trash")
-                        .font(OdysseyFont.dr(13, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                 }
                 .buttonStyle(
                     OdysseyPillButtonStyle(
@@ -277,7 +349,7 @@ struct BrowseView: View {
                     selectedCards.removeAll()
                 } label: {
                     Text("Cancel")
-                        .font(OdysseyFont.dr(13, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
                 }
                 .buttonStyle(
                     OdysseyPillButtonStyle(
@@ -309,10 +381,10 @@ struct BrowseView: View {
 private struct CardRow: View {
     let card: CardSummary
     let isExpanded: Bool
-    let isHovered: Bool
     let isSelected: Bool
     let onTap: () -> Void
     let onSelect: () -> Void
+    @State private var isHovered = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -332,50 +404,49 @@ private struct CardRow: View {
                 VStack(alignment: .leading, spacing: OdysseySpacing.sm.value) {
                     // Question
                     Text(card.front)
-                        .font(OdysseyFont.dr(18, weight: .semibold))
+                        .font(OdysseyFont.dr(20, weight: .medium))
                         .foregroundStyle(OdysseyColor.ink)
                         .multilineTextAlignment(.leading)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .textSelection(.disabled)
 
                     // Metadata
-                    HStack(spacing: OdysseySpacing.sm.value) {
-                        // Deck (plain text)
-                        Text(card.deck)
-                            .font(OdysseyFont.dr(12, weight: .medium))
-                            .foregroundStyle(OdysseyColor.mutedText)
+                    ZStack(alignment: .topTrailing) {
+                        HStack(alignment: .center, spacing: OdysseySpacing.sm.value) {
+                            Text(card.deck)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(OdysseyColor.mutedText.opacity(0.85))
 
-                        // Status (plain text)
-                        Text(card.status.label)
-                            .font(OdysseyFont.dr(12, weight: .medium))
-                            .foregroundStyle(OdysseyColor.mutedText.opacity(0.8))
+                            Text(card.tag)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(OdysseyColor.mutedText.opacity(0.7))
 
-                        // Due date (plain text)
-                        Text(card.dueDescription)
-                            .font(OdysseyFont.dr(12, weight: .medium))
-                            .foregroundStyle(OdysseyColor.mutedText.opacity(0.8))
+                            StateBadge(state: card.state)
 
-                        Spacer()
+                            Text(card.dueDateString)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundStyle(OdysseyColor.mutedText.opacity(0.8))
 
-                        // Source chip (always visible on hover)
+                            Spacer(minLength: 0)
+                        }
+
+                        // Source chip
                         HStack(spacing: 4) {
                             Image(systemName: "link")
                                 .font(.system(size: 10))
                             Text(card.source)
-                                .font(OdysseyFont.dr(11, weight: .medium))
+                                .font(.system(size: 12, weight: .medium))
                                 .lineLimit(1)
                                 .truncationMode(.tail)
                         }
-                        .foregroundStyle(OdysseyColor.mutedText)
+                        .foregroundStyle(OdysseyColor.mutedText.opacity(0.75))
                         .padding(.horizontal, OdysseySpacing.sm.value)
                         .padding(.vertical, OdysseySpacing.xxs.value)
                         .background(
                             Capsule()
-                                .fill(OdysseyColor.surfaceSubtle)
+                                .fill(OdysseyColor.border.opacity(0.25))
                         )
-                        .frame(maxWidth: 200)
-                        .opacity(isHovered ? 1 : 0)
-                        .animation(.timingCurve(0.4, 0.0, 0.2, 1, duration: 0.5), value: isHovered)
+                        .frame(maxWidth: 200, alignment: .trailing)
                     }
 
                     // Answer (expanded)
@@ -383,11 +454,6 @@ private struct CardRow: View {
                         VStack(alignment: .leading, spacing: OdysseySpacing.sm.value) {
                             Divider()
                                 .padding(.vertical, OdysseySpacing.xs.value)
-
-                            Text("Answer")
-                                .font(OdysseyFont.dr(12, weight: .medium))
-                                .foregroundStyle(OdysseyColor.mutedText)
-                                .textCase(.uppercase)
 
                             Text(card.back)
                                 .font(OdysseyFont.dr(16))
@@ -403,7 +469,7 @@ private struct CardRow: View {
 
                 // Expand chevron & actions
                 HStack(spacing: OdysseySpacing.sm.value) {
-                    if isHovered && !isExpanded {
+                    if isHovered || isExpanded {
                         Button {
                             // Play card
                         } label: {
@@ -417,9 +483,9 @@ private struct CardRow: View {
                         Button {
                             // Edit card
                         } label: {
-                            Image(systemName: "pencil.circle")
+                            Image(systemName: "square.and.pencil")
                                 .font(.system(size: 18))
-                                .foregroundStyle(OdysseyColor.mutedText)
+                                .foregroundStyle(OdysseyColor.mutedText.opacity(0.7))
                         }
                         .buttonStyle(.plain)
                         .transition(.opacity)
@@ -431,9 +497,9 @@ private struct CardRow: View {
                 }
             }
             .padding(.horizontal, OdysseySpacing.lg.value)
-            .padding(.vertical, OdysseySpacing.lg.value)
+            .padding(.vertical, OdysseySpacing.xl.value)
         }
-        .frame(minHeight: 100)
+        .frame(minHeight: 120)
         .background(
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .fill(OdysseyColor.surface)
@@ -450,83 +516,100 @@ private struct CardRow: View {
         .animation(.timingCurve(0.4, 0.0, 0.2, 1, duration: 0.5), value: isHovered)
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
+        .onHover { hovering in
+            if hovering != isHovered {
+                isHovered = hovering
+            }
+        }
     }
 }
 
-// MARK: - Status Badge
+// MARK: - State Badge
 
-private struct StatusBadge: View {
-    var status: CardSummary.Status
+private struct StateBadge: View {
+    var state: CardSummary.State
 
     var body: some View {
-        Text(status.label.uppercased())
-            .font(OdysseyFont.dr(10, weight: .medium))
+        Text(state.label)
+            .font(.system(size: 11, weight: .semibold))
             .padding(.horizontal, OdysseySpacing.sm.value)
             .padding(.vertical, OdysseySpacing.xxs.value)
-            .background(status.background)
+            .background(state.background)
             .clipShape(Capsule())
-            .foregroundStyle(status.foreground)
+            .foregroundStyle(state.foreground)
     }
 }
 
 // MARK: - Card Summary Model
 
 struct CardSummary: Identifiable, Hashable {
-    enum Status {
-        case learning, review, suspended
+    enum State: CaseIterable {
+        case new, review, learning, buried, suspended
 
         var label: String {
             switch self {
-            case .learning: return "Learning"
+            case .new: return "New"
             case .review: return "Review"
+            case .learning: return "Learning"
+            case .buried: return "Buried"
             case .suspended: return "Suspended"
             }
         }
 
-        var foreground: Color {
-            return .white
-        }
+        var foreground: Color { tint }
+        var background: Color { tint.opacity(0.08) }
 
-        var background: Color {
+        private var tint: Color {
             switch self {
-            case .learning: return OdysseyColor.browseColors[8] // Yellow
-            case .review: return OdysseyColor.browseColors[11] // Red
-            case .suspended: return Color.gray.opacity(0.6)
+            case .new: return OdysseyColor.browseColors[3]
+            case .review: return Color(red: 59/255, green: 166/255, blue: 107/255)
+            case .learning: return OdysseyColor.browseColors[10]
+            case .buried: return OdysseyColor.browseColors[8]
+            case .suspended: return OdysseyColor.mutedText.opacity(0.6)
             }
         }
     }
 
     let id = UUID()
     var deck: String
+    var tag: String
     var front: String
     var back: String
     var source: String
-    var status: Status
+    var state: State
     var dueInHours: Int
 
-    var dueDescription: String {
-        switch dueInHours {
-        case ..<0:
-            return "Overdue"
-        case 0...1:
-            return "Due now"
-        case 2..<24:
-            return "In \(dueInHours)h"
-        default:
-            let days = dueInHours / 24
-            return "In \(days)d"
-        }
+    private static let dueDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }()
+
+    var dueDate: Date {
+        Date().addingTimeInterval(TimeInterval(dueInHours) * 3600)
     }
 
-    var dueColor: Color {
-        switch dueInHours {
-        case ..<0:
-            return OdysseyColor.browseColors[11] // Red for overdue
-        case 0...1:
-            return OdysseyColor.browseColors[8] // Yellow for due now
-        default:
-            return OdysseyColor.browseColors[6] // Green for future
-        }
+    var dueDateString: String {
+        CardSummary.dueDateFormatter.string(from: dueDate)
+    }
+
+    init(
+        deck: String,
+        tag: String? = nil,
+        front: String,
+        back: String,
+        source: String,
+        state: State,
+        dueInHours: Int
+    ) {
+        self.deck = deck
+        self.tag = tag ?? deck
+        self.front = front
+        self.back = back
+        self.source = source
+        self.state = state
+        self.dueInHours = dueInHours
     }
 }
 
@@ -534,142 +617,59 @@ extension CardSummary {
     static let samples: [CardSummary] = [
         .init(
             deck: "FSRS Fundamentals",
+            tag: "Memory",
             front: "What is the retention benefit of spaced repetition?",
             back: "Spaced repetition optimizes review intervals to keep recall near 90% while minimizing total study time.",
             source: "Excerpt • Space Repetition Fundamentals",
-            status: .review,
+            state: .review,
             dueInHours: -5
         ),
         .init(
             deck: "Design Systems",
+            tag: "UI",
             front: "List the core Orbit color tokens used by Odyssey.",
             back: "Ink, Accent, Background, Secondary Background, Secondary Text, Yellow Accent.",
             source: "Odyssey design tokens",
-            status: .learning,
+            state: .new,
             dueInHours: 4
         ),
         .init(
-            deck: "Neural Nets",
-            front: "What is the significance of the attention mechanism?",
-            back: "Attention lets models focus on relevant tokens dynamically, improving long-range dependency modeling.",
-            source: "Arxiv 2404.15824",
-            status: .review,
-            dueInHours: 28
-        ),
-        .init(
-            deck: "Mindset",
-            front: "State the Feynman technique in one sentence.",
-            back: "Explain a concept in simple terms as if teaching a child to expose gaps in understanding.",
-            source: "Personal notes",
-            status: .suspended,
-            dueInHours: 0
+            deck: "Cryptography",
+            tag: "Security",
+            front: "What is the difference between symmetric and asymmetric encryption?",
+            back: "Symmetric encryption uses one shared key (fast, but key exchange is hard). Asymmetric encryption uses public/private keys (great for sharing secrets, but slower). Most systems combine them: public key to exchange a random symmetric key, symmetric key for the heavy lifting.",
+            source: "Applied Cryptography",
+            state: .learning,
+            dueInHours: 12
         ),
         .init(
             deck: "Machine Learning",
-            front: "Explain the mathematical derivation of backpropagation through a multi-layer perceptron, including the role of the chain rule and how gradients flow through non-linear activation functions. How does this relate to vanishing and exploding gradient problems?",
-            back: """
-            Backpropagation computes gradients by applying the chain rule recursively from output to input layers. Consider a simple MLP with layers L₁, L₂, ..., Lₙ.
-
-            For each layer l, we compute ∂L/∂Wₗ where L is the loss function. Using the chain rule:
-            ∂L/∂Wₗ = ∂L/∂aₗ × ∂aₗ/∂zₗ × ∂zₗ/∂Wₗ
-
-            where aₗ is the activation output and zₗ is the pre-activation (weighted sum). The gradient flows backward through each layer, multiplying by the local gradients of activations like σ'(z) for sigmoid or ReLU'(z).
-
-            [See Figure 3.2 for gradient flow diagram]
-
-            The vanishing gradient problem occurs when |∂aₗ/∂zₗ| < 1 repeatedly, causing gradients to exponentially decay as they propagate backward. This is particularly severe with sigmoid activations where σ'(z) ∈ (0, 0.25]. Conversely, exploding gradients occur when products exceed 1, leading to numerical instability.
-
-            Modern solutions include:
-            • ReLU and variants (Leaky ReLU, ELU) with better gradient properties
-            • Batch normalization to maintain stable activation statistics
-            • Residual connections (ResNets) providing gradient highways
-            • Careful weight initialization (Xavier, He initialization)
-
-            [LaTeX formula for gradient computation shown in equation 4.7]
-            """,
-            source: "Deep Learning • Goodfellow et al. Chapter 6",
-            status: .learning,
+            tag: "ML Theory",
+            front: "Explain why ReLU activations ease the vanishing gradient problem.",
+            back: "ReLU stays linear for positive inputs, so gradients propagate without shrinking, unlike sigmoid/tanh which squash signals toward zero.",
+            source: "Deep Learning • Goodfellow et al.",
+            state: .review,
             dueInHours: 2
         ),
         .init(
-            deck: "Algorithms",
-            front: "What is the time complexity of the merge sort algorithm?",
-            back: "O(n log n) in all cases - best, average, and worst case. The algorithm divides the array into halves recursively (log n levels) and merges them (n operations per level).",
-            source: "CLRS Chapter 2",
-            status: .review,
-            dueInHours: 48
-        ),
-        .init(
-            deck: "Quantum Computing",
-            front: "Explain quantum entanglement and its role in quantum computing.",
-            back: "Quantum entanglement is a phenomenon where two or more qubits become correlated such that the state of one cannot be described independently of the others, even when separated by large distances. In quantum computing, entanglement enables quantum parallelism and is essential for algorithms like Shor's and quantum error correction.",
-            source: "Nielsen & Chuang • Quantum Computation and Quantum Information",
-            status: .learning,
-            dueInHours: 6
-        ),
-        .init(
             deck: "System Design",
-            front: "How would you design a URL shortener like bit.ly?",
-            back: "Key components: 1) Hashing service to generate short codes (base62 encoding of auto-increment ID or hash collision handling), 2) Database (key-value store) mapping short codes to original URLs, 3) Redirection service (301/302), 4) Rate limiting, 5) Analytics tracking, 6) CDN for global distribution. Consider sharding strategy for scale.",
-            source: "System Design Interview Vol 1 • Chapter 8",
-            status: .suspended,
-            dueInHours: 0
+            tag: "Architecture",
+            front: "Outline a cache invalidation strategy for a write-heavy API.",
+            back: "Prefer write-through for strong consistency, supplement with background revalidation and targeted purge hooks for hot keys.",
+            source: "Personal notes",
+            state: .buried,
+            dueInHours: 18
         ),
         .init(
-            deck: "Databases",
-            front: "What is database normalization and why is it important?",
-            back: "Normalization is the process of organizing data to minimize redundancy and dependency. It involves dividing large tables into smaller ones and defining relationships. Benefits include reduced data redundancy, improved data integrity, easier maintenance, and more efficient queries.",
-            source: "Database Systems Concepts • Chapter 7",
-            status: .review,
-            dueInHours: 72
-        ),
-        .init(
-            deck: "Computer Networks",
-            front: "Explain the TCP three-way handshake.",
-            back: "1) SYN: Client sends SYN packet with initial sequence number to server. 2) SYN-ACK: Server responds with SYN-ACK, acknowledging client's sequence number and sending its own. 3) ACK: Client sends ACK to server. Connection established. This ensures both sides are ready to transmit data and agree on initial sequence numbers.",
-            source: "Computer Networking: A Top-Down Approach • Chapter 3",
-            status: .learning,
-            dueInHours: 1
-        ),
-        .init(
-            deck: "Cryptography",
-            front: "What is the difference between symmetric and asymmetric encryption?",
-            back: "Symmetric encryption uses the same key for encryption and decryption (e.g., AES). It's fast but requires secure key exchange. Asymmetric encryption uses a public-private key pair (e.g., RSA). Public key encrypts, private key decrypts. Slower but solves key distribution problem. Often used together: asymmetric for key exchange, symmetric for data.",
-            source: "Applied Cryptography • Schneier • Chapter 2",
-            status: .review,
-            dueInHours: -2
-        ),
-        .init(
-            deck: "Programming Languages",
-            front: "What is the difference between a compiler and an interpreter?",
-            back: "A compiler translates entire source code to machine code before execution (e.g., C, C++). Results in faster execution but longer initial compilation. An interpreter executes code line-by-line at runtime (e.g., Python, JavaScript). Slower execution but faster development cycle. JIT compilers combine both approaches.",
-            source: "Compilers: Principles, Techniques, and Tools • Chapter 1",
-            status: .review,
-            dueInHours: 24
-        ),
-        .init(
-            deck: "Operating Systems",
-            front: "Explain the difference between a process and a thread.",
-            back: "A process is an independent program in execution with its own memory space. A thread is a lightweight unit of execution within a process, sharing the process's memory space. Multiple threads in a process can run concurrently, enabling parallelism. Threads are cheaper to create and context switch than processes.",
-            source: "Operating System Concepts • Silberschatz • Chapter 4",
-            status: .learning,
-            dueInHours: 12
+            deck: "Physics",
+            tag: "Electromagnetism",
+            front: "State Gauss's law in integral form.",
+            back: "The electric flux through a closed surface equals the enclosed charge divided by ε₀.",
+            source: "Resnick & Halliday",
+            state: .suspended,
+            dueInHours: 8
         )
     ]
-}
-
-// MARK: - Color Helpers
-
-private extension String {
-    func browseColor() -> Color {
-        let hash = abs(self.hashValue)
-        return OdysseyColor.browseColors[hash % OdysseyColor.browseColors.count]
-    }
-
-    func browseForegroundColor() -> Color {
-        // Use white text for better contrast with vibrant colors
-        return .white
-    }
 }
 
 #Preview {

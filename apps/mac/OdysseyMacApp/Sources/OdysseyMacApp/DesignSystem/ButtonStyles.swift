@@ -29,7 +29,7 @@ struct OdysseyPillButtonStyle: ButtonStyle {
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(OdysseyFont.dr(12, weight: .medium))
+            .font(.system(size: 13, weight: .medium))
             .foregroundStyle(foreground)
             .padding(.horizontal, OdysseySpacing.sm.value)
             .padding(.vertical, OdysseySpacing.xs.value)
