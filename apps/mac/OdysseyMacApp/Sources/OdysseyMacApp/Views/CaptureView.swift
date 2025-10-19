@@ -184,10 +184,24 @@ struct CaptureView: View {
                             }
 
                             if !availableTags.isEmpty {
+                                if !tag.isEmpty {
+                                    Button {
+                                        tag = ""
+                                    } label: {
+                                        Label("No Tag", systemImage: "slash.circle")
+                                    }
+                                }
+
                                 Divider()
+
                                 ForEach(availableTags, id: \.self) { suggestion in
-                                    Button(suggestion) {
+                                    Button {
                                         tag = suggestion
+                                    } label: {
+                                        Label(
+                                            suggestion,
+                                            systemImage: tag == suggestion ? "checkmark" : "tag"
+                                        )
                                     }
                                 }
                             }
@@ -205,7 +219,6 @@ struct CaptureView: View {
                             )
                         }
                         .buttonStyle(.plain)
-                        .menuStyle(.borderlessButton)
                         .popover(isPresented: $showTagCreator, arrowEdge: .bottom) {
                             TagCreationPopover(
                                 tagDraft: $tagDraft,
