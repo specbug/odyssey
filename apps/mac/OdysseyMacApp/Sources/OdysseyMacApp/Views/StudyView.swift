@@ -9,10 +9,24 @@ struct StudyView: View {
     @State private var rescheduleDate: Date = Calendar.current.date(byAdding: .hour, value: 12, to: Date()) ?? Date()
     @State private var isReschedulePresented: Bool = false
     @State private var editingCard: StudyCard?
+    @State private var ratingHistory: [(card: StudyCard, rating: StudyRating)] = []
+    @State private var sessionStartTime: Date = Date()
+    @State private var correctCount: Int = 0
 
     private var currentCard: StudyCard? {
         guard !queue.isEmpty else { return nil }
         return queue[currentIndex]
+    }
+
+    private var sessionAccuracy: Double {
+        guard completedCount > 0 else { return 0 }
+        return Double(correctCount) / Double(completedCount)
+    }
+
+    private var cardsPerMinute: Double {
+        let elapsed = Date().timeIntervalSince(sessionStartTime)
+        let minutes = max(elapsed / 60, 0.1)
+        return Double(completedCount) / minutes
     }
 
     var body: some View {
@@ -38,11 +52,66 @@ struct StudyView: View {
             .frame(maxWidth: 960, alignment: .leading)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .animation(.easeInOut(duration: 0.24), value: revealAnswer)
-        .animation(.easeInOut(duration: 0.24), value: queue.count)
+        .animation(.easeInOut(duration: 0.3), value: revealAnswer)
+        .animation(.easeInOut(duration: 0.3), value: queue.count)
         .sheet(item: $editingCard) { card in
             StudyCardEditor(card: card)
         }
+        // Keyboard shortcuts
+        .onAppear {
+            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+                handleKeyPress(event)
+                return event
+            }
+        }
+    }
+
+    private func handleKeyPress(_ event: NSEvent) -> NSEvent? {
+        guard currentCard != nil else { return event }
+
+        // Space to reveal answer
+        if event.keyCode == 49 && !revealAnswer { // Space bar
+            withAnimation(.easeInOut(duration: 0.3)) {
+                revealAnswer = true
+            }
+            return nil
+        }
+
+        // ⌘Z for undo
+        if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "z" {
+            undoLastRating()
+            return nil
+        }
+
+        // ⌘E for edit
+        if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "e" {
+            if let card = currentCard {
+                editingCard = card
+            }
+            return nil
+        }
+
+        // Number keys 1-4 for ratings (only when answer revealed)
+        if revealAnswer {
+            switch event.charactersIgnoringModifiers {
+            case "1":
+                advance(with: .again)
+                return nil
+            case "2":
+                advance(with: .hard)
+                return nil
+            case "3":
+                advance(with: .good)
+                return nil
+            case "4":
+                advance(with: .easy)
+                return nil
+            default:
+                break
+            }
+        }
+
+        return event
     }
 
     private func header(for card: StudyCard?) -> some View {
@@ -52,14 +121,54 @@ struct StudyView: View {
                     .font(OdysseyFont.dr(28, weight: .semibold))
                     .foregroundStyle(OdysseyColor.ink)
 
-                Text(summaryLine)
-                    .font(OdysseyFont.dr(14))
-                    .foregroundStyle(OdysseyColor.mutedText)
+                HStack(spacing: OdysseySpacing.md.value) {
+                    Text(summaryLine)
+                        .font(OdysseyFont.dr(14))
+                        .foregroundStyle(OdysseyColor.mutedText)
+
+                    // Session stats
+                    if completedCount > 0 {
+                        Text("•")
+                            .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
+
+                        Text("\(Int(sessionAccuracy * 100))% accuracy")
+                            .font(OdysseyFont.dr(14, weight: .medium))
+                            .foregroundStyle(
+                                sessionAccuracy >= 0.8 ? Color.green.opacity(0.9) :
+                                sessionAccuracy >= 0.6 ? OdysseyColor.yellowAccent :
+                                OdysseyColor.accent
+                            )
+
+                        Text("•")
+                            .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
+
+                        Text(String(format: "%.1f cards/min", cardsPerMinute))
+                            .font(OdysseyFont.dr(14))
+                            .foregroundStyle(OdysseyColor.mutedText)
+                    }
+                }
             }
 
             Spacer()
 
             HStack(spacing: OdysseySpacing.sm.value) {
+                // Undo button
+                Button {
+                    undoLastRating()
+                } label: {
+                    Label("Undo", systemImage: "arrow.uturn.backward")
+                        .font(OdysseyFont.dr(13, weight: .medium))
+                }
+                .buttonStyle(
+                    OdysseyPillButtonStyle(
+                        background: OdysseyColor.surfaceSubtle,
+                        foreground: OdysseyColor.mutedText
+                    )
+                )
+                .disabled(ratingHistory.isEmpty)
+                .opacity(ratingHistory.isEmpty ? 0.4 : 1)
+                .help("⌘Z")
+
                 Button {
                     if let card {
                         editingCard = card
@@ -76,6 +185,7 @@ struct StudyView: View {
                 )
                 .disabled(card == nil)
                 .opacity(card == nil ? 0.4 : 1)
+                .help("⌘E")
 
                 Button {
                     if card != nil {
@@ -103,7 +213,7 @@ struct StudyView: View {
     private var summaryLine: String {
         let remaining = queue.count
         let estimate = estimatedMinutes
-        return "\(remaining) cards scheduled · \(completedCount) completed · est. \(estimate) min"
+        return "\(remaining) cards • \(completedCount) completed • est. \(estimate) min"
     }
 
     private var reschedulePopover: some View {
@@ -134,15 +244,37 @@ struct StudyView: View {
     }
 
     private func progress(for card: StudyCard) -> some View {
-        VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
-            ProgressView(value: Double(currentIndex + 1), total: Double(max(queue.count, 1)))
-                .tint(OdysseyColor.accent)
+        HStack(spacing: OdysseySpacing.lg.value) {
+            // Progress ring
+            ZStack {
+                Circle()
+                    .stroke(OdysseyColor.border, lineWidth: 4)
+                    .frame(width: 60, height: 60)
 
-            HStack {
+                Circle()
+                    .trim(from: 0, to: CGFloat(completedCount) / CGFloat(max(completedCount + queue.count, 1)))
+                    .stroke(
+                        LinearGradient(
+                            colors: [OdysseyColor.accent, OdysseyColor.accentHover],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ),
+                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                    )
+                    .frame(width: 60, height: 60)
+                    .rotationEffect(.degrees(-90))
+                    .animation(.spring(response: 0.6, dampingFraction: 0.8), value: completedCount)
+
+                Text("\(Int((Double(completedCount) / Double(max(completedCount + queue.count, 1))) * 100))%")
+                    .font(OdysseyFont.dr(13, weight: .bold))
+                    .foregroundStyle(OdysseyColor.accent)
+            }
+
+            VStack(alignment: .leading, spacing: OdysseySpacing.xxs.value) {
                 Text("Card \(currentIndex + 1) of \(max(queue.count, 1))")
-                    .font(OdysseyFont.dr(12, weight: .medium))
+                    .font(OdysseyFont.dr(13, weight: .medium))
                     .foregroundStyle(OdysseyColor.mutedText)
-                Spacer()
+
                 Text(card.deck)
                     .font(OdysseyFont.dr(12, weight: .medium))
                     .foregroundStyle(OdysseyColor.mutedText)
@@ -157,7 +289,7 @@ struct StudyView: View {
     }
 
     private func cardSurface(for card: StudyCard) -> some View {
-        VStack(alignment: .leading, spacing: OdysseySpacing.md.value) {
+        VStack(alignment: .leading, spacing: OdysseySpacing.lg.value) {
             HStack(alignment: .center) {
                 Text(card.deck.uppercased())
                     .font(OdysseyFont.dr(11, weight: .medium))
@@ -166,21 +298,26 @@ struct StudyView: View {
                 statusBadge(for: card)
             }
 
+            // Question - LARGE FONT
             Text(card.front)
-                .font(OdysseyFont.dr(22, weight: .semibold))
+                .font(OdysseyFont.dr(34, weight: .semibold))
                 .foregroundStyle(OdysseyColor.ink)
                 .multilineTextAlignment(.leading)
+                .lineSpacing(4)
 
             if revealAnswer {
                 Divider()
+                    .padding(.vertical, OdysseySpacing.sm.value)
 
-                VStack(alignment: .leading, spacing: OdysseySpacing.sm.value) {
+                // Answer - LARGE FONT
+                VStack(alignment: .leading, spacing: OdysseySpacing.md.value) {
                     Text(card.back)
-                        .font(OdysseyFont.dr(18))
+                        .font(OdysseyFont.dr(26))
                         .foregroundStyle(OdysseyColor.ink)
+                        .lineSpacing(3)
 
                     Label(card.source, systemImage: "link")
-                        .font(OdysseyFont.dr(12))
+                        .font(OdysseyFont.dr(13))
                         .foregroundStyle(OdysseyColor.mutedText)
 
                     if let note = card.note, !note.isEmpty {
@@ -188,21 +325,23 @@ struct StudyView: View {
                             Text("Note")
                                 .font(OdysseyFont.dr(12, weight: .medium))
                                 .foregroundStyle(OdysseyColor.mutedText)
+                                .textCase(.uppercase)
                             Text(note)
-                                .font(OdysseyFont.dr(13))
+                                .font(OdysseyFont.dr(14))
                                 .foregroundStyle(OdysseyColor.mutedText)
                         }
-                        .padding(.top, OdysseySpacing.xs.value)
+                        .padding(.top, OdysseySpacing.sm.value)
                     }
                 }
             } else {
-                Text("Flip to reveal the answer when you're ready.")
-                    .font(OdysseyFont.dr(13))
+                Text("Press Space or click button to reveal the answer.")
+                    .font(OdysseyFont.dr(15))
                     .foregroundStyle(OdysseyColor.mutedText)
+                    .padding(.top, OdysseySpacing.sm.value)
             }
         }
-        .padding(OdysseySpacing.lg.value)
-        .frame(maxWidth: .infinity, minHeight: 320, alignment: .topLeading)
+        .padding(OdysseySpacing.xxxl.value)
+        .frame(maxWidth: .infinity, minHeight: 360, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: OdysseyRadius.lg.value, style: .continuous)
                 .fill(OdysseyColor.surface)
@@ -228,19 +367,28 @@ struct StudyView: View {
     private func reviewControls(for card: StudyCard) -> some View {
         VStack(alignment: .leading, spacing: OdysseySpacing.lg.value) {
             Button {
-                withAnimation(.easeInOut(duration: 0.22)) {
+                withAnimation(.easeInOut(duration: 0.3)) {
                     revealAnswer.toggle()
                 }
             } label: {
                 HStack {
                     Spacer()
-                    Text(revealAnswer ? "Hide Answer" : "Show Answer")
-                        .font(OdysseyFont.dr(16, weight: .medium))
+                    HStack(spacing: OdysseySpacing.xs.value) {
+                        if !revealAnswer {
+                            Text("Show Answer")
+                            Image(systemName: "eye")
+                        } else {
+                            Text("Hide Answer")
+                            Image(systemName: "eye.slash")
+                        }
+                    }
+                    .font(OdysseyFont.dr(16, weight: .medium))
                     Spacer()
                 }
             }
             .buttonStyle(OdysseyPrimaryButtonStyle())
-            .frame(maxWidth: 280)
+            .frame(maxWidth: 320)
+            .help("Space")
 
             if let feedback = lastFeedback {
                 FeedbackBanner(feedback: feedback)
@@ -254,31 +402,65 @@ struct StudyView: View {
     }
 
     private var ratingButtons: some View {
-        HStack(spacing: OdysseySpacing.md.value) {
-            ForEach(StudyRating.allCases) { rating in
-                Button {
-                    advance(with: rating)
-                } label: {
-                    VStack(spacing: OdysseySpacing.xs.value) {
-                        Text(rating.title)
-                            .font(OdysseyFont.dr(16, weight: .medium))
-                            .foregroundStyle(rating.foreground)
-                        Text(rating.subtitle)
-                            .font(OdysseyFont.dr(12))
-                            .foregroundStyle(OdysseyColor.mutedText)
+        VStack(spacing: OdysseySpacing.xs.value) {
+            // Keyboard hints
+            HStack(spacing: OdysseySpacing.xs.value) {
+                Text("Keyboard:")
+                    .font(OdysseyFont.dr(12, weight: .medium))
+                    .foregroundStyle(OdysseyColor.mutedText)
+                Text("1")
+                    .font(OdysseyFont.dr(11, weight: .medium))
+                    .foregroundStyle(OdysseyColor.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(OdysseyColor.mutedText.opacity(0.6)))
+                Text("2")
+                    .font(OdysseyFont.dr(11, weight: .medium))
+                    .foregroundStyle(OdysseyColor.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(OdysseyColor.mutedText.opacity(0.6)))
+                Text("3")
+                    .font(OdysseyFont.dr(11, weight: .medium))
+                    .foregroundStyle(OdysseyColor.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(OdysseyColor.mutedText.opacity(0.6)))
+                Text("4")
+                    .font(OdysseyFont.dr(11, weight: .medium))
+                    .foregroundStyle(OdysseyColor.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(OdysseyColor.mutedText.opacity(0.6)))
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+
+            HStack(spacing: OdysseySpacing.md.value) {
+                ForEach(StudyRating.allCases) { rating in
+                    Button {
+                        advance(with: rating)
+                    } label: {
+                        VStack(spacing: OdysseySpacing.xs.value) {
+                            Text(rating.title)
+                                .font(OdysseyFont.dr(17, weight: .semibold))
+                                .foregroundStyle(rating.foreground)
+                            Text(rating.subtitle)
+                                .font(OdysseyFont.dr(13))
+                                .foregroundStyle(OdysseyColor.mutedText)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, OdysseySpacing.md.value)
+                        .background(
+                            RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
+                                .fill(rating.background)
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
+                                .stroke(rating.border, lineWidth: 1.5)
+                        )
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, OdysseySpacing.sm.value)
-                    .background(
-                        RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                            .fill(rating.background)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                            .stroke(rating.border, lineWidth: 1)
-                    )
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -319,8 +501,30 @@ struct StudyView: View {
         queue = StudyCard.samples
         currentIndex = 0
         completedCount = 0
+        correctCount = 0
         revealAnswer = false
         lastFeedback = nil
+        ratingHistory.removeAll()
+        sessionStartTime = Date()
+    }
+
+    private func undoLastRating() {
+        guard !ratingHistory.isEmpty else { return }
+
+        let lastEntry = ratingHistory.removeLast()
+
+        // Add card back to queue at current position
+        queue.insert(lastEntry.card, at: currentIndex)
+
+        // Adjust stats
+        completedCount -= 1
+        if lastEntry.rating == .good || lastEntry.rating == .easy {
+            correctCount -= 1
+        }
+
+        // Clear feedback
+        lastFeedback = nil
+        revealAnswer = false
     }
 
     private func advance(with rating: StudyRating) {
@@ -328,6 +532,14 @@ struct StudyView: View {
 
         var updated = queue
         let card = updated.remove(at: currentIndex)
+
+        // Track for undo
+        ratingHistory.append((card: card, rating: rating))
+
+        // Update stats
+        if rating == .good || rating == .easy {
+            correctCount += 1
+        }
 
         queue = updated
         completedCount += 1
@@ -383,9 +595,9 @@ private enum StudyRating: CaseIterable, Identifiable {
     var border: Color {
         switch self {
         case .again:
-            return OdysseyColor.accent.opacity(0.35)
+            return OdysseyColor.accent.opacity(0.4)
         case .hard:
-            return OdysseyColor.yellowAccent.opacity(0.35)
+            return OdysseyColor.yellowAccent.opacity(0.4)
         case .good:
             return Color(red: 0.63, green: 0.8, blue: 0.66)
         case .easy:
