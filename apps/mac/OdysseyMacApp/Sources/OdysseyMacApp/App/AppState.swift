@@ -6,7 +6,7 @@ final class AppState: ObservableObject {
     enum Section: String, CaseIterable, Identifiable {
         case browse = "Browse"
         case study = "Study"
-        case capture = "Capture"
+        case add = "Add"
 
         var id: String { rawValue }
     }

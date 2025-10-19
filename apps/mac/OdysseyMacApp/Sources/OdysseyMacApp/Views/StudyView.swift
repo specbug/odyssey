@@ -471,7 +471,7 @@ struct StudyView: View {
                 .font(OdysseyFont.dr(24, weight: .semibold))
                 .foregroundStyle(OdysseyColor.ink)
 
-            Text("No cards are scheduled for review right now. Capture something new or browse existing cards.")
+            Text("No cards are scheduled for review right now. Add something new or browse existing cards.")
                 .font(OdysseyFont.dr(14))
                 .foregroundStyle(OdysseyColor.mutedText)
                 .multilineTextAlignment(.center)
@@ -781,7 +781,7 @@ private struct StudyCardEditor: View {
                 .font(OdysseyFont.dr(20, weight: .semibold))
                 .foregroundStyle(OdysseyColor.ink)
 
-            Text("Make quick edits to the prompt or answer, then copy them into Capture to persist changes.")
+            Text("Make quick edits to the prompt or answer, then copy them into Add to persist changes.")
                 .font(OdysseyFont.dr(13))
                 .foregroundStyle(OdysseyColor.mutedText)
 

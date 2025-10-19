@@ -1,24 +1,73 @@
 import SwiftUI
 
 struct CaptureView: View {
-    @State private var question: String = ""
-    @State private var answer: String = ""
+    @State private var primaryText: String = ""
+    @State private var secondaryText: String = ""
     @State private var source: String = ""
+    @State private var tag: String = ""
+    @State private var tagDraft: String = ""
+    @State private var availableTags: [String] = [
+        "Design Systems",
+        "Learning Science",
+        "FSRS Fundamentals",
+        "Neural Nets",
+        "Productivity"
+    ]
     @State private var selectedDeck: String = "Default"
     @State private var isSubmitting: Bool = false
-    @State private var showSuccess: Bool = false
-    @State private var questionFocused: Bool = false
-    @State private var answerFocused: Bool = false
-    @State private var sourceFocused: Bool = false
+    @State private var showSuccessFlash: Bool = false
+    @State private var showTagCreator: Bool = false
     @FocusState private var focusedField: Field?
 
     enum Field: Hashable {
-        case question, answer, source
+        case primary, secondary, source
     }
 
     private var canSave: Bool {
-        !question.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !primaryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var dividerColor: Color {
+        OdysseyColor.browseColors[3]
+    }
+
+    private var chipBackground: Color {
+        Color(red: 240.0 / 255.0, green: 241.0 / 255.0, blue: 243.0 / 255.0)
+    }
+
+    private var chipBorder: Color {
+        Color(red: 210.0 / 255.0, green: 211.0 / 255.0, blue: 213.0 / 255.0)
+    }
+
+    private var chipPrimary: Color {
+        OdysseyColor.ink
+    }
+
+    private var chipSecondary: Color {
+        OdysseyColor.mutedText.opacity(0.7)
+    }
+
+    private var saveGradient: LinearGradient {
+        LinearGradient(
+            colors: [OdysseyColor.accent, OdysseyColor.accentHover],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var successGradient: LinearGradient {
+        LinearGradient(
+            colors: [
+                OdysseyColor.browseColors[6],
+                OdysseyColor.browseColors[5]
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    private var tagDisplayText: String {
+        tag.isEmpty ? "Tag" : tag
     }
 
     var body: some View {
@@ -28,119 +77,145 @@ struct CaptureView: View {
 
             ScrollView {
                 VStack(spacing: 0) {
-                    // Question field
+                    // Primary text field
                     VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
-                        if focusedField == .question || !question.isEmpty {
-                            Text("Question")
-                                .font(OdysseyFont.dr(13, weight: .medium))
-                                .foregroundStyle(OdysseyColor.mutedText)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                        }
-
                         ZStack(alignment: .topLeading) {
-                            if question.isEmpty {
-                                Text("What do you want to remember?")
+                            if primaryText.isEmpty {
+                                Text("Add the thought you want to keep...")
                                     .font(OdysseyFont.dr(22))
                                     .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
-                                    .padding(.top, 8)
+                                    .padding(.top, 4)
+                                    .padding(.leading, 2)
                                     .allowsHitTesting(false)
                             }
 
-                            TextEditor(text: $question)
+                            TextEditor(text: $primaryText)
                                 .font(OdysseyFont.dr(22))
                                 .foregroundStyle(OdysseyColor.ink)
                                 .scrollContentBackground(.hidden)
+                                .padding(.top, 2)
                                 .background(Color.clear)
-                                .frame(minHeight: 100)
-                                .focused($focusedField, equals: .question)
+                                .frame(minHeight: 110)
+                                .focused($focusedField, equals: .primary)
+                                .tint(OdysseyColor.accent)
                         }
 
-                        // Minimal focus underline
-                        if focusedField == .question {
-                            Rectangle()
-                                .fill(OdysseyColor.accent)
-                                .frame(height: 2)
-                                .transition(.opacity)
-                        } else {
-                            Rectangle()
-                                .fill(OdysseyColor.border.opacity(0.3))
-                                .frame(height: 1)
-                        }
+                        Rectangle()
+                            .fill(dividerColor)
+                            .frame(height: 2)
                     }
                     .padding(.horizontal, OdysseySpacing.xxxxl.value)
                     .padding(.top, OdysseySpacing.xxxxl.value)
-                    .animation(.easeInOut(duration: 0.25), value: focusedField)
 
-                    // Answer field
+                    // Secondary text field
                     VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
-                        if focusedField == .answer || !answer.isEmpty {
-                            Text("Answer")
-                                .font(OdysseyFont.dr(13, weight: .medium))
-                                .foregroundStyle(OdysseyColor.mutedText)
-                                .transition(.opacity.combined(with: .move(edge: .top)))
-                        }
-
                         ZStack(alignment: .topLeading) {
-                            if answer.isEmpty {
-                                Text("The answer or key information to recall...")
+                            if secondaryText.isEmpty {
+                                Text("Remember forever...")
                                     .font(OdysseyFont.dr(22))
                                     .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
-                                    .padding(.top, 8)
+                                    .padding(.top, 4)
+                                    .padding(.leading, 2)
                                     .allowsHitTesting(false)
                             }
 
-                            TextEditor(text: $answer)
+                            TextEditor(text: $secondaryText)
                                 .font(OdysseyFont.dr(22))
                                 .foregroundStyle(OdysseyColor.ink)
                                 .scrollContentBackground(.hidden)
+                                .padding(.top, 2)
                                 .background(Color.clear)
-                                .frame(minHeight: 120)
-                                .focused($focusedField, equals: .answer)
+                                .frame(minHeight: 140)
+                                .focused($focusedField, equals: .secondary)
+                                .tint(OdysseyColor.accent)
                         }
 
-                        // Minimal focus underline
-                        if focusedField == .answer {
-                            Rectangle()
-                                .fill(OdysseyColor.accent)
-                                .frame(height: 2)
-                                .transition(.opacity)
-                        } else {
-                            Rectangle()
-                                .fill(OdysseyColor.border.opacity(0.3))
-                                .frame(height: 1)
-                        }
+                        Rectangle()
+                            .fill(OdysseyColor.border.opacity(0.35))
+                            .frame(height: 1)
                     }
                     .padding(.horizontal, OdysseySpacing.xxxxl.value)
                     .padding(.top, OdysseySpacing.xxxxxl.value)
-                    .animation(.easeInOut(duration: 0.25), value: focusedField)
 
-                    // Source & Deck row
-                    HStack(spacing: OdysseySpacing.lg.value) {
+                    // Source, Tag & Deck row
+                    HStack(spacing: OdysseySpacing.md.value) {
                         // Source field
                         HStack(spacing: OdysseySpacing.sm.value) {
                             Image(systemName: "link")
-                                .font(.system(size: 14))
-                                .foregroundStyle(OdysseyColor.mutedText.opacity(0.6))
+                                .font(.system(size: 13))
+                                .foregroundStyle(OdysseyColor.mutedText.opacity(0.65))
 
-                            TextField("Source (optional)", text: $source)
-                                .textFieldStyle(.plain)
-                                .font(OdysseyFont.dr(15))
-                                .foregroundStyle(OdysseyColor.ink)
-                                .focused($focusedField, equals: .source)
+                            ZStack(alignment: .leading) {
+                                if source.isEmpty {
+                                    Text("Source")
+                                        .font(.system(size: 15))
+                                        .foregroundStyle(OdysseyColor.mutedText.opacity(0.5))
+                                }
+
+                                TextField("", text: $source)
+                                    .textFieldStyle(.plain)
+                                    .font(.system(size: 15))
+                                    .foregroundStyle(OdysseyColor.ink)
+                                    .focused($focusedField, equals: .source)
+                            }
                         }
                         .padding(.horizontal, OdysseySpacing.md.value)
                         .padding(.vertical, OdysseySpacing.sm.value)
                         .background(
                             RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                                .fill(focusedField == .source ? OdysseyColor.surface : OdysseyColor.surfaceSubtle)
+                                .fill(chipBackground)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
                                 .stroke(
-                                    focusedField == .source ? OdysseyColor.accent.opacity(0.5) : Color.clear,
+                                    focusedField == .source ? OdysseyColor.accent.opacity(0.45) : Color.clear,
                                     lineWidth: 1
                                 )
                         )
+                        .frame(minWidth: 320, maxWidth: .infinity)
+
+                        // Tag field
+                        Menu {
+                            Button {
+                                tagDraft = ""
+                                showTagCreator = true
+                            } label: {
+                                Label("Create Tag…", systemImage: "plus")
+                            }
+
+                            if !availableTags.isEmpty {
+                                Divider()
+                                ForEach(availableTags, id: \.self) { suggestion in
+                                    Button(suggestion) {
+                                        tag = suggestion
+                                    }
+                                }
+                            }
+                        } label: {
+                            ChipMenuLabel(
+                                iconName: "tag.fill",
+                                text: tagDisplayText,
+                                isPlaceholder: tag.isEmpty,
+                                background: chipBackground,
+                                border: chipBorder,
+                                iconColor: chipSecondary,
+                                textColor: chipPrimary,
+                                placeholderColor: chipSecondary.opacity(0.6),
+                                minWidth: 160
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .menuStyle(.borderlessButton)
+                        .popover(isPresented: $showTagCreator, arrowEdge: .bottom) {
+                            TagCreationPopover(
+                                tagDraft: $tagDraft,
+                                onCancel: { showTagCreator = false },
+                                onCreate: { name in
+                                    createTag(named: name)
+                                    showTagCreator = false
+                                }
+                            )
+                        }
 
                         // Deck selector
                         Menu {
@@ -149,27 +224,55 @@ struct CaptureView: View {
                             Button("Design Systems") { selectedDeck = "Design Systems" }
                             Button("Neural Nets") { selectedDeck = "Neural Nets" }
                         } label: {
-                            HStack(spacing: OdysseySpacing.xs.value) {
-                                Image(systemName: "folder")
-                                    .font(.system(size: 13))
-                                Text(selectedDeck)
-                                    .font(OdysseyFont.dr(14, weight: .medium))
-                                Image(systemName: "chevron.down")
-                                    .font(.system(size: 11))
-                            }
-                            .foregroundStyle(OdysseyColor.mutedText)
-                            .padding(.horizontal, OdysseySpacing.md.value)
-                            .padding(.vertical, OdysseySpacing.sm.value)
-                            .background(
-                                Capsule()
-                                    .fill(OdysseyColor.surfaceSubtle)
-                            )
-                            .overlay(
-                                Capsule()
-                                    .stroke(OdysseyColor.border.opacity(0.6), lineWidth: 1)
+                            ChipMenuLabel(
+                                iconName: "folder.fill",
+                                text: selectedDeck,
+                                isPlaceholder: false,
+                                background: chipBackground,
+                                border: chipBorder,
+                                iconColor: chipSecondary,
+                                textColor: chipPrimary,
+                                placeholderColor: chipSecondary,
+                                minWidth: 190
                             )
                         }
                         .buttonStyle(.plain)
+
+                        Button(action: submit) {
+                            ZStack {
+                                if isSubmitting {
+                                    ProgressView()
+                                        .progressViewStyle(.circular)
+                                        .controlSize(.small)
+                                        .tint(OdysseyColor.white)
+                                } else {
+                                    Image(systemName: "square.and.arrow.down")
+                                        .font(.system(size: 18, weight: .semibold))
+                                }
+                            }
+                            .frame(width: 44, height: 44)
+                            .background(
+                                Circle()
+                                    .fill(
+                                        showSuccessFlash ? successGradient :
+                                        (canSave ? saveGradient : LinearGradient(colors: [chipBackground, chipBackground], startPoint: .top, endPoint: .bottom))
+                                    )
+                            )
+                            .overlay(
+                                Circle()
+                                    .stroke(
+                                        !canSave && !showSuccessFlash ? chipBorder : Color.clear,
+                                        lineWidth: 1
+                                    )
+                            )
+                            .foregroundStyle((canSave || showSuccessFlash) ? OdysseyColor.white : chipSecondary)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!canSave || isSubmitting || showSuccessFlash)
+                        .animation(.easeInOut(duration: 0.2), value: canSave)
+                        .animation(.easeInOut(duration: 0.2), value: showSuccessFlash)
+                        .keyboardShortcut(.return, modifiers: .command)
+                        .accessibilityLabel("Save Card")
                     }
                     .padding(.horizontal, OdysseySpacing.xxxxl.value)
                     .padding(.top, OdysseySpacing.xxxl.value)
@@ -179,62 +282,25 @@ struct CaptureView: View {
                 .frame(maxWidth: 860)
                 .frame(maxWidth: .infinity)
             }
-
-            // Floating save button (appears when both fields filled)
-            if canSave {
-                VStack {
-                    Spacer()
-
-                    Button(action: submit) {
-                        HStack(spacing: OdysseySpacing.sm.value) {
-                            if isSubmitting {
-                                ProgressView()
-                                    .progressViewStyle(.circular)
-                                    .controlSize(.small)
-                                    .tint(OdysseyColor.white)
-                                Text("Saving...")
-                            } else {
-                                Image(systemName: "checkmark")
-                                Text("Save Card")
-                            }
-                        }
-                        .font(OdysseyFont.dr(16, weight: .medium))
-                        .foregroundStyle(OdysseyColor.white)
-                        .padding(.horizontal, OdysseySpacing.xl.value)
-                        .padding(.vertical, OdysseySpacing.md.value)
-                        .background(
-                            Capsule()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [OdysseyColor.accent, OdysseyColor.accentHover],
-                                        startPoint: .leading,
-                                        endPoint: .trailing
-                                    )
-                                )
-                        )
-                        .shadow(color: OdysseyColor.accent.opacity(0.4), radius: 20, y: 10)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(isSubmitting)
-                    .keyboardShortcut(.return, modifiers: .command)
-                }
-                .padding(.bottom, OdysseySpacing.xl.value)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .animation(.spring(response: 0.5, dampingFraction: 0.7), value: canSave)
-            }
-
-            // Success overlay
-            if showSuccess {
-                SuccessOverlay()
-                    .transition(.opacity.combined(with: .scale(scale: 0.95)))
-            }
         }
         .onAppear {
-            // Auto-focus question field
+            // Auto-focus primary field for quicker capture
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                focusedField = .question
+                focusedField = .primary
             }
         }
+    }
+
+    private func createTag(named name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        if !availableTags.contains(where: { $0.compare(trimmed, options: .caseInsensitive) == .orderedSame }) {
+            availableTags.append(trimmed)
+        }
+
+        tag = trimmed
+        tagDraft = ""
     }
 
     private func submit() {
@@ -242,68 +308,119 @@ struct CaptureView: View {
 
         isSubmitting = true
 
-        // Simulate save
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
             isSubmitting = false
 
-            // Show success animation
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
-                showSuccess = true
+            withAnimation(.easeInOut(duration: 0.25)) {
+                showSuccessFlash = true
             }
 
-            // Clear fields after showing success
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                withAnimation {
-                    showSuccess = false
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                primaryText = ""
+                secondaryText = ""
+                source = ""
+                tag = ""
+
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    showSuccessFlash = false
                 }
 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    question = ""
-                    answer = ""
-                    source = ""
-                    focusedField = .question
-                }
+                focusedField = .primary
             }
         }
     }
 }
 
-// MARK: - Success Overlay
+// MARK: - Tag Creation
 
-private struct SuccessOverlay: View {
+private struct TagCreationPopover: View {
+    @Binding var tagDraft: String
+    var onCancel: () -> Void
+    var onCreate: (String) -> Void
+    @FocusState private var isFieldFocused: Bool
+
+    private var trimmedDraft: String {
+        tagDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var body: some View {
-        ZStack {
-            Color.black.opacity(0.2)
-                .ignoresSafeArea()
+        VStack(alignment: .leading, spacing: OdysseySpacing.sm.value) {
+            Text("Create Tag")
+                .font(.system(size: 15, weight: .semibold))
 
-            VStack(spacing: OdysseySpacing.lg.value) {
-                // Checkmark circle
-                ZStack {
-                    Circle()
-                        .fill(OdysseyColor.accent)
-                        .frame(width: 80, height: 80)
-                        .shadow(color: OdysseyColor.accent.opacity(0.4), radius: 30, y: 15)
+            TextField("Name", text: $tagDraft)
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 14))
+                .focused($isFieldFocused)
+                .onSubmit(handleCreate)
 
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 40, weight: .semibold))
-                        .foregroundStyle(OdysseyColor.white)
+            HStack {
+                Spacer()
+                Button("Cancel", role: .cancel, action: onCancel)
+                    .font(.system(size: 13))
+                Button("Create") {
+                    handleCreate()
                 }
-
-                Text("Card Saved")
-                    .font(OdysseyFont.dr(24, weight: .semibold))
-                    .foregroundStyle(OdysseyColor.ink)
-
-                Text("Ready to capture another")
-                    .font(OdysseyFont.dr(15))
-                    .foregroundStyle(OdysseyColor.mutedText)
+                .font(.system(size: 13, weight: .semibold))
+                .disabled(trimmedDraft.isEmpty)
             }
-            .padding(OdysseySpacing.xxxl.value)
-            .background(
-                RoundedRectangle(cornerRadius: OdysseyRadius.lg.value, style: .continuous)
-                    .fill(OdysseyColor.surface)
-            )
-            .shadow(color: OdysseyColor.shadow.opacity(0.3), radius: 40, y: 20)
         }
+        .padding(OdysseySpacing.md.value)
+        .frame(width: 240)
+        .onAppear {
+            DispatchQueue.main.async {
+                isFieldFocused = true
+            }
+        }
+    }
+
+    private func handleCreate() {
+        guard !trimmedDraft.isEmpty else { return }
+        onCreate(trimmedDraft)
+    }
+}
+
+private struct ChipMenuLabel: View {
+    let iconName: String
+    let text: String
+    let isPlaceholder: Bool
+    let background: Color
+    let border: Color
+    let iconColor: Color
+    let textColor: Color
+    let placeholderColor: Color
+    let minWidth: CGFloat
+
+    var body: some View {
+        HStack(spacing: OdysseySpacing.xs.value) {
+            Image(systemName: iconName)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(iconColor)
+
+            Text(text)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(isPlaceholder ? placeholderColor : textColor)
+                .lineLimit(1)
+
+            Spacer(minLength: 0)
+
+            Image(systemName: "chevron.down")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(iconColor)
+        }
+        .padding(.horizontal, OdysseySpacing.md.value)
+        .padding(.vertical, OdysseySpacing.sm.value)
+        .frame(minWidth: minWidth, alignment: .leading)
+        .background(
+            Capsule()
+                .fill(background)
+        )
+        .overlay(
+            Capsule()
+                .stroke(border, lineWidth: 1)
+        )
+        .contentShape(Capsule())
+        .fixedSize(horizontal: true, vertical: false)
     }
 }
 

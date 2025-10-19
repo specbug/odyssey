@@ -151,7 +151,7 @@ struct RootView: View {
                 BrowseView()
             case .study:
                 StudyView()
-            case .capture:
+            case .add:
                 CaptureView()
             }
         }
