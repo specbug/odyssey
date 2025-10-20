@@ -1,14 +1,17 @@
 import SwiftUI
 import AppKit
 
-/// A text editor that highlights LaTeX syntax in violet color (#ad89fb)
+/// A text editor that highlights LaTeX syntax in pink color (#f56bb5)
+/// and cloze deletions in blue color (#72aef8)
 /// Supports both inline ($...$) and block ($$...$$) LaTeX
+/// Supports cloze deletions ({{c1::text}}, {{c2::text}}, etc.)
 struct LatexTextEditor: NSViewRepresentable {
     @Binding var text: String
     let placeholder: String
     let font: NSFont
     let textColor: NSColor
     let latexColor: NSColor
+    let clozeColor: NSColor
     var focusState: FocusState<Bool>.Binding?
     var heightBinding: Binding<CGFloat>?
 
@@ -17,7 +20,8 @@ struct LatexTextEditor: NSViewRepresentable {
         placeholder: String = "",
         font: NSFont = .systemFont(ofSize: 22),
         textColor: NSColor = NSColor(red: 0, green: 0, blue: 0, alpha: 0.8),
-        latexColor: NSColor = NSColor(red: 0xad/255.0, green: 0x89/255.0, blue: 0xfb/255.0, alpha: 1.0),
+        latexColor: NSColor = NSColor(red: 0xf5/255.0, green: 0x6b/255.0, blue: 0xb5/255.0, alpha: 1.0),
+        clozeColor: NSColor = NSColor(red: 0x72/255.0, green: 0xae/255.0, blue: 0xf8/255.0, alpha: 1.0),
         focusState: FocusState<Bool>.Binding? = nil,
         heightBinding: Binding<CGFloat>? = nil
     ) {
@@ -26,6 +30,7 @@ struct LatexTextEditor: NSViewRepresentable {
         self.font = font
         self.textColor = textColor
         self.latexColor = latexColor
+        self.clozeColor = clozeColor
         self.focusState = focusState
         self.heightBinding = heightBinding
     }
@@ -136,6 +141,15 @@ struct LatexTextEditor: NSViewRepresentable {
         attributed.addAttribute(.font, value: font, range: range)
         attributed.addAttribute(.foregroundColor, value: textColor, range: range)
 
+        // Find and highlight cloze deletions ({{c1::text}}, {{c2::text}}, etc.)
+        let clozePattern = #"\{\{c\d+::[^}]+\}\}"#
+        if let clozeRegex = try? NSRegularExpression(pattern: clozePattern, options: []) {
+            let matches = clozeRegex.matches(in: text, options: [], range: range)
+            for match in matches {
+                attributed.addAttribute(.foregroundColor, value: clozeColor, range: match.range)
+            }
+        }
+
         // Find and highlight display math ($$...$$)
         let displayPattern = #"\$\$[\s\S]*?\$\$"#
         if let displayRegex = try? NSRegularExpression(pattern: displayPattern, options: []) {
@@ -218,6 +232,8 @@ struct LatexTextEditor: NSViewRepresentable {
 #Preview {
     struct PreviewWrapper: View {
         @State private var text = """
+        {{c1::Scalar}} product is denoted with a {{c2::$\\cdot$}} notation.
+
         This is inline math: $v=\\frac{x_{1}-x_{0}}{t_{1}-t_{0}}$
 
         And this is block math:
@@ -225,7 +241,7 @@ struct LatexTextEditor: NSViewRepresentable {
         v=\\frac{x_{1}-x_{0}}{t_{1}-t_{0}}
         $$
 
-        More text here with another inline: $E=mc^2$
+        More text with cloze: {{c3::Important concept}}
         """
 
         var body: some View {
@@ -233,7 +249,7 @@ struct LatexTextEditor: NSViewRepresentable {
                 Text("LaTeX Text Editor (Edit Mode)")
                     .font(.headline)
 
-                LatexTextEditor(text: $text, placeholder: "Enter text with LaTeX...")
+                LatexTextEditor(text: $text, placeholder: "Enter text with LaTeX and clozes...")
                     .frame(height: 300)
                     .padding()
             }

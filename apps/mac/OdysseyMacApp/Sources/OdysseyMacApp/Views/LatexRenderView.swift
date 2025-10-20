@@ -3,9 +3,17 @@ import WebKit
 
 /// A view that renders LaTeX content using KaTeX
 /// Supports both inline ($...$) and block ($$...$$) LaTeX
+/// Supports cloze deletions ({{c1::text}}, {{c2::text}}, etc.)
 struct LatexRenderView: NSViewRepresentable {
     let text: String
+    let clozeColor: String
     var heightBinding: Binding<CGFloat>?
+
+    init(text: String, clozeColor: String = "rgba(114, 174, 248, 0.35)", heightBinding: Binding<CGFloat>? = nil) {
+        self.text = text
+        self.clozeColor = clozeColor
+        self.heightBinding = heightBinding
+    }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
@@ -95,15 +103,26 @@ struct LatexRenderView: NSViewRepresentable {
                     white-space: pre-wrap;
                     word-wrap: break-word;
                 }
+
+                /* Style for cloze deletions */
+                .cloze-highlight {
+                    background-color: \(clozeColor);
+                    padding: 2px 4px;
+                    border-radius: 3px;
+                }
             </style>
         </head>
         <body>
             <div id="content"></div>
             <script>
-                // Process text with LaTeX
+                // Process text with LaTeX and cloze deletions
                 function renderLatex() {
-                    const text = `\(escapedText)`;
+                    let text = `\(escapedText)`;
                     const contentDiv = document.getElementById('content');
+
+                    // First, process cloze deletions: {{c1::text}} -> <span class="cloze-highlight">text</span>
+                    const clozeRegex = /\\{\\{c\\d+::([^}]+)\\}\\}/g;
+                    text = text.replace(clozeRegex, '<span class="cloze-highlight">$1</span>');
 
                     // Process the text, replacing LaTeX with rendered versions
                     let processedText = text;
@@ -179,6 +198,8 @@ struct LatexRenderView: NSViewRepresentable {
 
 #Preview {
     LatexRenderView(text: """
+    {{c1::Scalar}} product is denoted with a {{c2::$\\cdot$}} notation.
+
     This is inline math: $v=\\frac{x_{1}-x_{0}}{t_{1}-t_{0}}$
 
     And this is block math:
@@ -186,7 +207,7 @@ struct LatexRenderView: NSViewRepresentable {
     v=\\frac{x_{1}-x_{0}}{t_{1}-t_{0}}
     $$
 
-    More text here with another inline: $E=mc^2$
+    More text with cloze: {{c3::Important concept}}
     """)
     .frame(width: 600, height: 400)
 }

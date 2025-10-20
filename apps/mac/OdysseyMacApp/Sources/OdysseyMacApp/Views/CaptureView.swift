@@ -111,9 +111,9 @@ struct CaptureView: View {
                     // Primary text field
                     VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
                         if isPreviewMode {
-                            // Preview mode - render LaTeX
+                            // Preview mode - render LaTeX and cloze
                             if !primaryText.isEmpty {
-                                LatexRenderView(text: primaryText, heightBinding: $primaryTextHeight)
+                                LatexRenderView(text: primaryText, clozeColor: "rgba(114, 174, 248, 0.35)", heightBinding: $primaryTextHeight)
                                     .frame(height: max(primaryTextHeight, 110), alignment: .topLeading)
                             } else {
                                 Text("Add the thought you want to keep...")
@@ -139,7 +139,8 @@ struct CaptureView: View {
                                     placeholder: "Add the thought you want to keep...",
                                     font: NSFont(name: "Dr", size: 22) ?? NSFont.systemFont(ofSize: 22),
                                     textColor: NSColor(OdysseyColor.ink),
-                                    latexColor: NSColor(OdysseyColor.browseColors[2]),
+                                    latexColor: NSColor(OdysseyColor.browseColors[0]),
+                                    clozeColor: NSColor(OdysseyColor.browseColors[3]),
                                     heightBinding: $primaryTextHeight
                                 )
                                 .frame(height: max(primaryTextHeight, 110), alignment: .topLeading)
@@ -156,9 +157,9 @@ struct CaptureView: View {
                     // Secondary text field
                     VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
                         if isPreviewMode {
-                            // Preview mode - render LaTeX
+                            // Preview mode - render LaTeX and cloze
                             if !secondaryText.isEmpty {
-                                LatexRenderView(text: secondaryText, heightBinding: $secondaryTextHeight)
+                                LatexRenderView(text: secondaryText, clozeColor: "rgba(114, 174, 248, 0.35)", heightBinding: $secondaryTextHeight)
                                     .frame(height: max(secondaryTextHeight, 140), alignment: .topLeading)
                             } else {
                                 Text("Remember forever...")
@@ -184,7 +185,8 @@ struct CaptureView: View {
                                     placeholder: "Remember forever...",
                                     font: NSFont(name: "Dr", size: 22) ?? NSFont.systemFont(ofSize: 22),
                                     textColor: NSColor(OdysseyColor.ink),
-                                    latexColor: NSColor(OdysseyColor.browseColors[2]),
+                                    latexColor: NSColor(OdysseyColor.browseColors[0]),
+                                    clozeColor: NSColor(OdysseyColor.browseColors[3]),
                                     heightBinding: $secondaryTextHeight
                                 )
                                 .frame(height: max(secondaryTextHeight, 140), alignment: .topLeading)
