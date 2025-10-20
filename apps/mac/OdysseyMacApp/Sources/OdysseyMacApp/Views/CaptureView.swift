@@ -17,7 +17,10 @@ struct CaptureView: View {
     @State private var isSubmitting: Bool = false
     @State private var showSuccessFlash: Bool = false
     @State private var showTagCreator: Bool = false
+    @State private var isPreviewMode: Bool = false
     @FocusState private var focusedField: Field?
+    @FocusState private var isPrimaryFocused: Bool
+    @FocusState private var isSecondaryFocused: Bool
 
     enum Field: Hashable {
         case primary, secondary, source
@@ -77,27 +80,67 @@ struct CaptureView: View {
 
             ScrollView {
                 VStack(spacing: 0) {
+                    // Preview/Edit Toggle Button
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                                isPreviewMode.toggle()
+                            }
+                        }) {
+                            ZStack {
+                                // Background circle
+                                Circle()
+                                    .fill(isPreviewMode ? OdysseyColor.accent.opacity(0.12) : OdysseyColor.mutedText.opacity(0.08))
+                                    .frame(width: 32, height: 32)
+
+                                // Icon
+                                Image(systemName: isPreviewMode ? "pencil.line" : "eye.fill")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundStyle(isPreviewMode ? OdysseyColor.accent : OdysseyColor.mutedText.opacity(0.7))
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .help(isPreviewMode ? "Edit" : "Preview")
+                    }
+                    .padding(.horizontal, OdysseySpacing.xxxxl.value)
+                    .padding(.top, OdysseySpacing.md.value)
+
                     // Primary text field
                     VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
-                        ZStack(alignment: .topLeading) {
-                            if primaryText.isEmpty {
+                        if isPreviewMode {
+                            // Preview mode - render LaTeX
+                            if !primaryText.isEmpty {
+                                LatexRenderView(text: primaryText)
+                                    .frame(minHeight: 110)
+                            } else {
                                 Text("Add the thought you want to keep...")
                                     .font(OdysseyFont.dr(22))
                                     .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
                                     .padding(.top, 4)
-                                    .padding(.leading, 2)
-                                    .allowsHitTesting(false)
+                                    .frame(minHeight: 110, alignment: .topLeading)
                             }
+                        } else {
+                            // Edit mode - show syntax-highlighted editor
+                            ZStack(alignment: .topLeading) {
+                                if primaryText.isEmpty {
+                                    Text("Add the thought you want to keep...")
+                                        .font(OdysseyFont.dr(22))
+                                        .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
+                                        .padding(.top, 4)
+                                        .padding(.leading, 2)
+                                        .allowsHitTesting(false)
+                                }
 
-                            TextEditor(text: $primaryText)
-                                .font(OdysseyFont.dr(22))
-                                .foregroundStyle(OdysseyColor.ink)
-                                .scrollContentBackground(.hidden)
-                                .padding(.top, 2)
-                                .background(Color.clear)
+                                LatexTextEditor(
+                                    text: $primaryText,
+                                    placeholder: "Add the thought you want to keep...",
+                                    font: NSFont(name: "Dr", size: 22) ?? NSFont.systemFont(ofSize: 22),
+                                    textColor: NSColor(OdysseyColor.ink),
+                                    latexColor: NSColor(OdysseyColor.browseColors[2])
+                                )
                                 .frame(minHeight: 110)
-                                .focused($focusedField, equals: .primary)
-                                .tint(OdysseyColor.accent)
+                            }
                         }
 
                         Rectangle()
@@ -105,29 +148,43 @@ struct CaptureView: View {
                             .frame(height: 2)
                     }
                     .padding(.horizontal, OdysseySpacing.xxxxl.value)
-                    .padding(.top, OdysseySpacing.xxxxl.value)
+                    .padding(.top, OdysseySpacing.md.value)
 
                     // Secondary text field
                     VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
-                        ZStack(alignment: .topLeading) {
-                            if secondaryText.isEmpty {
+                        if isPreviewMode {
+                            // Preview mode - render LaTeX
+                            if !secondaryText.isEmpty {
+                                LatexRenderView(text: secondaryText)
+                                    .frame(minHeight: 140)
+                            } else {
                                 Text("Remember forever...")
                                     .font(OdysseyFont.dr(22))
                                     .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
                                     .padding(.top, 4)
-                                    .padding(.leading, 2)
-                                    .allowsHitTesting(false)
+                                    .frame(minHeight: 140, alignment: .topLeading)
                             }
+                        } else {
+                            // Edit mode - show syntax-highlighted editor
+                            ZStack(alignment: .topLeading) {
+                                if secondaryText.isEmpty {
+                                    Text("Remember forever...")
+                                        .font(OdysseyFont.dr(22))
+                                        .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
+                                        .padding(.top, 4)
+                                        .padding(.leading, 2)
+                                        .allowsHitTesting(false)
+                                }
 
-                            TextEditor(text: $secondaryText)
-                                .font(OdysseyFont.dr(22))
-                                .foregroundStyle(OdysseyColor.ink)
-                                .scrollContentBackground(.hidden)
-                                .padding(.top, 2)
-                                .background(Color.clear)
+                                LatexTextEditor(
+                                    text: $secondaryText,
+                                    placeholder: "Remember forever...",
+                                    font: NSFont(name: "Dr", size: 22) ?? NSFont.systemFont(ofSize: 22),
+                                    textColor: NSColor(OdysseyColor.ink),
+                                    latexColor: NSColor(OdysseyColor.browseColors[2])
+                                )
                                 .frame(minHeight: 140)
-                                .focused($focusedField, equals: .secondary)
-                                .tint(OdysseyColor.accent)
+                            }
                         }
 
                         Rectangle()
