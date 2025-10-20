@@ -10,6 +10,7 @@ struct LatexTextEditor: NSViewRepresentable {
     let textColor: NSColor
     let latexColor: NSColor
     var focusState: FocusState<Bool>.Binding?
+    var heightBinding: Binding<CGFloat>?
 
     init(
         text: Binding<String>,
@@ -17,7 +18,8 @@ struct LatexTextEditor: NSViewRepresentable {
         font: NSFont = .systemFont(ofSize: 22),
         textColor: NSColor = NSColor(red: 0, green: 0, blue: 0, alpha: 0.8),
         latexColor: NSColor = NSColor(red: 0xad/255.0, green: 0x89/255.0, blue: 0xfb/255.0, alpha: 1.0),
-        focusState: FocusState<Bool>.Binding? = nil
+        focusState: FocusState<Bool>.Binding? = nil,
+        heightBinding: Binding<CGFloat>? = nil
     ) {
         self._text = text
         self.placeholder = placeholder
@@ -25,6 +27,7 @@ struct LatexTextEditor: NSViewRepresentable {
         self.textColor = textColor
         self.latexColor = latexColor
         self.focusState = focusState
+        self.heightBinding = heightBinding
     }
 
     func makeCoordinator() -> Coordinator {
@@ -32,10 +35,16 @@ struct LatexTextEditor: NSViewRepresentable {
     }
 
     func makeNSView(context: Context) -> NSScrollView {
-        let scrollView = NSTextView.scrollableTextView()
-        guard let textView = scrollView.documentView as? NSTextView else {
-            return scrollView
-        }
+        // Create scroll view manually (not using convenience method)
+        let scrollView = NSScrollView()
+        scrollView.borderType = .noBorder
+        scrollView.hasVerticalScroller = false
+        scrollView.hasHorizontalScroller = false
+        scrollView.autohidesScrollers = false
+        scrollView.drawsBackground = false
+
+        // Create text view manually
+        let textView = NSTextView(frame: .zero)
 
         // Configure text view
         textView.delegate = context.coordinator
@@ -47,6 +56,22 @@ struct LatexTextEditor: NSViewRepresentable {
         textView.isAutomaticQuoteSubstitutionEnabled = false
         textView.isAutomaticDashSubstitutionEnabled = false
         textView.isAutomaticTextReplacementEnabled = false
+
+        // Make text view expand vertically with content (no scrolling)
+        textView.isVerticallyResizable = true
+        textView.isHorizontallyResizable = false
+        textView.autoresizingMask = [.width]
+        textView.maxSize = NSSize(width: CGFloat.greatestFiniteMagnitude, height: CGFloat.greatestFiniteMagnitude)
+
+        // Configure text container for unlimited height
+        if let textContainer = textView.textContainer {
+            textContainer.widthTracksTextView = true
+            textContainer.heightTracksTextView = false
+            textContainer.containerSize = NSSize(width: 0, height: CGFloat.greatestFiniteMagnitude)
+        }
+
+        // Set text view as document view
+        scrollView.documentView = textView
 
         // Set initial text with syntax highlighting
         updateTextViewContent(textView, with: text)
@@ -72,6 +97,35 @@ struct LatexTextEditor: NSViewRepresentable {
     private func updateTextViewContent(_ textView: NSTextView, with text: String) {
         let attributedString = highlightLatex(in: text)
         textView.textStorage?.setAttributedString(attributedString)
+
+        // Update text view frame to fit content
+        updateTextViewHeight(textView)
+    }
+
+    private func updateTextViewHeight(_ textView: NSTextView) {
+        guard let layoutManager = textView.layoutManager,
+              let textContainer = textView.textContainer else { return }
+
+        // Ensure layout is up to date
+        layoutManager.ensureLayout(for: textContainer)
+
+        // Calculate the height needed for all text
+        let usedRect = layoutManager.usedRect(for: textContainer)
+        var contentHeight = usedRect.height
+
+        // Add some padding for better appearance
+        contentHeight += 10
+
+        // Set the text view's frame to match content height
+        let currentWidth = textView.frame.width
+        textView.frame = NSRect(x: 0, y: 0, width: currentWidth, height: contentHeight)
+
+        // Notify SwiftUI about the height change
+        if let heightBinding = heightBinding {
+            DispatchQueue.main.async {
+                heightBinding.wrappedValue = contentHeight
+            }
+        }
     }
 
     private func highlightLatex(in text: String) -> NSAttributedString {
@@ -141,6 +195,9 @@ struct LatexTextEditor: NSViewRepresentable {
                 if selectedRange.location <= textView.string.count {
                     textView.setSelectedRange(selectedRange)
                 }
+
+                // Update text view height to fit new content
+                parent.updateTextViewHeight(textView)
             }
         }
 

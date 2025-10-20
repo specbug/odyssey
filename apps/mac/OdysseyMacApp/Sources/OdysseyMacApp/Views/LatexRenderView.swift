@@ -5,6 +5,11 @@ import WebKit
 /// Supports both inline ($...$) and block ($$...$$) LaTeX
 struct LatexRenderView: NSViewRepresentable {
     let text: String
+    var heightBinding: Binding<CGFloat>?
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
 
     func makeNSView(context: Context) -> WKWebView {
         let prefs = WKPreferences()
@@ -15,12 +20,39 @@ struct LatexRenderView: NSViewRepresentable {
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.setValue(false, forKey: "drawsBackground")
+        webView.navigationDelegate = context.coordinator
         return webView
     }
 
     func updateNSView(_ nsView: WKWebView, context: Context) {
         let html = generateHTML(with: text)
         nsView.loadHTMLString(html, baseURL: Bundle.module.resourceURL)
+    }
+
+    class Coordinator: NSObject, WKNavigationDelegate {
+        var parent: LatexRenderView
+
+        init(_ parent: LatexRenderView) {
+            self.parent = parent
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            // Calculate content height after page loads
+            webView.evaluateJavaScript("document.body.scrollHeight") { [weak self] result, error in
+                guard let self = self,
+                      let height = result as? CGFloat else { return }
+
+                // Add some padding
+                let contentHeight = height + 40
+
+                // Update SwiftUI
+                if let heightBinding = self.parent.heightBinding {
+                    DispatchQueue.main.async {
+                        heightBinding.wrappedValue = contentHeight
+                    }
+                }
+            }
+        }
     }
 
     private func generateHTML(with text: String) -> String {

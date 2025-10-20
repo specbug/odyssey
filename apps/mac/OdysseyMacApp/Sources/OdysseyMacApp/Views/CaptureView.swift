@@ -18,6 +18,8 @@ struct CaptureView: View {
     @State private var showSuccessFlash: Bool = false
     @State private var showTagCreator: Bool = false
     @State private var isPreviewMode: Bool = false
+    @State private var primaryTextHeight: CGFloat = 110
+    @State private var secondaryTextHeight: CGFloat = 140
     @FocusState private var focusedField: Field?
     @FocusState private var isPrimaryFocused: Bool
     @FocusState private var isSecondaryFocused: Bool
@@ -111,8 +113,8 @@ struct CaptureView: View {
                         if isPreviewMode {
                             // Preview mode - render LaTeX
                             if !primaryText.isEmpty {
-                                LatexRenderView(text: primaryText)
-                                    .frame(minHeight: 110)
+                                LatexRenderView(text: primaryText, heightBinding: $primaryTextHeight)
+                                    .frame(height: max(primaryTextHeight, 110), alignment: .topLeading)
                             } else {
                                 Text("Add the thought you want to keep...")
                                     .font(OdysseyFont.dr(22))
@@ -137,9 +139,10 @@ struct CaptureView: View {
                                     placeholder: "Add the thought you want to keep...",
                                     font: NSFont(name: "Dr", size: 22) ?? NSFont.systemFont(ofSize: 22),
                                     textColor: NSColor(OdysseyColor.ink),
-                                    latexColor: NSColor(OdysseyColor.browseColors[2])
+                                    latexColor: NSColor(OdysseyColor.browseColors[2]),
+                                    heightBinding: $primaryTextHeight
                                 )
-                                .frame(minHeight: 110)
+                                .frame(height: max(primaryTextHeight, 110), alignment: .topLeading)
                             }
                         }
 
@@ -155,8 +158,8 @@ struct CaptureView: View {
                         if isPreviewMode {
                             // Preview mode - render LaTeX
                             if !secondaryText.isEmpty {
-                                LatexRenderView(text: secondaryText)
-                                    .frame(minHeight: 140)
+                                LatexRenderView(text: secondaryText, heightBinding: $secondaryTextHeight)
+                                    .frame(height: max(secondaryTextHeight, 140), alignment: .topLeading)
                             } else {
                                 Text("Remember forever...")
                                     .font(OdysseyFont.dr(22))
@@ -181,9 +184,10 @@ struct CaptureView: View {
                                     placeholder: "Remember forever...",
                                     font: NSFont(name: "Dr", size: 22) ?? NSFont.systemFont(ofSize: 22),
                                     textColor: NSColor(OdysseyColor.ink),
-                                    latexColor: NSColor(OdysseyColor.browseColors[2])
+                                    latexColor: NSColor(OdysseyColor.browseColors[2]),
+                                    heightBinding: $secondaryTextHeight
                                 )
-                                .frame(minHeight: 140)
+                                .frame(height: max(secondaryTextHeight, 140), alignment: .topLeading)
                             }
                         }
 
@@ -341,7 +345,6 @@ struct CaptureView: View {
                         .disabled(!canSave || isSubmitting || showSuccessFlash)
                         .animation(.easeInOut(duration: 0.2), value: canSave)
                         .animation(.easeInOut(duration: 0.2), value: showSuccessFlash)
-                        .keyboardShortcut(.return, modifiers: .command)
                         .accessibilityLabel("Save Card")
                     }
                     .padding(.horizontal, OdysseySpacing.xxxxl.value)
