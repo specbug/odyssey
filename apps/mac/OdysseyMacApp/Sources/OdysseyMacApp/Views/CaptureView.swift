@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct CaptureView: View {
     @State private var primaryText: String = ""
@@ -20,6 +21,7 @@ struct CaptureView: View {
     @State private var isPreviewMode: Bool = false
     @State private var primaryTextHeight: CGFloat = 110
     @State private var secondaryTextHeight: CGFloat = 140
+    @State private var imageStore: [String: NSImage] = [:]  // UUID -> NSImage mapping
     @FocusState private var focusedField: Field?
     @FocusState private var isPrimaryFocused: Bool
     @FocusState private var isSecondaryFocused: Bool
@@ -111,10 +113,14 @@ struct CaptureView: View {
                     // Primary text field
                     VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
                         if isPreviewMode {
-                            // Preview mode - render LaTeX and cloze
+                            // Preview mode - render LaTeX, cloze, and images inline
                             if !primaryText.isEmpty {
-                                LatexRenderView(text: primaryText, clozeColor: "rgba(114, 174, 248, 0.35)", heightBinding: $primaryTextHeight)
-                                    .frame(height: max(primaryTextHeight, 110), alignment: .topLeading)
+                                InlineImageRenderer(
+                                    text: primaryText,
+                                    imageStore: imageStore,
+                                    clozeColor: "rgba(114, 174, 248, 0.35)"
+                                )
+                                .frame(minHeight: 110, alignment: .topLeading)
                             } else {
                                 Text("Add the thought you want to keep...")
                                     .font(OdysseyFont.dr(22))
@@ -123,7 +129,7 @@ struct CaptureView: View {
                                     .frame(minHeight: 110, alignment: .topLeading)
                             }
                         } else {
-                            // Edit mode - show syntax-highlighted editor
+                            // Edit mode - show syntax-highlighted editor with image markers
                             ZStack(alignment: .topLeading) {
                                 if primaryText.isEmpty {
                                     Text("Add the thought you want to keep...")
@@ -141,7 +147,10 @@ struct CaptureView: View {
                                     textColor: NSColor(OdysseyColor.ink),
                                     latexColor: NSColor(OdysseyColor.browseColors[0]),
                                     clozeColor: NSColor(OdysseyColor.browseColors[3]),
-                                    heightBinding: $primaryTextHeight
+                                    heightBinding: $primaryTextHeight,
+                                    onImagePasted: { image, uuid in
+                                        imageStore[uuid] = image
+                                    }
                                 )
                                 .frame(height: max(primaryTextHeight, 110), alignment: .topLeading)
                             }
@@ -157,10 +166,14 @@ struct CaptureView: View {
                     // Secondary text field
                     VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
                         if isPreviewMode {
-                            // Preview mode - render LaTeX and cloze
+                            // Preview mode - render LaTeX, cloze, and images inline
                             if !secondaryText.isEmpty {
-                                LatexRenderView(text: secondaryText, clozeColor: "rgba(114, 174, 248, 0.35)", heightBinding: $secondaryTextHeight)
-                                    .frame(height: max(secondaryTextHeight, 140), alignment: .topLeading)
+                                InlineImageRenderer(
+                                    text: secondaryText,
+                                    imageStore: imageStore,
+                                    clozeColor: "rgba(114, 174, 248, 0.35)"
+                                )
+                                .frame(minHeight: 140, alignment: .topLeading)
                             } else {
                                 Text("Remember forever...")
                                     .font(OdysseyFont.dr(22))
@@ -169,7 +182,7 @@ struct CaptureView: View {
                                     .frame(minHeight: 140, alignment: .topLeading)
                             }
                         } else {
-                            // Edit mode - show syntax-highlighted editor
+                            // Edit mode - show syntax-highlighted editor with image markers
                             ZStack(alignment: .topLeading) {
                                 if secondaryText.isEmpty {
                                     Text("Remember forever...")
@@ -187,7 +200,10 @@ struct CaptureView: View {
                                     textColor: NSColor(OdysseyColor.ink),
                                     latexColor: NSColor(OdysseyColor.browseColors[0]),
                                     clozeColor: NSColor(OdysseyColor.browseColors[3]),
-                                    heightBinding: $secondaryTextHeight
+                                    heightBinding: $secondaryTextHeight,
+                                    onImagePasted: { image, uuid in
+                                        imageStore[uuid] = image
+                                    }
                                 )
                                 .frame(height: max(secondaryTextHeight, 140), alignment: .topLeading)
                             }
@@ -395,6 +411,7 @@ struct CaptureView: View {
                 secondaryText = ""
                 source = ""
                 tag = ""
+                imageStore = [:]
 
                 withAnimation(.easeInOut(duration: 0.25)) {
                     showSuccessFlash = false
@@ -403,6 +420,172 @@ struct CaptureView: View {
                 focusedField = .primary
             }
         }
+    }
+}
+
+// MARK: - Inline Image Renderer
+
+private struct TextSegmentView: View {
+    let text: String
+    let clozeColor: String
+    @State private var contentHeight: CGFloat = 100
+
+    var body: some View {
+        LatexRenderView(
+            text: text,
+            clozeColor: clozeColor,
+            heightBinding: $contentHeight
+        )
+        .frame(height: max(contentHeight, 100))
+        .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
+
+private struct InlineImageRenderer: View {
+    let text: String
+    let imageStore: [String: NSImage]
+    let clozeColor: String
+
+    var body: some View {
+        let segments = parseAndMergeContent()
+
+        // Debug logging
+        print("📊 InlineImageRenderer - Segments: \(segments.count)")
+        for (index, segment) in segments.enumerated() {
+            switch segment {
+            case .text(let content):
+                print("  [\(index)] Text: \(content.prefix(50))...")
+            case .image(let uuid):
+                let found = imageStore[uuid] != nil
+                print("  [\(index)] Image: \(uuid.prefix(8))... (found: \(found))")
+            }
+        }
+        print("📦 ImageStore has \(imageStore.count) images")
+
+        return VStack(alignment: .leading, spacing: 0) {
+            ForEach(Array(segments.enumerated()), id: \.offset) { index, segment in
+                switch segment {
+                case .text(let content):
+                    // Use wrapper with height tracking
+                    TextSegmentView(
+                        text: content,
+                        clozeColor: clozeColor
+                    )
+                case .image(let uuid):
+                    if let image = imageStore[uuid] {
+                        // Get image size and calculate appropriate display size
+                        let imageSize = image.size
+                        let maxWidth: CGFloat = 450   // Increased for readability
+                        let maxHeight: CGFloat = 350  // Increased for readability
+
+                        let widthRatio = maxWidth / imageSize.width
+                        let heightRatio = maxHeight / imageSize.height
+                        let scale = min(widthRatio, heightRatio, 1.0) // Don't upscale
+
+                        let displayWidth = imageSize.width * scale
+                        let displayHeight = imageSize.height * scale
+
+                        Image(nsImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: displayWidth, height: displayHeight)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                            .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .stroke(OdysseyColor.border.opacity(0.2), lineWidth: 1)
+                            )
+                            .padding(.vertical, 4)
+                    } else {
+                        // Image not found in store - show placeholder
+                        Text("[Image not loaded: \(uuid.prefix(8))...]")
+                            .font(.system(size: 12))
+                            .foregroundColor(.gray)
+                            .padding(8)
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(4)
+                    }
+                }
+            }
+        }
+    }
+
+    private enum ContentSegment {
+        case text(String)
+        case image(String) // UUID
+    }
+
+    // Parse content and merge consecutive text segments
+    private func parseAndMergeContent() -> [ContentSegment] {
+        let rawSegments = parseRawSegments()
+        var mergedSegments: [ContentSegment] = []
+        var accumulatedText = ""
+
+        for segment in rawSegments {
+            switch segment {
+            case .text(let content):
+                // Accumulate text
+                accumulatedText += content
+            case .image(let uuid):
+                // Flush accumulated text before image
+                if !accumulatedText.isEmpty {
+                    mergedSegments.append(.text(accumulatedText))
+                    accumulatedText = ""
+                }
+                // Add image
+                mergedSegments.append(.image(uuid))
+            }
+        }
+
+        // Flush any remaining text
+        if !accumulatedText.isEmpty {
+            mergedSegments.append(.text(accumulatedText))
+        }
+
+        return mergedSegments.isEmpty ? [.text(text)] : mergedSegments
+    }
+
+    private func parseRawSegments() -> [ContentSegment] {
+        var segments: [ContentSegment] = []
+        let pattern = "\\[image:([a-fA-F0-9\\-]+)\\]"
+
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return [.text(text)]
+        }
+
+        let nsString = text as NSString
+        let range = NSRange(location: 0, length: nsString.length)
+        let matches = regex.matches(in: text, options: [], range: range)
+
+        var lastIndex = 0
+
+        for match in matches {
+            // Add text before the match
+            if match.range.location > lastIndex {
+                let textRange = NSRange(location: lastIndex, length: match.range.location - lastIndex)
+                let textContent = nsString.substring(with: textRange)
+                segments.append(.text(textContent))
+            }
+
+            // Add the image
+            if match.numberOfRanges > 1 {
+                let uuidRange = match.range(at: 1)
+                let uuid = nsString.substring(with: uuidRange)
+                segments.append(.image(uuid))
+            }
+
+            lastIndex = match.range.location + match.range.length
+        }
+
+        // Add any remaining text
+        if lastIndex < nsString.length {
+            let textRange = NSRange(location: lastIndex, length: nsString.length - lastIndex)
+            let textContent = nsString.substring(with: textRange)
+            segments.append(.text(textContent))
+        }
+
+        return segments
     }
 }
 

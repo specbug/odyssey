@@ -50,8 +50,8 @@ struct LatexRenderView: NSViewRepresentable {
                 guard let self = self,
                       let height = result as? CGFloat else { return }
 
-                // Add some padding
-                let contentHeight = height + 40
+                // Minimal padding since we reduced body padding to 4px
+                let contentHeight = height + 8
 
                 // Update SwiftUI
                 if let heightBinding = self.parent.heightBinding {
@@ -79,7 +79,7 @@ struct LatexRenderView: NSViewRepresentable {
             <script defer src="katex.min.js"></script>
             <style>
                 body {
-                    padding: 20px;
+                    padding: 4px 20px;
                     margin: 0;
                     background-color: transparent !important;
                     color: rgba(0, 0, 0, 0.8);

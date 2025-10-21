@@ -12,8 +12,10 @@ struct LatexTextEditor: NSViewRepresentable {
     let textColor: NSColor
     let latexColor: NSColor
     let clozeColor: NSColor
+    let imageColor: NSColor
     var focusState: FocusState<Bool>.Binding?
     var heightBinding: Binding<CGFloat>?
+    var onImagePasted: ((NSImage, String) -> Void)?  // Callback with image and UUID
 
     init(
         text: Binding<String>,
@@ -22,8 +24,10 @@ struct LatexTextEditor: NSViewRepresentable {
         textColor: NSColor = NSColor(red: 0, green: 0, blue: 0, alpha: 0.8),
         latexColor: NSColor = NSColor(red: 0xf5/255.0, green: 0x6b/255.0, blue: 0xb5/255.0, alpha: 1.0),
         clozeColor: NSColor = NSColor(red: 0x72/255.0, green: 0xae/255.0, blue: 0xf8/255.0, alpha: 1.0),
+        imageColor: NSColor = NSColor(red: 0x4a/255.0, green: 0xb8/255.0, blue: 0x7f/255.0, alpha: 1.0),
         focusState: FocusState<Bool>.Binding? = nil,
-        heightBinding: Binding<CGFloat>? = nil
+        heightBinding: Binding<CGFloat>? = nil,
+        onImagePasted: ((NSImage, String) -> Void)? = nil
     ) {
         self._text = text
         self.placeholder = placeholder
@@ -31,8 +35,10 @@ struct LatexTextEditor: NSViewRepresentable {
         self.textColor = textColor
         self.latexColor = latexColor
         self.clozeColor = clozeColor
+        self.imageColor = imageColor
         self.focusState = focusState
         self.heightBinding = heightBinding
+        self.onImagePasted = onImagePasted
     }
 
     func makeCoordinator() -> Coordinator {
@@ -48,8 +54,9 @@ struct LatexTextEditor: NSViewRepresentable {
         scrollView.autohidesScrollers = false
         scrollView.drawsBackground = false
 
-        // Create text view manually
-        let textView = NSTextView(frame: .zero)
+        // Create custom text view that handles image pasting
+        let textView = ImagePasteTextView(frame: .zero)
+        textView.coordinator = context.coordinator
 
         // Configure text view
         textView.delegate = context.coordinator
@@ -85,7 +92,10 @@ struct LatexTextEditor: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSScrollView, context: Context) {
-        guard let textView = nsView.documentView as? NSTextView else { return }
+        guard let textView = nsView.documentView as? ImagePasteTextView else { return }
+
+        // Update coordinator reference
+        textView.coordinator = context.coordinator
 
         // Only update if text changed from outside
         if textView.string != text {
@@ -141,6 +151,15 @@ struct LatexTextEditor: NSViewRepresentable {
         attributed.addAttribute(.font, value: font, range: range)
         attributed.addAttribute(.foregroundColor, value: textColor, range: range)
 
+        // Find and highlight image markers [image:uuid]
+        let imagePattern = #"\[image:[a-fA-F0-9\-]+\]"#
+        if let imageRegex = try? NSRegularExpression(pattern: imagePattern, options: []) {
+            let matches = imageRegex.matches(in: text, options: [], range: range)
+            for match in matches {
+                attributed.addAttribute(.foregroundColor, value: imageColor, range: match.range)
+            }
+        }
+
         // Find and highlight cloze deletions ({{c1::text}}, {{c2::text}}, etc.)
         let clozePattern = #"\{\{c\d+::[^}]+\}\}"#
         if let clozeRegex = try? NSRegularExpression(pattern: clozePattern, options: []) {
@@ -186,11 +205,92 @@ struct LatexTextEditor: NSViewRepresentable {
         return attributed
     }
 
+    // Custom NSTextView subclass that handles image pasting
+    class ImagePasteTextView: NSTextView {
+        weak var coordinator: Coordinator?
+
+        override func readSelection(from pboard: NSPasteboard, type: NSPasteboard.PasteboardType) -> Bool {
+            // Check explicitly for image types
+            let imageTypes: [NSPasteboard.PasteboardType] = [
+                .png,
+                .tiff,
+                NSPasteboard.PasteboardType("public.jpeg"),
+                NSPasteboard.PasteboardType("public.png"),
+                NSPasteboard.PasteboardType("public.tiff")
+            ]
+
+            // Check if pasteboard has any image type
+            var foundImage: NSImage?
+            for imageType in imageTypes {
+                if let _ = pboard.availableType(from: [imageType]) {
+                    if let data = pboard.data(forType: imageType),
+                       let image = NSImage(data: data) {
+                        foundImage = image
+                        break
+                    }
+                }
+            }
+
+            // Also try the generic NSImage initializer
+            if foundImage == nil {
+                foundImage = NSImage(pasteboard: pboard)
+            }
+
+            // If we found an image, handle it
+            if let image = foundImage, let coordinator = coordinator {
+                // Generate UUID for this image
+                let uuid = UUID().uuidString
+
+                // Insert marker at cursor position
+                let cursorPosition = self.selectedRange().location
+                let imageMarker = "[image:\(uuid)]"
+
+                // Insert the marker
+                if let textStorage = self.textStorage {
+                    let insertRange = NSRange(location: cursorPosition, length: 0)
+                    textStorage.replaceCharacters(in: insertRange, with: imageMarker)
+
+                    // Update coordinator's parent text
+                    coordinator.parent.text = self.string
+
+                    // Call callback to store the image
+                    coordinator.parent.onImagePasted?(image, uuid)
+
+                    // Reapply syntax highlighting
+                    let newCursorPosition = cursorPosition + imageMarker.count
+                    let highlighted = coordinator.parent.highlightLatex(in: self.string)
+                    textStorage.setAttributedString(highlighted)
+
+                    // Move cursor after the marker
+                    self.setSelectedRange(NSRange(location: newCursorPosition, length: 0))
+
+                    // Update height
+                    coordinator.parent.updateTextViewHeight(self)
+                }
+                return true // Image handled
+            }
+
+            // No image, use default behavior for text
+            return super.readSelection(from: pboard, type: type)
+        }
+
+        override var readablePasteboardTypes: [NSPasteboard.PasteboardType] {
+            var types = super.readablePasteboardTypes
+            // Add image types
+            types.append(NSPasteboard.PasteboardType.png)
+            types.append(NSPasteboard.PasteboardType.tiff)
+            types.append(NSPasteboard.PasteboardType("public.jpeg"))
+            types.append(NSPasteboard.PasteboardType("public.png"))
+            return types
+        }
+    }
+
     class Coordinator: NSObject, NSTextViewDelegate {
         var parent: LatexTextEditor
 
         init(_ parent: LatexTextEditor) {
             self.parent = parent
+            super.init()
         }
 
         func textDidChange(_ notification: Notification) {
