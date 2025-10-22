@@ -1,858 +1,521 @@
 import SwiftUI
 
 struct StudyView: View {
-    @State private var queue: [StudyCard] = StudyCard.samples
-    @State private var currentIndex: Int = 0
-    @State private var revealAnswer: Bool = false
-    @State private var completedCount: Int = 0
-    @State private var lastFeedback: StudyFeedback?
-    @State private var rescheduleDate: Date = Calendar.current.date(byAdding: .hour, value: 12, to: Date()) ?? Date()
-    @State private var isReschedulePresented: Bool = false
-    @State private var editingCard: StudyCard?
-    @State private var ratingHistory: [(card: StudyCard, rating: StudyRating)] = []
-    @State private var sessionStartTime: Date = Date()
-    @State private var correctCount: Int = 0
-
-    private var currentCard: StudyCard? {
-        guard !queue.isEmpty else { return nil }
-        return queue[currentIndex]
-    }
-
-    private var sessionAccuracy: Double {
-        guard completedCount > 0 else { return 0 }
-        return Double(correctCount) / Double(completedCount)
-    }
-
-    private var cardsPerMinute: Double {
-        let elapsed = Date().timeIntervalSince(sessionStartTime)
-        let minutes = max(elapsed / 60, 0.1)
-        return Double(completedCount) / minutes
-    }
+    @State private var cardsDueToday: Int = 12
+    @State private var cardsCompletedToday: Int = 5
+    @State private var showStudySession: Bool = false
+    @State private var network: OrganicNetwork = OrganicNetwork.generate(nodeCount: 12)
+    @State private var animateIn: Bool = false
 
     var body: some View {
-        ZStack(alignment: .top) {
+        ZStack {
             OdysseyColor.canvas
                 .ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: OdysseySpacing.lg.value) {
-                header(for: currentCard)
-
-                if let card = currentCard {
-                    progress(for: card)
-                    cardSurface(for: card)
-                    reviewControls(for: card)
-                } else {
-                    emptyState
-                }
+            VStack(spacing: 0) {
+                // Subtle header with time
+                headerView
+                    .padding(.top, OdysseySpacing.xxxl.value)
 
                 Spacer()
+
+                // Organic network visualization
+                networkVisualization
+
+                Spacer()
+
+                // Stats display
+                statsDisplay
+                    .padding(.bottom, OdysseySpacing.xxxl.value)
+
+                // Learn button
+                learnButton
+                    .padding(.bottom, OdysseySpacing.xxxl.value)
             }
+            .frame(maxWidth: 700)
             .padding(.horizontal, OdysseySpacing.xl.value)
-            .padding(.vertical, OdysseySpacing.xl.value)
-            .frame(maxWidth: 960, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .animation(.easeInOut(duration: 0.3), value: revealAnswer)
-        .animation(.easeInOut(duration: 0.3), value: queue.count)
-        .sheet(item: $editingCard) { card in
-            StudyCardEditor(card: card)
-        }
-        // Keyboard shortcuts
         .onAppear {
-            NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
-                handleKeyPress(event)
-                return event
+            withAnimation(.spring(response: 1.0, dampingFraction: 0.75).delay(0.2)) {
+                animateIn = true
             }
         }
     }
 
-    private func handleKeyPress(_ event: NSEvent) -> NSEvent? {
-        guard currentCard != nil else { return event }
-
-        // Space to reveal answer
-        if event.keyCode == 49 && !revealAnswer { // Space bar
-            withAnimation(.easeInOut(duration: 0.3)) {
-                revealAnswer = true
-            }
-            return nil
+    private var headerView: some View {
+        HStack {
+            Text(currentTimeString)
+                .font(OdysseyFont.dr(12, weight: .medium))
+                .foregroundStyle(OdysseyColor.mutedText)
+            Spacer()
         }
-
-        // ⌘Z for undo
-        if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "z" {
-            undoLastRating()
-            return nil
-        }
-
-        // ⌘E for edit
-        if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "e" {
-            if let card = currentCard {
-                editingCard = card
-            }
-            return nil
-        }
-
-        // Number keys 1-4 for ratings (only when answer revealed)
-        if revealAnswer {
-            switch event.charactersIgnoringModifiers {
-            case "1":
-                advance(with: .again)
-                return nil
-            case "2":
-                advance(with: .hard)
-                return nil
-            case "3":
-                advance(with: .good)
-                return nil
-            case "4":
-                advance(with: .easy)
-                return nil
-            default:
-                break
-            }
-        }
-
-        return event
+        .opacity(animateIn ? 1.0 : 0.0)
     }
 
-    private func header(for card: StudyCard?) -> some View {
-        HStack(alignment: .center, spacing: OdysseySpacing.lg.value) {
-            VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
-                Text("Today's Study")
-                    .font(OdysseyFont.dr(28, weight: .semibold))
+    private var currentTimeString: String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE, MMMM d"
+        return formatter.string(from: Date())
+    }
+
+    private var networkVisualization: some View {
+        OrganicNetworkView(
+            total: cardsDueToday,
+            completed: cardsCompletedToday,
+            network: network,
+            size: 450
+        )
+        .frame(height: 500)
+        .scaleEffect(animateIn ? 1.0 : 0.85)
+        .opacity(animateIn ? 1.0 : 0.0)
+    }
+
+    private var statsDisplay: some View {
+        VStack(spacing: OdysseySpacing.md.value) {
+            // Cards due
+            HStack(alignment: .firstTextBaseline, spacing: OdysseySpacing.sm.value) {
+                Text("\(cardsDueToday)")
+                    .font(OdysseyFont.dr(72, weight: .bold))
                     .foregroundStyle(OdysseyColor.ink)
 
-                HStack(spacing: OdysseySpacing.md.value) {
-                    Text(summaryLine)
-                        .font(OdysseyFont.dr(14))
-                        .foregroundStyle(OdysseyColor.mutedText)
-
-                    // Session stats
-                    if completedCount > 0 {
-                        Text("•")
-                            .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
-
-                        Text("\(Int(sessionAccuracy * 100))% accuracy")
-                            .font(OdysseyFont.dr(14, weight: .medium))
-                            .foregroundStyle(
-                                sessionAccuracy >= 0.8 ? Color.green.opacity(0.9) :
-                                sessionAccuracy >= 0.6 ? OdysseyColor.yellowAccent :
-                                OdysseyColor.accent
-                            )
-
-                        Text("•")
-                            .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
-
-                        Text(String(format: "%.1f cards/min", cardsPerMinute))
-                            .font(OdysseyFont.dr(14))
-                            .foregroundStyle(OdysseyColor.mutedText)
-                    }
-                }
+                Text(cardsDueToday == 1 ? "card due" : "cards due")
+                    .font(OdysseyFont.dr(20, weight: .medium))
+                    .foregroundStyle(OdysseyColor.mutedText)
             }
 
-            Spacer()
+            // Cards completed
+            if cardsCompletedToday > 0 {
+                Text("\(cardsCompletedToday) completed today")
+                    .font(OdysseyFont.dr(16))
+                    .foregroundStyle(OdysseyColor.mutedText)
+            }
+        }
+        .opacity(animateIn ? 1.0 : 0.0)
+        .animation(.easeOut(duration: 0.6).delay(0.4), value: animateIn)
+    }
 
+    private var learnButton: some View {
+        Button {
+            showStudySession = true
+        } label: {
             HStack(spacing: OdysseySpacing.sm.value) {
-                // Undo button
-                Button {
-                    undoLastRating()
-                } label: {
-                    Label("Undo", systemImage: "arrow.uturn.backward")
-                        .font(OdysseyFont.dr(13, weight: .medium))
-                }
-                .buttonStyle(
-                    OdysseyPillButtonStyle(
-                        background: OdysseyColor.surfaceSubtle,
-                        foreground: OdysseyColor.mutedText
-                    )
-                )
-                .disabled(ratingHistory.isEmpty)
-                .opacity(ratingHistory.isEmpty ? 0.4 : 1)
-                .help("⌘Z")
+                Text(cardsCompletedToday > 0 ? "Keep Learning" : "Learn")
+                    .font(OdysseyFont.dr(18, weight: .semibold))
+                Image(systemName: "arrow.right")
+                    .font(.system(size: 16, weight: .semibold))
+            }
+            .frame(minWidth: 240)
+        }
+        .buttonStyle(OdysseyPrimaryButtonStyle())
+        .opacity(animateIn ? 1.0 : 0.0)
+        .animation(.easeOut(duration: 0.6).delay(0.6), value: animateIn)
+        .sheet(isPresented: $showStudySession) {
+            StudySessionPlaceholder()
+        }
+    }
+}
 
-                Button {
-                    if let card {
-                        editingCard = card
-                    }
-                } label: {
-                    Label("View Card", systemImage: "doc.text.magnifyingglass")
-                        .font(OdysseyFont.dr(13, weight: .medium))
-                }
-                .buttonStyle(
-                    OdysseyPillButtonStyle(
-                        background: OdysseyColor.surfaceSubtle,
-                        foreground: OdysseyColor.mutedText
-                    )
-                )
-                .disabled(card == nil)
-                .opacity(card == nil ? 0.4 : 1)
-                .help("⌘E")
+// MARK: - Organic Network Visualization
 
-                Button {
-                    if card != nil {
-                        isReschedulePresented.toggle()
-                    }
-                } label: {
-                    Label("Reschedule", systemImage: "calendar.badge.clock")
-                        .font(OdysseyFont.dr(13, weight: .medium))
-                }
-                .buttonStyle(
-                    OdysseyPillButtonStyle(
-                        background: OdysseyColor.accent.opacity(0.12),
-                        foreground: OdysseyColor.accent
+struct OrganicNetworkView: View {
+    let total: Int
+    let completed: Int
+    let network: OrganicNetwork
+    let size: CGFloat
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1/60)) { timeline in
+            Canvas { context, canvasSize in
+                let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
+                let time = timeline.date.timeIntervalSinceReferenceDate
+
+                // Draw pathways first (background)
+                for pathway in network.pathways {
+                    drawPathway(
+                        context: context,
+                        pathway: pathway,
+                        center: center,
+                        time: time,
+                        isActive: pathway.fromIndex < completed || pathway.toIndex < completed
                     )
-                )
-                .disabled(card == nil)
-                .opacity(card == nil ? 0.4 : 1)
-                .popover(isPresented: $isReschedulePresented, arrowEdge: .top) {
-                    reschedulePopover
+                }
+
+                // Draw neurons on top
+                for (index, neuron) in network.neurons.enumerated() {
+                    drawNeuron(
+                        context: context,
+                        neuron: neuron,
+                        center: center,
+                        time: time,
+                        isActive: index < completed
+                    )
                 }
             }
+            .frame(width: size, height: size)
         }
     }
 
-    private var summaryLine: String {
-        let remaining = queue.count
-        let estimate = estimatedMinutes
-        return "\(remaining) cards • \(completedCount) completed • est. \(estimate) min"
-    }
+    private func drawPathway(
+        context: GraphicsContext,
+        pathway: Pathway,
+        center: CGPoint,
+        time: Double,
+        isActive: Bool
+    ) {
+        let from = network.neurons[pathway.fromIndex]
+        let to = network.neurons[pathway.toIndex]
 
-    private var reschedulePopover: some View {
-        VStack(alignment: .leading, spacing: OdysseySpacing.md.value) {
-            Text("Reschedule Review")
-                .font(OdysseyFont.dr(16, weight: .semibold))
-                .foregroundStyle(OdysseyColor.ink)
+        let startPoint = CGPoint(
+            x: center.x + from.x,
+            y: center.y + from.y
+        )
+        let endPoint = CGPoint(
+            x: center.x + to.x,
+            y: center.y + to.y
+        )
 
-            Text("Pick a new reminder time for this card.")
-                .font(OdysseyFont.dr(13))
-                .foregroundStyle(OdysseyColor.mutedText)
-
-            DatePicker(
-                "Next review",
-                selection: $rescheduleDate,
-                displayedComponents: [.date, .hourAndMinute]
+        // Create curved path
+        var path = Path()
+        path.move(to: startPoint)
+        path.addCurve(
+            to: endPoint,
+            control1: CGPoint(
+                x: startPoint.x + pathway.controlPoint1.x,
+                y: startPoint.y + pathway.controlPoint1.y
+            ),
+            control2: CGPoint(
+                x: endPoint.x + pathway.controlPoint2.x,
+                y: endPoint.y + pathway.controlPoint2.y
             )
-            .datePickerStyle(.field)
-
-            Button("Save") {
-                isReschedulePresented = false
-            }
-            .buttonStyle(OdysseyPrimaryButtonStyle(cornerRadius: OdysseyRadius.sm.value))
-            .frame(maxWidth: .infinity, alignment: .trailing)
-        }
-        .padding(OdysseySpacing.lg.value)
-        .frame(width: 280)
-    }
-
-    private func progress(for card: StudyCard) -> some View {
-        HStack(spacing: OdysseySpacing.lg.value) {
-            // Progress ring
-            ZStack {
-                Circle()
-                    .stroke(OdysseyColor.border, lineWidth: 4)
-                    .frame(width: 60, height: 60)
-
-                Circle()
-                    .trim(from: 0, to: CGFloat(completedCount) / CGFloat(max(completedCount + queue.count, 1)))
-                    .stroke(
-                        LinearGradient(
-                            colors: [OdysseyColor.accent, OdysseyColor.accentHover],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ),
-                        style: StrokeStyle(lineWidth: 4, lineCap: .round)
-                    )
-                    .frame(width: 60, height: 60)
-                    .rotationEffect(.degrees(-90))
-                    .animation(.spring(response: 0.6, dampingFraction: 0.8), value: completedCount)
-
-                Text("\(Int((Double(completedCount) / Double(max(completedCount + queue.count, 1))) * 100))%")
-                    .font(OdysseyFont.dr(13, weight: .bold))
-                    .foregroundStyle(OdysseyColor.accent)
-            }
-
-            VStack(alignment: .leading, spacing: OdysseySpacing.xxs.value) {
-                Text("Card \(currentIndex + 1) of \(max(queue.count, 1))")
-                    .font(OdysseyFont.dr(13, weight: .medium))
-                    .foregroundStyle(OdysseyColor.mutedText)
-
-                Text(card.deck)
-                    .font(OdysseyFont.dr(12, weight: .medium))
-                    .foregroundStyle(OdysseyColor.mutedText)
-                    .padding(.horizontal, OdysseySpacing.sm.value)
-                    .padding(.vertical, OdysseySpacing.xxs.value)
-                    .background(
-                        Capsule()
-                            .fill(OdysseyColor.surfaceSubtle)
-                    )
-            }
-        }
-    }
-
-    private func cardSurface(for card: StudyCard) -> some View {
-        VStack(alignment: .leading, spacing: OdysseySpacing.lg.value) {
-            HStack(alignment: .center) {
-                Text(card.deck.uppercased())
-                    .font(OdysseyFont.dr(11, weight: .medium))
-                    .foregroundStyle(OdysseyColor.mutedText)
-                Spacer()
-                statusBadge(for: card)
-            }
-
-            // Question - LARGE FONT
-            Text(card.front)
-                .font(OdysseyFont.dr(34, weight: .semibold))
-                .foregroundStyle(OdysseyColor.ink)
-                .multilineTextAlignment(.leading)
-                .lineSpacing(4)
-
-            if revealAnswer {
-                Divider()
-                    .padding(.vertical, OdysseySpacing.sm.value)
-
-                // Answer - LARGE FONT
-                VStack(alignment: .leading, spacing: OdysseySpacing.md.value) {
-                    Text(card.back)
-                        .font(OdysseyFont.dr(26))
-                        .foregroundStyle(OdysseyColor.ink)
-                        .lineSpacing(3)
-
-                    Label(card.source, systemImage: "link")
-                        .font(OdysseyFont.dr(13))
-                        .foregroundStyle(OdysseyColor.mutedText)
-
-                    if let note = card.note, !note.isEmpty {
-                        VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
-                            Text("Note")
-                                .font(OdysseyFont.dr(12, weight: .medium))
-                                .foregroundStyle(OdysseyColor.mutedText)
-                                .textCase(.uppercase)
-                            Text(note)
-                                .font(OdysseyFont.dr(14))
-                                .foregroundStyle(OdysseyColor.mutedText)
-                        }
-                        .padding(.top, OdysseySpacing.sm.value)
-                    }
-                }
-            } else {
-                Text("Press Space or click button to reveal the answer.")
-                    .font(OdysseyFont.dr(15))
-                    .foregroundStyle(OdysseyColor.mutedText)
-                    .padding(.top, OdysseySpacing.sm.value)
-            }
-        }
-        .padding(OdysseySpacing.xxxl.value)
-        .frame(maxWidth: .infinity, minHeight: 360, alignment: .topLeading)
-        .background(
-            RoundedRectangle(cornerRadius: OdysseyRadius.lg.value, style: .continuous)
-                .fill(OdysseyColor.surface)
         )
-        .overlay(
-            RoundedRectangle(cornerRadius: OdysseyRadius.lg.value, style: .continuous)
-                .stroke(OdysseyColor.border, lineWidth: 1)
+
+        // Draw pathway with electric cyan colors
+        let pathColor = isActive ?
+            Color(red: 0, green: 0.8, blue: 1.0, opacity: 0.6) :
+            Color(red: 0.3, green: 0.35, blue: 0.45, opacity: 0.3)
+
+        context.stroke(
+            path,
+            with: .color(pathColor),
+            lineWidth: isActive ? 2.5 : 1.5
         )
-        .shadow(color: OdysseyColor.shadow, radius: 26, y: 18)
-        .transition(.opacity.combined(with: .scale(scale: 0.98)))
-    }
 
-    private func statusBadge(for card: StudyCard) -> some View {
-        Text(card.statusLabel.uppercased())
-            .font(OdysseyFont.dr(11, weight: .medium))
-            .padding(.horizontal, OdysseySpacing.sm.value)
-            .padding(.vertical, OdysseySpacing.xxs.value)
-            .background(card.statusBackground)
-            .clipShape(Capsule())
-            .foregroundStyle(card.statusForeground)
-    }
+        // Draw pulses along active pathways
+        if isActive {
+            for pulse in pathway.pulses {
+                let adjustedProgress = (pulse.progress + time * 0.18).truncatingRemainder(dividingBy: 1.0)
+                let point = bezierPoint(
+                    start: startPoint,
+                    control1: CGPoint(
+                        x: startPoint.x + pathway.controlPoint1.x,
+                        y: startPoint.y + pathway.controlPoint1.y
+                    ),
+                    control2: CGPoint(
+                        x: endPoint.x + pathway.controlPoint2.x,
+                        y: endPoint.y + pathway.controlPoint2.y
+                    ),
+                    end: endPoint,
+                    t: adjustedProgress
+                )
 
-    private func reviewControls(for card: StudyCard) -> some View {
-        VStack(alignment: .leading, spacing: OdysseySpacing.lg.value) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    revealAnswer.toggle()
-                }
-            } label: {
-                HStack {
-                    Spacer()
-                    HStack(spacing: OdysseySpacing.xs.value) {
-                        if !revealAnswer {
-                            Text("Show Answer")
-                            Image(systemName: "eye")
-                        } else {
-                            Text("Hide Answer")
-                            Image(systemName: "eye.slash")
-                        }
-                    }
-                    .font(OdysseyFont.dr(16, weight: .medium))
-                    Spacer()
-                }
-            }
-            .buttonStyle(OdysseyPrimaryButtonStyle())
-            .frame(maxWidth: 320)
-            .help("Space")
+                let pulseSize: CGFloat = 3.5
+                let pulseOpacity = 1.0 - abs(adjustedProgress - 0.5) * 2
 
-            if let feedback = lastFeedback {
-                FeedbackBanner(feedback: feedback)
-            }
+                // Outer electric glow
+                context.fill(
+                    Circle().path(in: CGRect(
+                        x: point.x - pulseSize * 2,
+                        y: point.y - pulseSize * 2,
+                        width: pulseSize * 4,
+                        height: pulseSize * 4
+                    )),
+                    with: .color(Color(red: 0, green: 0.8, blue: 1.0, opacity: pulseOpacity * 0.25))
+                )
 
-            if revealAnswer {
-                ratingButtons
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                // Bright cyan core
+                context.fill(
+                    Circle().path(in: CGRect(
+                        x: point.x - pulseSize / 2,
+                        y: point.y - pulseSize / 2,
+                        width: pulseSize,
+                        height: pulseSize
+                    )),
+                    with: .color(Color(red: 0, green: 1.0, blue: 1.0, opacity: pulseOpacity))
+                )
             }
         }
     }
 
-    private var ratingButtons: some View {
-        VStack(spacing: OdysseySpacing.xs.value) {
-            // Keyboard hints
-            HStack(spacing: OdysseySpacing.xs.value) {
-                Text("Keyboard:")
-                    .font(OdysseyFont.dr(12, weight: .medium))
-                    .foregroundStyle(OdysseyColor.mutedText)
-                Text("1")
-                    .font(OdysseyFont.dr(11, weight: .medium))
-                    .foregroundStyle(OdysseyColor.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(OdysseyColor.mutedText.opacity(0.6)))
-                Text("2")
-                    .font(OdysseyFont.dr(11, weight: .medium))
-                    .foregroundStyle(OdysseyColor.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(OdysseyColor.mutedText.opacity(0.6)))
-                Text("3")
-                    .font(OdysseyFont.dr(11, weight: .medium))
-                    .foregroundStyle(OdysseyColor.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(OdysseyColor.mutedText.opacity(0.6)))
-                Text("4")
-                    .font(OdysseyFont.dr(11, weight: .medium))
-                    .foregroundStyle(OdysseyColor.white)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Capsule().fill(OdysseyColor.mutedText.opacity(0.6)))
-            }
-            .frame(maxWidth: .infinity, alignment: .center)
+    private func drawNeuron(
+        context: GraphicsContext,
+        neuron: Neuron,
+        center: CGPoint,
+        time: Double,
+        isActive: Bool
+    ) {
+        let position = CGPoint(
+            x: center.x + neuron.x,
+            y: center.y + neuron.y
+        )
 
-            HStack(spacing: OdysseySpacing.md.value) {
-                ForEach(StudyRating.allCases) { rating in
-                    Button {
-                        advance(with: rating)
-                    } label: {
-                        VStack(spacing: OdysseySpacing.xs.value) {
-                            Text(rating.title)
-                                .font(OdysseyFont.dr(17, weight: .semibold))
-                                .foregroundStyle(rating.foreground)
-                            Text(rating.subtitle)
-                                .font(OdysseyFont.dr(13))
-                                .foregroundStyle(OdysseyColor.mutedText)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, OdysseySpacing.md.value)
-                        .background(
-                            RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                                .fill(rating.background)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                                .stroke(rating.border, lineWidth: 1.5)
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+        let pulse = sin(time * 2 + neuron.phase) * 0.5 + 0.5
+        // Subtle size variation based on neuron's phase
+        let sizeVariation = neuron.size
+        let baseSize: CGFloat = 16 + sizeVariation * 4
+        let neuronSize = baseSize + (isActive ? pulse * 3 : 0)
+
+        // Electric cyan outer glow for active neurons
+        if isActive {
+            let glowSize = neuronSize * 3
+            context.fill(
+                Circle().path(in: CGRect(
+                    x: position.x - glowSize / 2,
+                    y: position.y - glowSize / 2,
+                    width: glowSize,
+                    height: glowSize
+                )),
+                with: .color(Color(red: 0, green: 0.8, blue: 1.0, opacity: pulse * 0.15))
+            )
         }
+
+        // Middle ring with electric cyan
+        let midSize = neuronSize * 1.8
+        let midOpacity = isActive ? 0.4 : 0.1
+        context.fill(
+            Circle().path(in: CGRect(
+                x: position.x - midSize / 2,
+                y: position.y - midSize / 2,
+                width: midSize,
+                height: midSize
+            )),
+            with: .color(isActive ?
+                Color(red: 0, green: 0.8, blue: 1.0, opacity: midOpacity) :
+                Color(red: 0.35, green: 0.4, blue: 0.5, opacity: midOpacity)
+            )
+        )
+
+        // Outer circle
+        let outerColor = isActive ?
+            Color(red: 0.2, green: 0.6, blue: 1.0, opacity: 0.6) :
+            Color(red: 0.35, green: 0.4, blue: 0.5, opacity: 0.3)
+
+        context.fill(
+            Circle().path(in: CGRect(
+                x: position.x - neuronSize / 2,
+                y: position.y - neuronSize / 2,
+                width: neuronSize,
+                height: neuronSize
+            )),
+            with: .color(outerColor)
+        )
+
+        // Inner core - bright electric cyan
+        let coreSize = neuronSize * 0.5
+        let coreColor = isActive ?
+            Color(red: 0, green: 1.0, blue: 1.0, opacity: 0.9) :
+            Color(red: 0.4, green: 0.45, blue: 0.55, opacity: 0.5)
+
+        context.fill(
+            Circle().path(in: CGRect(
+                x: position.x - coreSize / 2,
+                y: position.y - coreSize / 2,
+                width: coreSize,
+                height: coreSize
+            )),
+            with: .color(coreColor)
+        )
     }
 
-    private var emptyState: some View {
-        VStack(spacing: OdysseySpacing.md.value) {
-            Text("You're up to date!")
-                .font(OdysseyFont.dr(24, weight: .semibold))
+    private func bezierPoint(
+        start: CGPoint,
+        control1: CGPoint,
+        control2: CGPoint,
+        end: CGPoint,
+        t: Double
+    ) -> CGPoint {
+        let t2 = t * t
+        let t3 = t2 * t
+        let mt = 1 - t
+        let mt2 = mt * mt
+        let mt3 = mt2 * mt
+
+        return CGPoint(
+            x: mt3 * start.x + 3 * mt2 * t * control1.x + 3 * mt * t2 * control2.x + t3 * end.x,
+            y: mt3 * start.y + 3 * mt2 * t * control1.y + 3 * mt * t2 * control2.y + t3 * end.y
+        )
+    }
+}
+
+// MARK: - Circular Progress Indicator
+
+struct CircularProgressIndicator: View {
+    let total: Int
+    let completed: Int
+    @State private var glowPulse: Bool = false
+
+    private var progress: Double {
+        guard total > 0 else { return 0 }
+        return Double(completed) / Double(total)
+    }
+
+    private var percentage: Int {
+        Int(progress * 100)
+    }
+
+    var body: some View {
+        // Subtle percentage text with gentle glow pulse
+        if completed > 0 {
+            Text("\(percentage)%")
+                .font(OdysseyFont.dr(22, weight: .medium))
+                .foregroundStyle(Color(red: 0, green: 0.85, blue: 1.0))
+                .shadow(color: Color(red: 0, green: 0.8, blue: 1.0).opacity(glowPulse ? 0.5 : 0.3), radius: glowPulse ? 12 : 8)
+                .onAppear {
+                    withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) {
+                        glowPulse = true
+                    }
+                }
+        }
+    }
+}
+
+// MARK: - Data Models
+
+struct Neuron {
+    let x: CGFloat
+    let y: CGFloat
+    let phase: Double
+    let size: CGFloat  // Subtle size variation (0.0 to 1.0)
+}
+
+struct Pulse {
+    let progress: Double
+}
+
+struct Pathway {
+    let fromIndex: Int
+    let toIndex: Int
+    let controlPoint1: CGPoint
+    let controlPoint2: CGPoint
+    let pulses: [Pulse]
+}
+
+struct OrganicNetwork {
+    let neurons: [Neuron]
+    let pathways: [Pathway]
+
+    static func generate(nodeCount: Int) -> OrganicNetwork {
+        var neurons: [Neuron] = []
+        let radius: CGFloat = 195  // Increased for more spacing
+
+        // Generate neurons with more organic spread
+        for i in 0..<nodeCount {
+            let angle = Double(i) * (2 * .pi / Double(nodeCount)) + Double.random(in: -0.4...0.4)
+            // Variable distance creates more organic clustering
+            let distanceVariation = Double.random(in: 0...1)
+            let distance = radius * (0.6 + distanceVariation * 0.4)
+
+            // Asymmetric bias for more natural positioning
+            let xBias = Double.random(in: -35...35)
+            let yBias = Double.random(in: -35...35)
+
+            neurons.append(Neuron(
+                x: cos(angle) * distance + xBias,
+                y: sin(angle) * distance + yBias,
+                phase: Double.random(in: 0...(2 * .pi)),
+                size: CGFloat.random(in: 0...1)
+            ))
+        }
+
+        // Generate pathways with reduced density
+        var pathways: [Pathway] = []
+        var connections: Set<String> = []
+
+        for i in 0..<nodeCount {
+            let connectionCount = Int.random(in: 1...3)  // Reduced from 2-4
+
+            for _ in 0..<connectionCount {
+                var targetIndex = Int.random(in: 0..<nodeCount)
+                while targetIndex == i {
+                    targetIndex = Int.random(in: 0..<nodeCount)
+                }
+
+                let connectionKey = "\(min(i, targetIndex))-\(max(i, targetIndex))"
+                if connections.contains(connectionKey) {
+                    continue
+                }
+                connections.insert(connectionKey)
+
+                let from = neurons[i]
+                let to = neurons[targetIndex]
+
+                let midX = (to.x - from.x) / 2
+                let midY = (to.y - from.y) / 2
+                let perpX = -midY
+                let perpY = midX
+
+                // More organic, dendrite-like curves with asymmetry
+                let curvature1 = Double.random(in: 0.2...0.5)
+                let curvature2 = Double.random(in: 0.2...0.5)
+                let cp1Offset = Double.random(in: 0.3...0.6)
+                let cp2Offset = Double.random(in: 0.4...0.7)
+
+                let cp1 = CGPoint(
+                    x: midX * cp1Offset + perpX * curvature1 + Double.random(in: -15...15),
+                    y: midY * cp1Offset + perpY * curvature1 + Double.random(in: -15...15)
+                )
+                let cp2 = CGPoint(
+                    x: midX * cp2Offset - perpX * curvature2 + Double.random(in: -15...15),
+                    y: midY * cp2Offset - perpY * curvature2 + Double.random(in: -15...15)
+                )
+
+                // Fewer pulses per pathway
+                var pulses: [Pulse] = []
+                let pulseCount = Int.random(in: 1...2)  // Reduced from 2-4
+                for j in 0..<pulseCount {
+                    pulses.append(Pulse(
+                        progress: Double(j) / Double(pulseCount)
+                    ))
+                }
+
+                pathways.append(Pathway(
+                    fromIndex: i,
+                    toIndex: targetIndex,
+                    controlPoint1: cp1,
+                    controlPoint2: cp2,
+                    pulses: pulses
+                ))
+            }
+        }
+
+        return OrganicNetwork(neurons: neurons, pathways: pathways)
+    }
+}
+
+// MARK: - Placeholder Study Session
+
+struct StudySessionPlaceholder: View {
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: OdysseySpacing.lg.value) {
+            Text("Study Session")
+                .font(OdysseyFont.dr(28, weight: .semibold))
                 .foregroundStyle(OdysseyColor.ink)
 
-            Text("No cards are scheduled for review right now. Add something new or browse existing cards.")
+            Text("The card-by-card study interface will go here.")
                 .font(OdysseyFont.dr(14))
                 .foregroundStyle(OdysseyColor.mutedText)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 320)
 
-            Button {
-                reloadSamples()
-            } label: {
-                Label("Load sample session", systemImage: "arrow.clockwise")
-                    .font(OdysseyFont.dr(13, weight: .medium))
+            Button("Close") {
+                dismiss()
             }
-            .buttonStyle(
-                OdysseyPillButtonStyle(
-                    background: OdysseyColor.surfaceSubtle,
-                    foreground: OdysseyColor.mutedText
-                )
-            )
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-    }
-
-    private var estimatedMinutes: Int {
-        max(Int(round(Double(queue.count) * 1.1)), queue.isEmpty ? 0 : 1)
-    }
-
-    private func reloadSamples() {
-        queue = StudyCard.samples
-        currentIndex = 0
-        completedCount = 0
-        correctCount = 0
-        revealAnswer = false
-        lastFeedback = nil
-        ratingHistory.removeAll()
-        sessionStartTime = Date()
-    }
-
-    private func undoLastRating() {
-        guard !ratingHistory.isEmpty else { return }
-
-        let lastEntry = ratingHistory.removeLast()
-
-        // Add card back to queue at current position
-        queue.insert(lastEntry.card, at: currentIndex)
-
-        // Adjust stats
-        completedCount -= 1
-        if lastEntry.rating == .good || lastEntry.rating == .easy {
-            correctCount -= 1
-        }
-
-        // Clear feedback
-        lastFeedback = nil
-        revealAnswer = false
-    }
-
-    private func advance(with rating: StudyRating) {
-        guard !queue.isEmpty else { return }
-
-        var updated = queue
-        let card = updated.remove(at: currentIndex)
-
-        // Track for undo
-        ratingHistory.append((card: card, rating: rating))
-
-        // Update stats
-        if rating == .good || rating == .easy {
-            correctCount += 1
-        }
-
-        queue = updated
-        completedCount += 1
-        lastFeedback = card.feedback(for: rating)
-
-        if updated.isEmpty {
-            currentIndex = 0
-            revealAnswer = false
-            return
-        }
-
-        currentIndex = currentIndex % updated.count
-        revealAnswer = false
-    }
-}
-
-private enum StudyRating: CaseIterable, Identifiable {
-    case again, hard, good, easy
-
-    var id: Self { self }
-
-    var title: String {
-        switch self {
-        case .again: return "Again"
-        case .hard: return "Hard"
-        case .good: return "Good"
-        case .easy: return "Easy"
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .again: return "Repeat soon"
-        case .hard: return "Later today"
-        case .good: return "Tomorrow"
-        case .easy: return "In a few days"
-        }
-    }
-
-    var background: Color {
-        switch self {
-        case .again:
-            return OdysseyColor.accent.opacity(0.14)
-        case .hard:
-            return OdysseyColor.yellowAccent.opacity(0.18)
-        case .good:
-            return Color(red: 0.84, green: 0.93, blue: 0.86)
-        case .easy:
-            return Color(red: 0.85, green: 0.9, blue: 0.97)
-        }
-    }
-
-    var border: Color {
-        switch self {
-        case .again:
-            return OdysseyColor.accent.opacity(0.4)
-        case .hard:
-            return OdysseyColor.yellowAccent.opacity(0.4)
-        case .good:
-            return Color(red: 0.63, green: 0.8, blue: 0.66)
-        case .easy:
-            return Color(red: 0.58, green: 0.72, blue: 0.89)
-        }
-    }
-
-    var foreground: Color {
-        switch self {
-        case .again:
-            return OdysseyColor.accent
-        case .hard:
-            return OdysseyColor.secondaryText
-        case .good:
-            return Color(red: 0.27, green: 0.56, blue: 0.36)
-        case .easy:
-            return Color(red: 0.24, green: 0.44, blue: 0.71)
-        }
-    }
-}
-
-struct StudyCard: Identifiable {
-    enum Status {
-        case learning
-        case review(dueDescription: String)
-    }
-
-    let id = UUID()
-    var deck: String
-    var front: String
-    var back: String
-    var source: String
-    var note: String?
-    var status: Status
-
-    var statusLabel: String {
-        switch status {
-        case .learning:
-            return "Learning"
-        case .review(let due):
-            return due
-        }
-    }
-
-    var statusForeground: Color {
-        switch status {
-        case .learning:
-            return OdysseyColor.secondaryText
-        case .review:
-            return OdysseyColor.accent
-        }
-    }
-
-    var statusBackground: Color {
-        switch status {
-        case .learning:
-            return OdysseyColor.yellowAccent.opacity(0.22)
-        case .review:
-            return OdysseyColor.accent.opacity(0.16)
-        }
-    }
-
-    fileprivate func feedback(for rating: StudyRating) -> StudyFeedback {
-        switch rating {
-        case .again:
-            return StudyFeedback(
-                title: "Marked Again",
-                detail: "This card will resurface in a few minutes.",
-                accent: OdysseyColor.accent
-            )
-        case .hard:
-            return StudyFeedback(
-                title: "Marked Hard",
-                detail: "Scheduled later today with a shorter interval.",
-                accent: OdysseyColor.yellowAccent
-            )
-        case .good:
-            return StudyFeedback(
-                title: "Marked Good",
-                detail: "Expect to see it again tomorrow.",
-                accent: Color(red: 0.27, green: 0.56, blue: 0.36)
-            )
-        case .easy:
-            return StudyFeedback(
-                title: "Marked Easy",
-                detail: "Confidence logged—next review in several days.",
-                accent: Color(red: 0.24, green: 0.44, blue: 0.71)
-            )
-        }
-    }
-}
-
-extension StudyCard {
-    static let samples: [StudyCard] = [
-        .init(
-            deck: "FSRS Fundamentals",
-            front: "Define the forgetting curve in one sentence.",
-            back: "The forgetting curve models how recall probability decays exponentially after learning unless refreshed by review.",
-            source: "Space Repetition Fundamentals · p.42",
-            note: "Mention Ebbinghaus if helpful.",
-            status: .review(dueDescription: "Due now")
-        ),
-        .init(
-            deck: "Design Systems",
-            front: "List the core Odyssey design tokens used across surfaces.",
-            back: "Canvas, Surface, Surface Subtle, Border, Ink, Accent, Muted Text.",
-            source: "Odyssey design tokens",
-            note: nil,
-            status: .learning
-        ),
-        .init(
-            deck: "GPU Notes",
-            front: "Why does shared memory matter for CUDA kernels?",
-            back: "Shared memory enables low-latency data exchange between threads in a block, reducing expensive global memory access.",
-            source: "CUDA Crash Course · section 3",
-            note: "Highlight 'low latency' and 'thread blocks'.",
-            status: .review(dueDescription: "In 8 hr")
-        )
-    ]
-}
-
-private struct StudyFeedback: Identifiable {
-    let id = UUID()
-    let title: String
-    let detail: String
-    let accent: Color
-}
-
-private struct FeedbackBanner: View {
-    let feedback: StudyFeedback
-
-    var body: some View {
-        HStack(spacing: OdysseySpacing.md.value) {
-            Circle()
-                .fill(feedback.accent)
-                .frame(width: 12, height: 12)
-
-            VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
-                Text(feedback.title)
-                    .font(OdysseyFont.dr(14, weight: .medium))
-                    .foregroundStyle(OdysseyColor.ink)
-                Text(feedback.detail)
-                    .font(OdysseyFont.dr(12))
-                    .foregroundStyle(OdysseyColor.mutedText)
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, OdysseySpacing.lg.value)
-        .padding(.vertical, OdysseySpacing.sm.value)
-        .background(
-            RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                .fill(OdysseyColor.surface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                .stroke(OdysseyColor.border, lineWidth: 1)
-        )
-        .shadow(color: OdysseyColor.shadow, radius: 18, y: 12)
-    }
-}
-
-private struct StudyCardEditor: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var card: StudyCard
-    @State private var front: String
-    @State private var back: String
-    @State private var note: String
-
-    init(card: StudyCard) {
-        self.card = card
-        _front = State(initialValue: card.front)
-        _back = State(initialValue: card.back)
-        _note = State(initialValue: card.note ?? "")
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: OdysseySpacing.lg.value) {
-            Text("Edit Card")
-                .font(OdysseyFont.dr(20, weight: .semibold))
-                .foregroundStyle(OdysseyColor.ink)
-
-            Text("Make quick edits to the prompt or answer, then copy them into Add to persist changes.")
-                .font(OdysseyFont.dr(13))
-                .foregroundStyle(OdysseyColor.mutedText)
-
-            VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
-                Text("Question")
-                    .font(OdysseyFont.dr(12, weight: .medium))
-                    .foregroundStyle(OdysseyColor.mutedText)
-                TextEditor(text: $front)
-                    .font(OdysseyFont.dr(14))
-                    .padding(OdysseySpacing.md.value)
-                    .background(
-                        RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                            .fill(OdysseyColor.surfaceSubtle)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                            .stroke(OdysseyColor.border, lineWidth: 1)
-                    )
-                    .frame(minHeight: 120)
-                    .scrollContentBackground(.hidden)
-            }
-
-            VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
-                Text("Answer")
-                    .font(OdysseyFont.dr(12, weight: .medium))
-                    .foregroundStyle(OdysseyColor.mutedText)
-                TextEditor(text: $back)
-                    .font(OdysseyFont.dr(14))
-                    .padding(OdysseySpacing.md.value)
-                    .background(
-                        RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                            .fill(OdysseyColor.surfaceSubtle)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                            .stroke(OdysseyColor.border, lineWidth: 1)
-                    )
-                    .frame(minHeight: 160)
-                    .scrollContentBackground(.hidden)
-            }
-
-            VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
-                Text("Notes")
-                    .font(OdysseyFont.dr(12, weight: .medium))
-                    .foregroundStyle(OdysseyColor.mutedText)
-                TextEditor(text: $note)
-                    .font(OdysseyFont.dr(14))
-                    .padding(OdysseySpacing.md.value)
-                    .background(
-                        RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                            .fill(OdysseyColor.surfaceSubtle)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                            .stroke(OdysseyColor.border, lineWidth: 1)
-                    )
-                    .frame(minHeight: 100)
-                    .scrollContentBackground(.hidden)
-            }
-
-            HStack {
-                Spacer()
-                Button("Done") {
-                    dismiss()
-                }
-                .buttonStyle(OdysseyPrimaryButtonStyle())
-            }
+            .buttonStyle(OdysseyPrimaryButtonStyle())
         }
         .padding(OdysseySpacing.xl.value)
-        .frame(minWidth: 540, minHeight: 620)
-        .background(OdysseyColor.surface)
+        .frame(minWidth: 500, minHeight: 400)
+        .background(OdysseyColor.canvas)
     }
 }
 
