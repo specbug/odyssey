@@ -7,11 +7,17 @@ import WebKit
 struct LatexRenderView: NSViewRepresentable {
     let text: String
     let clozeColor: String
+    let textColor: Color
+    let fontSize: CGFloat
+    let fontWeight: Int
     var heightBinding: Binding<CGFloat>?
 
-    init(text: String, clozeColor: String = "rgba(114, 174, 248, 0.35)", heightBinding: Binding<CGFloat>? = nil) {
+    init(text: String, clozeColor: String = "rgba(114, 174, 248, 0.35)", textColor: Color = .primary, fontSize: CGFloat = 22, fontWeight: Int = 400, heightBinding: Binding<CGFloat>? = nil) {
         self.text = text
         self.clozeColor = clozeColor
+        self.textColor = textColor
+        self.fontSize = fontSize
+        self.fontWeight = fontWeight
         self.heightBinding = heightBinding
     }
 
@@ -69,6 +75,9 @@ struct LatexRenderView: NSViewRepresentable {
             .replacingOccurrences(of: "\\", with: "\\\\")
             .replacingOccurrences(of: "`", with: "\\`")
 
+        // Convert SwiftUI Color to CSS rgba string
+        let textColorCSS = colorToCSS(textColor)
+
         return """
         <!DOCTYPE html>
         <html>
@@ -82,9 +91,10 @@ struct LatexRenderView: NSViewRepresentable {
                     padding: 4px 20px;
                     margin: 0;
                     background-color: transparent !important;
-                    color: rgba(0, 0, 0, 0.8);
+                    color: \(textColorCSS);
                     font-family: "Dr", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-                    font-size: 22px;
+                    font-size: \(Int(fontSize))px;
+                    font-weight: \(fontWeight);
                     line-height: 1.6;
                 }
 
@@ -193,6 +203,21 @@ struct LatexRenderView: NSViewRepresentable {
         </body>
         </html>
         """
+    }
+
+    private func colorToCSS(_ color: Color) -> String {
+        #if os(macOS)
+        guard let nsColor = NSColor(color).usingColorSpace(.deviceRGB) else {
+            return "rgba(0, 0, 0, 1)"
+        }
+        let red = Int(nsColor.redComponent * 255)
+        let green = Int(nsColor.greenComponent * 255)
+        let blue = Int(nsColor.blueComponent * 255)
+        let alpha = nsColor.alphaComponent
+        return "rgba(\(red), \(green), \(blue), \(alpha))"
+        #else
+        return "rgba(0, 0, 0, 1)"
+        #endif
     }
 }
 

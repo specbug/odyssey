@@ -26,7 +26,10 @@ struct RootView: View {
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
-                topBar
+                // Hide top bar when in study session for true fullscreen
+                if !appState.isInStudySession {
+                    topBar
+                }
                 content
             }
         }
@@ -150,7 +153,11 @@ struct RootView: View {
             case .browse:
                 BrowseView()
             case .study:
-                StudyView()
+                if appState.isInStudySession {
+                    StudySessionView()
+                } else {
+                    StudyView()
+                }
             case .add:
                 CaptureView()
             }

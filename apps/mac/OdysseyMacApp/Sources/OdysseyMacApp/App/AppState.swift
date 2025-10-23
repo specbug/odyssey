@@ -23,6 +23,7 @@ final class AppState: ObservableObject {
     }
 
     @Published var activeSection: Section = .study
+    @Published var isInStudySession: Bool = false
     @Published var authState: AuthState = .signedOut
     @Published var isSyncing: Bool = false
     @Published var error: AppError?

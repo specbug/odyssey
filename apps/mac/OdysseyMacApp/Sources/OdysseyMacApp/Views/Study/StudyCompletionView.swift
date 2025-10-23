@@ -26,7 +26,6 @@ struct StudyCompletionView: View {
             // Continue button
             continueButton
         }
-        .frame(maxWidth: 500)
     }
 
     // MARK: - All Caught Up View

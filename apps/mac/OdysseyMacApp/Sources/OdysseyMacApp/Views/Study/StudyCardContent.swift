@@ -9,6 +9,8 @@ struct StudyCardContent: View {
     let showAnswer: Bool
     let clozeColor: String
     let textColor: Color
+    let fontSize: CGFloat
+    let fontWeight: Int
 
     var body: some View {
         if isClozeCard {
@@ -18,14 +20,20 @@ struct StudyCardContent: View {
                 imageStore: imageStore,
                 clozeIndex: clozeIndex,
                 showAnswer: showAnswer,
-                clozeColor: clozeColor
+                clozeColor: clozeColor,
+                textColor: textColor,
+                fontSize: fontSize,
+                fontWeight: fontWeight
             )
         } else {
             // Basic card: render normally
             BasicCardRenderer(
                 content: content,
                 imageStore: imageStore,
-                clozeColor: clozeColor
+                clozeColor: clozeColor,
+                textColor: textColor,
+                fontSize: fontSize,
+                fontWeight: fontWeight
             )
         }
     }
@@ -37,14 +45,20 @@ private struct BasicCardRenderer: View {
     let content: String
     let imageStore: [String: NSImage]
     let clozeColor: String
+    let textColor: Color
+    let fontSize: CGFloat
+    let fontWeight: Int
 
     var body: some View {
         InlineContentRenderer(
             text: content,
             imageStore: imageStore,
             clozeColor: clozeColor,
+            textColor: textColor,
             clozeIndex: nil,
-            showClozeAnswer: true
+            showClozeAnswer: true,
+            fontSize: fontSize,
+            fontWeight: fontWeight
         )
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -58,14 +72,20 @@ private struct ClozeCardRenderer: View {
     let clozeIndex: Int
     let showAnswer: Bool
     let clozeColor: String
+    let textColor: Color
+    let fontSize: CGFloat
+    let fontWeight: Int
 
     var body: some View {
         InlineContentRenderer(
             text: content,
             imageStore: imageStore,
             clozeColor: clozeColor,
+            textColor: textColor,
             clozeIndex: clozeIndex,
-            showClozeAnswer: showAnswer
+            showClozeAnswer: showAnswer,
+            fontSize: fontSize,
+            fontWeight: fontWeight
         )
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -78,8 +98,11 @@ private struct InlineContentRenderer: View {
     let text: String
     let imageStore: [String: NSImage]
     let clozeColor: String
+    let textColor: Color
     let clozeIndex: Int?
     let showClozeAnswer: Bool
+    let fontSize: CGFloat
+    let fontWeight: Int
 
     var body: some View {
         let segments = parseContent()
@@ -91,8 +114,11 @@ private struct InlineContentRenderer: View {
                     TextSegmentRenderer(
                         text: content,
                         clozeColor: clozeColor,
+                        textColor: textColor,
                         clozeIndex: clozeIndex,
-                        showClozeAnswer: showClozeAnswer
+                        showClozeAnswer: showClozeAnswer,
+                        fontSize: fontSize,
+                        fontWeight: fontWeight
                     )
 
                 case .image(let uuid):
@@ -173,8 +199,11 @@ private struct InlineContentRenderer: View {
 private struct TextSegmentRenderer: View {
     let text: String
     let clozeColor: String
+    let textColor: Color
     let clozeIndex: Int?
     let showClozeAnswer: Bool
+    let fontSize: CGFloat
+    let fontWeight: Int
 
     @State private var contentHeight: CGFloat = 100
 
@@ -186,6 +215,9 @@ private struct TextSegmentRenderer: View {
                 clozeIndex: clozeIndex,
                 showAnswer: showClozeAnswer,
                 clozeColor: clozeColor,
+                textColor: textColor,
+                fontSize: fontSize,
+                fontWeight: fontWeight,
                 heightBinding: $contentHeight
             )
             .frame(height: max(contentHeight, 50))
@@ -195,6 +227,9 @@ private struct TextSegmentRenderer: View {
             LatexRenderView(
                 text: text,
                 clozeColor: clozeColor,
+                textColor: textColor,
+                fontSize: fontSize,
+                fontWeight: fontWeight,
                 heightBinding: $contentHeight
             )
             .frame(height: max(contentHeight, 50))
@@ -211,6 +246,9 @@ private struct ClozeAwareLatexView: View {
     let clozeIndex: Int
     let showAnswer: Bool
     let clozeColor: String
+    let textColor: Color
+    let fontSize: CGFloat
+    let fontWeight: Int
     @Binding var heightBinding: CGFloat
 
     var body: some View {
@@ -219,6 +257,9 @@ private struct ClozeAwareLatexView: View {
         LatexRenderView(
             text: processedText,
             clozeColor: clozeColor,
+            textColor: textColor,
+            fontSize: fontSize,
+            fontWeight: fontWeight,
             heightBinding: $heightBinding
         )
     }
@@ -320,7 +361,9 @@ private struct ImageSegmentRenderer: View {
                 clozeIndex: 1,
                 showAnswer: false,
                 clozeColor: "rgba(114, 174, 248, 0.35)",
-                textColor: .white
+                textColor: .white,
+                fontSize: 42,
+                fontWeight: 600
             )
             .padding(40)
         }
@@ -341,7 +384,9 @@ private struct ImageSegmentRenderer: View {
                 clozeIndex: 1,
                 showAnswer: false,
                 clozeColor: "rgba(255, 235, 59, 0.6)",
-                textColor: .white
+                textColor: .white,
+                fontSize: 42,
+                fontWeight: 600
             )
             .padding(40)
         }
@@ -362,7 +407,9 @@ private struct ImageSegmentRenderer: View {
                 clozeIndex: 1,
                 showAnswer: true,
                 clozeColor: "rgba(255, 235, 59, 0.6)",
-                textColor: .white
+                textColor: .white,
+                fontSize: 42,
+                fontWeight: 600
             )
             .padding(40)
         }

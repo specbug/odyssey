@@ -11,7 +11,7 @@ struct TimelineVisualizationView: View {
     }
 
     var body: some View {
-        HStack(spacing: 16) {
+        HStack(spacing: 24) {
             if isLoading || intervals == nil {
                 // Loading state - show 4 placeholder dots
                 ForEach(0..<4, id: \.self) { _ in
@@ -46,13 +46,14 @@ struct TimelineVisualizationView: View {
         VStack(spacing: 6) {
             // Dot marker
             Circle()
-                .fill(foregroundColor.opacity(0.7))
-                .frame(width: 8, height: 8)
+                .fill(foregroundColor.opacity(0.4))
+                .frame(width: 6, height: 6)
 
             // Interval label
             Text(text)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(foregroundColor.opacity(0.8))
+                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                .foregroundStyle(foregroundColor.opacity(0.7))
+                .kerning(0.3)
                 .lineLimit(1)
         }
     }

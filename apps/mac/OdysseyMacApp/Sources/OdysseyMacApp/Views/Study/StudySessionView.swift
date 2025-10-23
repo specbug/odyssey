@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Full-screen study session view matching ReviewModal.js design
 struct StudySessionView: View {
-    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appState: AppState
 
     // Session state
     @State private var currentCard: StudyCard?
@@ -45,9 +45,14 @@ struct StudySessionView: View {
                 Spacer()
 
                 // Center content
-                centerContent
-                    .frame(maxWidth: 700)
-                    .padding(.horizontal, 40)
+                if reviewComplete {
+                    centerContent
+                        .frame(maxWidth: .infinity)
+                } else {
+                    centerContent
+                        .frame(maxWidth: 700)
+                        .padding(.horizontal, 40)
+                }
 
                 Spacer()
 
@@ -64,7 +69,7 @@ struct StudySessionView: View {
             currentThemeIndex = Int.random(in: 0..<StudyColorThemes.all.count)
         }
         .onKeyPress(.escape) {
-            dismiss()
+            appState.isInStudySession = false
             return .handled
         }
     }
@@ -99,13 +104,8 @@ struct StudySessionView: View {
 
             Spacer()
 
-            // Right: Logo, menu, reschedule, close
+            // Right: Menu, reschedule, close
             HStack(spacing: 16) {
-                // Logo
-                Image(systemName: "star.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundStyle(currentTheme.fg.opacity(0.8))
-
                 if currentCard != nil && !reviewComplete {
                     // Context menu
                     Menu {
@@ -152,7 +152,7 @@ struct StudySessionView: View {
                 }
 
                 // Close button
-                Button(action: { dismiss() }) {
+                Button(action: { appState.isInStudySession = false }) {
                     Image(systemName: "xmark")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(currentTheme.fg)
@@ -201,8 +201,9 @@ struct StudySessionView: View {
             correctCount: sessionStats.correct,
             foregroundColor: currentTheme.fg,
             backgroundColor: currentTheme.bg,
-            onContinue: { dismiss() }
+            onContinue: { appState.isInStudySession = false }
         )
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func activeCardState(card: StudyCard) -> some View {
@@ -215,16 +216,16 @@ struct StudySessionView: View {
                 clozeIndex: card.clozeIndex ?? 1,
                 showAnswer: showAnswer,
                 clozeColor: getClozeColor(),
-                textColor: currentTheme.fg
+                textColor: currentTheme.fg,
+                fontSize: 42,
+                fontWeight: 600
             )
-            .font(.system(size: 22))
-            .foregroundStyle(currentTheme.fg)
 
             // Answer section (for basic cards only)
             if !card.isClozeCard && showAnswer && !card.answer.isEmpty {
                 VStack(alignment: .leading, spacing: 16) {
                     Rectangle()
-                        .fill(currentTheme.fg.opacity(0.2))
+                        .fill(currentTheme.fg)
                         .frame(height: 2)
                         .frame(maxWidth: .infinity)
 
@@ -235,10 +236,10 @@ struct StudySessionView: View {
                         clozeIndex: 1,
                         showAnswer: true,
                         clozeColor: getClozeColor(),
-                        textColor: currentTheme.fg
+                        textColor: currentTheme.fg,
+                        fontSize: 32,
+                        fontWeight: 500
                     )
-                    .font(.system(size: 22))
-                    .foregroundStyle(currentTheme.fg)
                 }
             }
         }
@@ -259,7 +260,7 @@ struct StudySessionView: View {
                 .foregroundStyle(currentTheme.fg.opacity(0.8))
                 .multilineTextAlignment(.center)
 
-            Button(action: { dismiss() }) {
+            Button(action: { appState.isInStudySession = false }) {
                 HStack(spacing: 12) {
                     Text("Return to Book")
                         .font(.system(size: 18, weight: .semibold))

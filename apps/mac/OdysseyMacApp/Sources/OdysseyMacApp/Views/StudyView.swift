@@ -1,12 +1,12 @@
 import SwiftUI
 
 struct StudyView: View {
+    @EnvironmentObject private var appState: AppState
     @State private var cardsDueToday: Int = 12
     @State private var cardsCompletedToday: Int = 5
     @State private var showStudySession: Bool = false
     @State private var network: OrganicNetwork = OrganicNetwork.generate(nodeCount: 12)
     @State private var animateIn: Bool = false
-    @State private var showFullStudySession: Bool = false
 
     var body: some View {
         ZStack {
@@ -97,7 +97,7 @@ struct StudyView: View {
 
     private var learnButton: some View {
         Button {
-            showFullStudySession = true
+            appState.isInStudySession = true
         } label: {
             HStack(spacing: OdysseySpacing.sm.value) {
                 Text(cardsCompletedToday > 0 ? "Keep Learning" : "Learn")
@@ -110,10 +110,6 @@ struct StudyView: View {
         .buttonStyle(OdysseyPrimaryButtonStyle())
         .opacity(animateIn ? 1.0 : 0.0)
         .animation(.easeOut(duration: 0.6).delay(0.6), value: animateIn)
-        .sheet(isPresented: $showFullStudySession) {
-            StudySessionView()
-                .frame(minWidth: 1000, minHeight: 700)
-        }
     }
 }
 

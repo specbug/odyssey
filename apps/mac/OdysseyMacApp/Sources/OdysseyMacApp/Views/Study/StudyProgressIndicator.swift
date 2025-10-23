@@ -22,7 +22,7 @@ struct StudyProgressIndicator: View {
 
     private func drawAsterisk(context: GraphicsContext, canvasSize: CGSize) {
         let center = CGPoint(x: canvasSize.width / 2, y: canvasSize.height / 2)
-        let rayCount = 8
+        let rayCount = totalSteps
         let outerRadius: CGFloat = size / 2
         let innerRadius: CGFloat = size / 5
 

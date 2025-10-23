@@ -55,7 +55,7 @@ struct ReviewButtonsView: View {
 
             // Hard (2) - Remembered with difficulty
             fsrsButton(
-                icon: "arrow.down.right",
+                icon: "arrow.down.forward",
                 label: "Hard",
                 rating: 2,
                 keyEquivalent: "2"
