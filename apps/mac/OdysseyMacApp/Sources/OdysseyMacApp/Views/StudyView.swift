@@ -6,6 +6,7 @@ struct StudyView: View {
     @State private var showStudySession: Bool = false
     @State private var network: OrganicNetwork = OrganicNetwork.generate(nodeCount: 12)
     @State private var animateIn: Bool = false
+    @State private var showFullStudySession: Bool = false
 
     var body: some View {
         ZStack {
@@ -45,7 +46,7 @@ struct StudyView: View {
     private var headerView: some View {
         HStack {
             Text(currentTimeString)
-                .font(OdysseyFont.dr(12, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
                 .foregroundStyle(OdysseyColor.mutedText)
             Spacer()
         }
@@ -75,18 +76,18 @@ struct StudyView: View {
             // Cards due
             HStack(alignment: .firstTextBaseline, spacing: OdysseySpacing.sm.value) {
                 Text("\(cardsDueToday)")
-                    .font(OdysseyFont.dr(72, weight: .bold))
+                    .font(.system(size: 72, weight: .bold))
                     .foregroundStyle(OdysseyColor.ink)
 
                 Text(cardsDueToday == 1 ? "card due" : "cards due")
-                    .font(OdysseyFont.dr(20, weight: .medium))
+                    .font(.system(size: 20, weight: .medium))
                     .foregroundStyle(OdysseyColor.mutedText)
             }
 
             // Cards completed
             if cardsCompletedToday > 0 {
                 Text("\(cardsCompletedToday) completed today")
-                    .font(OdysseyFont.dr(16))
+                    .font(.system(size: 16))
                     .foregroundStyle(OdysseyColor.mutedText)
             }
         }
@@ -96,11 +97,11 @@ struct StudyView: View {
 
     private var learnButton: some View {
         Button {
-            showStudySession = true
+            showFullStudySession = true
         } label: {
             HStack(spacing: OdysseySpacing.sm.value) {
                 Text(cardsCompletedToday > 0 ? "Keep Learning" : "Learn")
-                    .font(OdysseyFont.dr(18, weight: .semibold))
+                    .font(.system(size: 18, weight: .semibold))
                 Image(systemName: "arrow.right")
                     .font(.system(size: 16, weight: .semibold))
             }
@@ -109,8 +110,9 @@ struct StudyView: View {
         .buttonStyle(OdysseyPrimaryButtonStyle())
         .opacity(animateIn ? 1.0 : 0.0)
         .animation(.easeOut(duration: 0.6).delay(0.6), value: animateIn)
-        .sheet(isPresented: $showStudySession) {
-            StudySessionPlaceholder()
+        .sheet(isPresented: $showFullStudySession) {
+            StudySessionView()
+                .frame(minWidth: 1000, minHeight: 700)
         }
     }
 }
@@ -366,7 +368,7 @@ struct CircularProgressIndicator: View {
         // Subtle percentage text with gentle glow pulse
         if completed > 0 {
             Text("\(percentage)%")
-                .font(OdysseyFont.dr(22, weight: .medium))
+                .font(.system(size: 22, weight: .medium))
                 .foregroundStyle(Color(red: 0, green: 0.85, blue: 1.0))
                 .shadow(color: Color(red: 0, green: 0.8, blue: 1.0).opacity(glowPulse ? 0.5 : 0.3), radius: glowPulse ? 12 : 8)
                 .onAppear {
@@ -488,34 +490,6 @@ struct OrganicNetwork {
         }
 
         return OrganicNetwork(neurons: neurons, pathways: pathways)
-    }
-}
-
-// MARK: - Placeholder Study Session
-
-struct StudySessionPlaceholder: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(spacing: OdysseySpacing.lg.value) {
-            Text("Study Session")
-                .font(OdysseyFont.dr(28, weight: .semibold))
-                .foregroundStyle(OdysseyColor.ink)
-
-            Text("The card-by-card study interface will go here.")
-                .font(OdysseyFont.dr(14))
-                .foregroundStyle(OdysseyColor.mutedText)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 320)
-
-            Button("Close") {
-                dismiss()
-            }
-            .buttonStyle(OdysseyPrimaryButtonStyle())
-        }
-        .padding(OdysseySpacing.xl.value)
-        .frame(minWidth: 500, minHeight: 400)
-        .background(OdysseyColor.canvas)
     }
 }
 

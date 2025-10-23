@@ -202,7 +202,7 @@ struct DesignTokens: Decodable {
     )
 }
 
-private extension Color {
+extension Color {
     init(hex: String) {
         let sanitized = hex
             .replacingOccurrences(of: "#", with: "")
