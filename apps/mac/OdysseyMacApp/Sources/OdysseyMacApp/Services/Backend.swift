@@ -132,12 +132,12 @@ actor Backend {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSSSS"
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
+        dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)  // Backend stores in UTC
 
         let iso8601Formatter = DateFormatter()
         iso8601Formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
         iso8601Formatter.locale = Locale(identifier: "en_US_POSIX")
-        iso8601Formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        iso8601Formatter.timeZone = TimeZone(secondsFromGMT: 0)  // Backend stores in UTC
 
         return .custom { decoder in
             let container = try decoder.singleValueContainer()

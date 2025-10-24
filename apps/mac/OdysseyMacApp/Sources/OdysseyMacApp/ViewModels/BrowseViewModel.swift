@@ -78,14 +78,8 @@ class BrowseViewModel: ObservableObject {
             // Map state
             let state = mapState(studyCard.state)
 
-            // Calculate due in hours
-            let dueInHours: Int
-            if let dueDate = studyCard.due {
-                let interval = dueDate.timeIntervalSinceNow
-                dueInHours = Int(interval / 3600)
-            } else {
-                dueInHours = 0
-            }
+            // Use actual due date from API (default to now if missing)
+            let dueDate = studyCard.due ?? Date()
 
             // Create CardSummary
             let summary = CardSummary(
@@ -95,7 +89,7 @@ class BrowseViewModel: ObservableObject {
                 back: annotation.answer,
                 source: sourceText,
                 state: state,
-                dueInHours: dueInHours
+                dueDate: dueDate
             )
 
             summaries.append(summary)

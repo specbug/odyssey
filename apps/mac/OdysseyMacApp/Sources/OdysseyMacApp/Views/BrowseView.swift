@@ -698,7 +698,12 @@ struct CardSummary: Identifiable, Hashable {
     var back: String
     var source: String
     var state: State
-    var dueInHours: Int
+    var dueDate: Date
+
+    // Computed property for backward compatibility
+    var dueInHours: Int {
+        Int(dueDate.timeIntervalSinceNow / 3600)
+    }
 
     private static let dueDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -707,14 +712,29 @@ struct CardSummary: Identifiable, Hashable {
         return formatter
     }()
 
-    var dueDate: Date {
-        Date().addingTimeInterval(TimeInterval(dueInHours) * 3600)
-    }
-
     var dueDateString: String {
         CardSummary.dueDateFormatter.string(from: dueDate)
     }
 
+    init(
+        deck: String,
+        tag: String? = nil,
+        front: String,
+        back: String,
+        source: String,
+        state: State,
+        dueDate: Date
+    ) {
+        self.deck = deck
+        self.tag = tag ?? deck
+        self.front = front
+        self.back = back
+        self.source = source
+        self.state = state
+        self.dueDate = dueDate
+    }
+
+    // Legacy initializer for backward compatibility with sample data
     init(
         deck: String,
         tag: String? = nil,
@@ -730,7 +750,7 @@ struct CardSummary: Identifiable, Hashable {
         self.back = back
         self.source = source
         self.state = state
-        self.dueInHours = dueInHours
+        self.dueDate = Date().addingTimeInterval(TimeInterval(dueInHours) * 3600)
     }
 }
 
