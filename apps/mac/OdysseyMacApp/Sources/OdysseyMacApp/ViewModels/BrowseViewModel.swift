@@ -81,12 +81,16 @@ class BrowseViewModel: ObservableObject {
             // Use actual due date from API (default to now if missing)
             let dueDate = studyCard.due ?? Date()
 
+            // Clean HTML and images from question/answer text
+            let cleanedQuestion = annotation.question.stripImagesAndHTML()
+            let cleanedAnswer = annotation.answer.stripImagesAndHTML()
+
             // Create CardSummary
             let summary = CardSummary(
                 deck: "Default",
                 tag: "Default",
-                front: annotation.question,
-                back: annotation.answer,
+                front: cleanedQuestion,
+                back: cleanedAnswer,
                 source: sourceText,
                 state: state,
                 dueDate: dueDate
