@@ -1,14 +1,25 @@
 import SwiftUI
 
 struct BrowseView: View {
+    @EnvironmentObject private var appState: AppState
+    @StateObject private var viewModel: BrowseViewModel
+
     @State private var query: String = ""
-    @State private var cards: [CardSummary] = CardSummary.samples
     @State private var expandedCardId: UUID? = nil
     @State private var selectedCards: Set<UUID> = []
     @State private var stateFilter: StateFilter = .all
     @State private var deckFilter: String? = nil
     @State private var tagFilter: String? = nil
     @State private var sortOrder: SortOrder = .dueDate
+
+    init(viewModel: BrowseViewModel? = nil) {
+        if let viewModel = viewModel {
+            _viewModel = StateObject(wrappedValue: viewModel)
+        } else {
+            // This will be replaced when the view is created with the actual backend
+            _viewModel = StateObject(wrappedValue: BrowseViewModel(backend: Backend()))
+        }
+    }
 
     enum StateFilter: String, CaseIterable, Identifiable {
         case all = "All"
@@ -31,15 +42,15 @@ struct BrowseView: View {
     }
 
     var availableDecks: [String] {
-        Array(Set(cards.map { $0.deck })).sorted()
+        Array(Set(viewModel.cards.map { $0.deck })).sorted()
     }
 
     var availableTags: [String] {
-        Array(Set(cards.map { $0.tag })).sorted()
+        Array(Set(viewModel.cards.map { $0.tag })).sorted()
     }
 
     var filteredCards: [CardSummary] {
-        var filtered = cards
+        var filtered = viewModel.cards
 
         // Apply search filter
         if !query.isEmpty {
@@ -95,14 +106,22 @@ struct BrowseView: View {
             OdysseyColor.canvas
                 .ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: OdysseySpacing.lg.value) {
-                header
-                searchAndFilters
-                listView
+            if viewModel.isLoading {
+                loadingView
+            } else if let error = viewModel.error {
+                errorView(error: error)
+            } else if viewModel.cards.isEmpty {
+                emptyStateView
+            } else {
+                VStack(alignment: .leading, spacing: OdysseySpacing.lg.value) {
+                    header
+                    searchAndFilters
+                    listView
+                }
+                .padding(.horizontal, 48)
+                .padding(.vertical, OdysseySpacing.xl.value)
+                .frame(maxWidth: 1320, alignment: .topLeading)
             }
-            .padding(.horizontal, 48)
-            .padding(.vertical, OdysseySpacing.xl.value)
-            .frame(maxWidth: 1320, alignment: .topLeading)
 
             // Bulk actions bar
             if !selectedCards.isEmpty {
@@ -110,6 +129,9 @@ struct BrowseView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .task {
+            await viewModel.loadInitialCards()
+        }
     }
 
     private var header: some View {
@@ -265,7 +287,7 @@ struct BrowseView: View {
     private var listView: some View {
         ScrollView {
             LazyVStack(spacing: OdysseySpacing.lg.value) {
-                ForEach(filteredCards) { card in
+                ForEach(Array(filteredCards.enumerated()), id: \.element.id) { index, card in
                     CardRow(
                         card: card,
                         isExpanded: expandedCardId == card.id,
@@ -283,6 +305,26 @@ struct BrowseView: View {
                             }
                         }
                     )
+                    .onAppear {
+                        // Trigger load more when reaching the last few items
+                        if index == filteredCards.count - 3 {
+                            Task {
+                                await viewModel.loadMoreCards()
+                            }
+                        }
+                    }
+                }
+
+                // Loading more indicator
+                if viewModel.isLoadingMore {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                            .controlSize(.regular)
+                        Spacer()
+                    }
+                    .padding(.vertical, OdysseySpacing.lg.value)
                 }
             }
             .padding(.bottom, selectedCards.isEmpty ? 0 : 100)
@@ -373,6 +415,85 @@ struct BrowseView: View {
             .padding(.bottom, OdysseySpacing.lg.value)
         }
         .transition(.move(edge: .bottom).combined(with: .opacity))
+    }
+
+    // MARK: - Loading, Error & Empty States
+
+    private var loadingView: some View {
+        VStack(spacing: OdysseySpacing.xl.value) {
+            Spacer()
+            ProgressView()
+                .progressViewStyle(.circular)
+                .controlSize(.large)
+            Text("Loading cards...")
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(OdysseyColor.mutedText)
+            Spacer()
+        }
+    }
+
+    private func errorView(error: Error) -> some View {
+        VStack(spacing: OdysseySpacing.xl.value) {
+            Spacer()
+
+            VStack(spacing: OdysseySpacing.md.value) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 48))
+                    .foregroundStyle(OdysseyColor.browseColors[11].opacity(0.7))
+
+                Text("Failed to load cards")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(OdysseyColor.ink)
+
+                Text(error.localizedDescription)
+                    .font(.system(size: 14))
+                    .foregroundStyle(OdysseyColor.mutedText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, OdysseySpacing.xl.value)
+
+                Button {
+                    Task {
+                        await viewModel.refreshCards()
+                    }
+                } label: {
+                    Text("Try Again")
+                        .font(.system(size: 14, weight: .medium))
+                        .padding(.horizontal, OdysseySpacing.lg.value)
+                        .padding(.vertical, OdysseySpacing.sm.value)
+                }
+                .buttonStyle(
+                    OdysseyPillButtonStyle(
+                        background: OdysseyColor.accent.opacity(0.15),
+                        foreground: OdysseyColor.accent
+                    )
+                )
+            }
+
+            Spacer()
+        }
+    }
+
+    private var emptyStateView: some View {
+        VStack(spacing: OdysseySpacing.xl.value) {
+            Spacer()
+
+            VStack(spacing: OdysseySpacing.md.value) {
+                Image(systemName: "square.stack.3d.up.slash")
+                    .font(.system(size: 48))
+                    .foregroundStyle(OdysseyColor.mutedText.opacity(0.5))
+
+                Text("No cards yet")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(OdysseyColor.ink)
+
+                Text("Create your first flashcard from the Add tab")
+                    .font(.system(size: 14))
+                    .foregroundStyle(OdysseyColor.mutedText)
+                    .multilineTextAlignment(.center)
+            }
+
+            Spacer()
+        }
     }
 }
 

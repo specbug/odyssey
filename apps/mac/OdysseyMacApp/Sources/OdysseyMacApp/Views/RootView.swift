@@ -151,7 +151,7 @@ struct RootView: View {
         Group {
             switch appState.activeSection {
             case .browse:
-                BrowseView()
+                BrowseView(viewModel: BrowseViewModel(backend: appState.backend))
             case .study:
                 if appState.isInStudySession {
                     StudySessionView()
