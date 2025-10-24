@@ -322,6 +322,90 @@ struct StudySessionView: View {
                     answer: "Einstein's mass-energy equivalence equation",
                     isClozeCard: false,
                     clozeIndex: nil
+                ),
+                StudyCard(
+                    id: "4",
+                    question: "The {{c1::mitochondria}} is the powerhouse of the cell.",
+                    answer: "",
+                    isClozeCard: true,
+                    clozeIndex: 1
+                ),
+                StudyCard(
+                    id: "5",
+                    question: "What year did World War II end?",
+                    answer: "1945",
+                    isClozeCard: false,
+                    clozeIndex: nil
+                ),
+                StudyCard(
+                    id: "6",
+                    question: "The {{c1::Pythagorean theorem}} states that $a^2 + b^2 = c^2$.",
+                    answer: "",
+                    isClozeCard: true,
+                    clozeIndex: 1
+                ),
+                StudyCard(
+                    id: "7",
+                    question: "Who wrote 'Romeo and Juliet'?",
+                    answer: "William Shakespeare",
+                    isClozeCard: false,
+                    clozeIndex: nil
+                ),
+                StudyCard(
+                    id: "8",
+                    question: "Water boils at {{c1::100°C}} or {{c2::212°F}} at sea level.",
+                    answer: "",
+                    isClozeCard: true,
+                    clozeIndex: 1
+                ),
+                StudyCard(
+                    id: "9",
+                    question: "What is the derivative of $x^2$?",
+                    answer: "$2x$",
+                    isClozeCard: false,
+                    clozeIndex: nil
+                ),
+                StudyCard(
+                    id: "10",
+                    question: "The three states of matter are {{c1::solid}}, {{c2::liquid}}, and {{c3::gas}}.",
+                    answer: "",
+                    isClozeCard: true,
+                    clozeIndex: 1
+                ),
+                StudyCard(
+                    id: "11",
+                    question: "What is the speed of light in vacuum?",
+                    answer: "Approximately 299,792,458 meters per second (or about 3 × 10⁸ m/s)",
+                    isClozeCard: false,
+                    clozeIndex: nil
+                ),
+                StudyCard(
+                    id: "12",
+                    question: "The {{c1::Renaissance}} was a cultural movement that began in {{c2::Italy}} during the 14th century.",
+                    answer: "",
+                    isClozeCard: true,
+                    clozeIndex: 1
+                ),
+                StudyCard(
+                    id: "13",
+                    question: "What is the integral of $\\frac{1}{x}$ with respect to $x$?",
+                    answer: "$\\ln|x| + C$ where C is the constant of integration",
+                    isClozeCard: false,
+                    clozeIndex: nil
+                ),
+                StudyCard(
+                    id: "14",
+                    question: "DNA stands for {{c1::Deoxyribonucleic Acid}}.",
+                    answer: "",
+                    isClozeCard: true,
+                    clozeIndex: 1
+                ),
+                StudyCard(
+                    id: "15",
+                    question: "Who painted the Mona Lisa?",
+                    answer: "Leonardo da Vinci",
+                    isClozeCard: false,
+                    clozeIndex: nil
                 )
             ]
 
