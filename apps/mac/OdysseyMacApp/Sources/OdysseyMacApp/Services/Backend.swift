@@ -126,6 +126,196 @@ actor Backend {
         }
     }
 
+    // MARK: - Image API
+
+    func uploadImage(imageData: Data, uuid: String) async throws -> String {
+        let urlString = "\(environment.baseURL.absoluteString)/images/upload?uuid=\(uuid)"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        // Create multipart form data
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        var body = Data()
+
+        // Add image file
+        body.append("--\(boundary)\r\n".data(using: .utf8)!)
+        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"image.png\"\r\n".data(using: .utf8)!)
+        body.append("Content-Type: image/png\r\n\r\n".data(using: .utf8)!)
+        body.append(imageData)
+        body.append("\r\n".data(using: .utf8)!)
+        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
+
+        request.httpBody = body
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = try? JSONDecoder().decode([String: String].self, from: data)["detail"]
+            throw APIError.httpError(statusCode: httpResponse.statusCode, message: errorMessage)
+        }
+
+        // Parse response to get UUID
+        struct ImageUploadResponse: Codable {
+            let success: Bool
+            let uuid: String
+            let message: String
+        }
+
+        do {
+            let uploadResponse = try JSONDecoder().decode(ImageUploadResponse.self, from: data)
+            return uploadResponse.uuid
+        } catch {
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func fetchImage(uuid: String) async throws -> Data {
+        let urlString = "\(environment.baseURL.absoluteString)/images/\(uuid)"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, response) = try await urlSession.data(from: url)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = try? JSONDecoder().decode([String: String].self, from: data)["detail"]
+            throw APIError.httpError(statusCode: httpResponse.statusCode, message: errorMessage)
+        }
+
+        return data
+    }
+
+    // MARK: - Annotation API
+
+    func createStandaloneAnnotation(
+        annotationId: String,
+        question: String,
+        answer: String,
+        source: String?,
+        tag: String?,
+        deck: String
+    ) async throws -> Annotation {
+        let urlString = "\(environment.baseURL.absoluteString)/annotations"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        // Create request body
+        struct AnnotationCreateRequest: Codable {
+            let annotationId: String
+            let pageIndex: Int?
+            let question: String
+            let answer: String
+            let highlightedText: String?
+            let positionData: String?
+            let source: String?
+            let tag: String?
+            let deck: String
+
+            enum CodingKeys: String, CodingKey {
+                case annotationId = "annotation_id"
+                case pageIndex = "page_index"
+                case question
+                case answer
+                case highlightedText = "highlighted_text"
+                case positionData = "position_data"
+                case source
+                case tag
+                case deck
+            }
+        }
+
+        let requestBody = AnnotationCreateRequest(
+            annotationId: annotationId,
+            pageIndex: nil,
+            question: question,
+            answer: answer,
+            highlightedText: nil,
+            positionData: nil,
+            source: source,
+            tag: tag,
+            deck: deck
+        )
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        request.httpBody = try encoder.encode(requestBody)
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = try? JSONDecoder().decode([String: String].self, from: data)["detail"]
+            throw APIError.httpError(statusCode: httpResponse.statusCode, message: errorMessage)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = customDateDecodingStrategy()
+
+        do {
+            let annotation = try decoder.decode(Annotation.self, from: data)
+            return annotation
+        } catch {
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func createStudyCardForAnnotation(annotationId: Int, clozeIndex: Int? = nil) async throws -> APIStudyCard {
+        var urlString = "\(environment.baseURL.absoluteString)/study-cards?annotation_id=\(annotationId)"
+        if let clozeIndex = clozeIndex {
+            urlString += "&cloze_index=\(clozeIndex)"
+        }
+
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = try? JSONDecoder().decode([String: String].self, from: data)["detail"]
+            throw APIError.httpError(statusCode: httpResponse.statusCode, message: errorMessage)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = customDateDecodingStrategy()
+
+        do {
+            let studyCard = try decoder.decode(APIStudyCard.self, from: data)
+            return studyCard
+        } catch {
+            throw APIError.decodingError(error)
+        }
+    }
+
     // MARK: - Helper Methods
 
     private func customDateDecodingStrategy() -> JSONDecoder.DateDecodingStrategy {

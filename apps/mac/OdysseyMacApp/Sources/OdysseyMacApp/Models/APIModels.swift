@@ -38,13 +38,16 @@ struct PDFFile: Codable, Identifiable {
 
 struct Annotation: Codable, Identifiable {
     let id: Int
-    let fileId: Int
+    let fileId: Int?  // Optional for standalone notes
     let annotationId: String
-    let pageIndex: Int
+    let pageIndex: Int?  // Optional for standalone notes
     let question: String
     let answer: String
-    let highlightedText: String
-    let positionData: String
+    let highlightedText: String?
+    let positionData: String?
+    let source: String?
+    let tag: String?
+    let deck: String
     let createdDate: Date
     let updatedDate: Date
 
@@ -57,8 +60,29 @@ struct Annotation: Codable, Identifiable {
         case answer
         case highlightedText = "highlighted_text"
         case positionData = "position_data"
+        case source
+        case tag
+        case deck
         case createdDate = "created_date"
         case updatedDate = "updated_date"
+    }
+}
+
+struct APIImage: Codable, Identifiable {
+    let id: Int
+    let uuid: String
+    let annotationId: Int?
+    let fileSize: Int
+    let mimeType: String
+    let createdDate: Date
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case uuid
+        case annotationId = "annotation_id"
+        case fileSize = "file_size"
+        case mimeType = "mime_type"
+        case createdDate = "created_date"
     }
 }
 

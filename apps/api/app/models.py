@@ -38,13 +38,16 @@ class Annotation(Base):
     __tablename__ = "annotations"
 
     id = Column(Integer, primary_key=True, index=True)
-    file_id = Column(Integer, index=True)  # References PDFFile.id
+    file_id = Column(Integer, nullable=True, index=True)  # References PDFFile.id (optional for standalone notes)
     annotation_id = Column(String, index=True)  # Client-side ID
-    page_index = Column(Integer)
+    page_index = Column(Integer, nullable=True)  # Optional for standalone notes
     question = Column(Text)
     answer = Column(Text)
-    highlighted_text = Column(Text)
-    position_data = Column(Text)  # JSON string for highlight rects
+    highlighted_text = Column(Text, nullable=True)
+    position_data = Column(Text, nullable=True)  # JSON string for highlight rects
+    source = Column(String, nullable=True)  # Source URL or reference
+    tag = Column(String, nullable=True)  # Tag for categorization
+    deck = Column(String, default="Default")  # Deck name for organization
     created_date = Column(DateTime(timezone=True), server_default=func.now())
     updated_date = Column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
@@ -52,6 +55,34 @@ class Annotation(Base):
 
     def __repr__(self):
         return f"<Annotation(file_id={self.file_id}, page={self.page_index})>"
+
+
+class Image(Base):
+    """Image storage for annotations.
+
+    Images are stored as separate files on disk with references in the database.
+    Each image has a UUID that corresponds to [image:UUID] markers in annotation text.
+    """
+    __tablename__ = "images"
+
+    id = Column(Integer, primary_key=True, index=True)
+    uuid = Column(String, unique=True, index=True, nullable=False)  # UUID used in [image:UUID] markers
+    annotation_id = Column(
+        Integer,
+        ForeignKey("annotations.id", ondelete="CASCADE"),
+        nullable=True,  # Nullable to allow orphaned images during creation
+        index=True,
+    )
+    file_path = Column(String, nullable=False)  # Path to image file on disk
+    mime_type = Column(String, default="image/png")  # MIME type (e.g., image/png, image/jpeg)
+    file_size = Column(Integer, nullable=False)  # File size in bytes
+    created_date = Column(DateTime(timezone=True), server_default=func.now())
+
+    # Relationship
+    annotation = relationship("Annotation", backref="images")
+
+    def __repr__(self):
+        return f"<Image(uuid={self.uuid}, annotation_id={self.annotation_id})>"
 
 
 class StudyCard(Base):

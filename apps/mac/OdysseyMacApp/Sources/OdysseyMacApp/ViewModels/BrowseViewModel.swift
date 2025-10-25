@@ -103,19 +103,43 @@ class BrowseViewModel: ObservableObject {
     }
 
     private func getSourceText(for annotation: Annotation) async -> String {
+        // Handle standalone notes (no file)
+        guard let fileId = annotation.fileId else {
+            // Use source field if available, otherwise tag or deck
+            if let source = annotation.source, !source.isEmpty {
+                return source
+            } else if let tag = annotation.tag, !tag.isEmpty {
+                return tag
+            } else {
+                return annotation.deck
+            }
+        }
+
         // Check cache first
-        if let cachedFile = fileCache[annotation.fileId] {
-            return "Page \(annotation.pageIndex + 1) • \(cachedFile.displayName)"
+        if let cachedFile = fileCache[fileId] {
+            if let pageIndex = annotation.pageIndex {
+                return "Page \(pageIndex + 1) • \(cachedFile.displayName)"
+            } else {
+                return cachedFile.displayName
+            }
         }
 
         // Fetch file info
         do {
-            let file = try await backend.fetchPDFFile(fileId: annotation.fileId)
-            fileCache[annotation.fileId] = file
-            return "Page \(annotation.pageIndex + 1) • \(file.displayName)"
+            let file = try await backend.fetchPDFFile(fileId: fileId)
+            fileCache[fileId] = file
+            if let pageIndex = annotation.pageIndex {
+                return "Page \(pageIndex + 1) • \(file.displayName)"
+            } else {
+                return file.displayName
+            }
         } catch {
             // Fallback to just page number if file fetch fails
-            return "Page \(annotation.pageIndex + 1)"
+            if let pageIndex = annotation.pageIndex {
+                return "Page \(pageIndex + 1)"
+            } else {
+                return "Unknown source"
+            }
         }
     }
 

@@ -2,6 +2,7 @@ import SwiftUI
 import AppKit
 
 struct CaptureView: View {
+    @EnvironmentObject var appState: AppState
     @State private var primaryText: String = ""
     @State private var secondaryText: String = ""
     @State private var source: String = ""
@@ -22,6 +23,7 @@ struct CaptureView: View {
     @State private var primaryTextHeight: CGFloat = 110
     @State private var secondaryTextHeight: CGFloat = 140
     @State private var imageStore: [String: NSImage] = [:]  // UUID -> NSImage mapping
+    @State private var errorMessage: String? = nil
     @FocusState private var focusedField: Field?
     @FocusState private var isPrimaryFocused: Bool
     @FocusState private var isSecondaryFocused: Bool
@@ -373,6 +375,32 @@ struct CaptureView: View {
                 .frame(maxWidth: 860)
                 .frame(maxWidth: .infinity)
             }
+
+            // Error banner
+            if let errorMessage = errorMessage {
+                VStack {
+                    Spacer()
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.white)
+                        Text(errorMessage)
+                            .foregroundColor(.white)
+                            .font(.system(size: 13))
+                        Spacer()
+                        Button(action: { self.errorMessage = nil }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding()
+                    .background(Color.red.opacity(0.9))
+                    .cornerRadius(8)
+                    .padding()
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                .animation(.easeInOut(duration: 0.3), value: errorMessage)
+            }
         }
         .onAppear {
             // Auto-focus primary field for quicker capture
@@ -398,26 +426,78 @@ struct CaptureView: View {
         guard canSave, !isSubmitting else { return }
 
         isSubmitting = true
+        errorMessage = nil
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-            isSubmitting = false
+        Task {
+            do {
+                // 1. Upload all images first
+                print("📤 Uploading \(imageStore.count) images...")
+                for (uuid, nsImage) in imageStore {
+                    // Convert NSImage to PNG data
+                    guard let tiffData = nsImage.tiffRepresentation,
+                          let bitmapImage = NSBitmapImageRep(data: tiffData),
+                          let pngData = bitmapImage.representation(using: .png, properties: [:]) else {
+                        throw NSError(domain: "CaptureView", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert image to PNG"])
+                    }
 
-            withAnimation(.easeInOut(duration: 0.25)) {
-                showSuccessFlash = true
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                primaryText = ""
-                secondaryText = ""
-                source = ""
-                tag = ""
-                imageStore = [:]
-
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    showSuccessFlash = false
+                    // Upload image to backend
+                    let uploadedUUID = try await appState.backend.uploadImage(imageData: pngData, uuid: uuid)
+                    print("✅ Uploaded image: \(uploadedUUID)")
                 }
 
-                focusedField = .primary
+                // 2. Create standalone annotation
+                print("📝 Creating annotation...")
+                let annotationId = UUID().uuidString
+                let annotation = try await appState.backend.createStandaloneAnnotation(
+                    annotationId: annotationId,
+                    question: primaryText,
+                    answer: secondaryText,
+                    source: source.isEmpty ? nil : source,
+                    tag: tag.isEmpty ? nil : tag,
+                    deck: selectedDeck
+                )
+                print("✅ Created annotation: \(annotation.id)")
+
+                // 3. Create study card
+                print("🎯 Creating study card...")
+                let studyCard = try await appState.backend.createStudyCardForAnnotation(annotationId: annotation.id)
+                print("✅ Created study card: \(studyCard.id)")
+
+                // 4. Show success and clear form
+                await MainActor.run {
+                    isSubmitting = false
+
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        showSuccessFlash = true
+                    }
+
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        primaryText = ""
+                        secondaryText = ""
+                        source = ""
+                        tag = ""
+                        imageStore = [:]
+                        errorMessage = nil
+
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            showSuccessFlash = false
+                        }
+
+                        focusedField = .primary
+                    }
+                }
+
+            } catch {
+                await MainActor.run {
+                    isSubmitting = false
+                    errorMessage = error.localizedDescription
+                    print("❌ Error submitting note: \(error)")
+
+                    // Auto-dismiss error after 5 seconds
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+                        errorMessage = nil
+                    }
+                }
             }
         }
     }
