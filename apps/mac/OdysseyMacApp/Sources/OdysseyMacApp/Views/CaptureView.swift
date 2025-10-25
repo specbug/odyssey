@@ -508,12 +508,14 @@ struct CaptureView: View {
 private struct TextSegmentView: View {
     let text: String
     let clozeColor: String
+    let textColor: Color
     @State private var contentHeight: CGFloat = 100
 
     var body: some View {
         LatexRenderView(
             text: text,
             clozeColor: clozeColor,
+            textColor: textColor,
             heightBinding: $contentHeight
         )
         .frame(height: max(contentHeight, 100))
@@ -549,7 +551,8 @@ private struct InlineImageRenderer: View {
                     // Use wrapper with height tracking
                     TextSegmentView(
                         text: content,
-                        clozeColor: clozeColor
+                        clozeColor: clozeColor,
+                        textColor: OdysseyColor.ink
                     )
                 case .image(let uuid):
                     if let image = imageStore[uuid] {
