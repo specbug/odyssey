@@ -29,28 +29,67 @@ struct StudyView: View {
             OdysseyColor.canvas
                 .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // Subtle header with time
-                headerView
-                    .padding(.top, OdysseySpacing.xxxl.value)
+            if viewModel.isLoading {
+                // Loading state
+                VStack(spacing: 16) {
+                    ProgressView()
+                        .scaleEffect(1.5)
+                    Text("Loading cards...")
+                        .font(.system(size: 16))
+                        .foregroundStyle(OdysseyColor.mutedText)
+                }
+            } else if let error = viewModel.error {
+                // Error state
+                VStack(spacing: 16) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 48))
+                        .foregroundStyle(OdysseyColor.mutedText)
+                    Text("Failed to load cards")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(OdysseyColor.ink)
+                    Text(error.localizedDescription)
+                        .font(.system(size: 14))
+                        .foregroundStyle(OdysseyColor.mutedText)
+                        .multilineTextAlignment(.center)
+                    Button("Try Again") {
+                        Task {
+                            await viewModel.loadDueCardStats()
+                            network = OrganicNetwork.generate(nodeCount: max(1, cardsDueToday))
+                        }
+                    }
+                    .buttonStyle(OdysseyPrimaryButtonStyle())
+                }
+                .frame(maxWidth: 400)
+                .padding()
+            } else {
+                VStack(spacing: 0) {
+                    // Subtle header with time
+                    headerView
+                        .padding(.top, OdysseySpacing.xxxl.value)
 
-                Spacer()
+                    Spacer()
 
-                // Organic network visualization
-                networkVisualization
+                    // Organic network visualization
+                    networkVisualization
 
-                Spacer()
+                    Spacer()
 
-                // Stats display
-                statsDisplay
-                    .padding(.bottom, OdysseySpacing.xxxl.value)
+                    // Stats display
+                    statsDisplay
+                        .padding(.bottom, OdysseySpacing.xxxl.value)
 
-                // Learn button
-                learnButton
-                    .padding(.bottom, OdysseySpacing.xxxl.value)
+                    // Learn button or empty state message
+                    if cardsDueToday > 0 {
+                        learnButton
+                            .padding(.bottom, OdysseySpacing.xxxl.value)
+                    } else {
+                        emptyStateMessage
+                            .padding(.bottom, OdysseySpacing.xxxl.value)
+                    }
+                }
+                .frame(maxWidth: 700)
+                .padding(.horizontal, OdysseySpacing.xl.value)
             }
-            .frame(maxWidth: 700)
-            .padding(.horizontal, OdysseySpacing.xl.value)
         }
         .onAppear {
             withAnimation(.spring(response: 1.0, dampingFraction: 0.75).delay(0.2)) {
@@ -129,6 +168,24 @@ struct StudyView: View {
             .frame(minWidth: 240)
         }
         .buttonStyle(OdysseyPrimaryButtonStyle())
+        .opacity(animateIn ? 1.0 : 0.0)
+        .animation(.easeOut(duration: 0.6).delay(0.6), value: animateIn)
+    }
+
+    private var emptyStateMessage: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 36))
+                .foregroundStyle(Color.green.opacity(0.8))
+
+            Text("All caught up!")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(OdysseyColor.ink)
+
+            Text("You have no cards due right now")
+                .font(.system(size: 14))
+                .foregroundStyle(OdysseyColor.mutedText)
+        }
         .opacity(animateIn ? 1.0 : 0.0)
         .animation(.easeOut(duration: 0.6).delay(0.6), value: animateIn)
     }
@@ -449,14 +506,16 @@ struct OrganicNetwork {
         var pathways: [Pathway] = []
         var connections: Set<String> = []
 
-        for i in 0..<nodeCount {
-            let connectionCount = Int.random(in: 1...3)  // Reduced from 2-4
+        // Only generate connections if there are at least 2 nodes
+        if nodeCount > 1 {
+            for i in 0..<nodeCount {
+                let connectionCount = Int.random(in: 1...3)  // Reduced from 2-4
 
-            for _ in 0..<connectionCount {
-                var targetIndex = Int.random(in: 0..<nodeCount)
-                while targetIndex == i {
-                    targetIndex = Int.random(in: 0..<nodeCount)
-                }
+                for _ in 0..<connectionCount {
+                    var targetIndex = Int.random(in: 0..<nodeCount)
+                    while targetIndex == i {
+                        targetIndex = Int.random(in: 0..<nodeCount)
+                    }
 
                 let connectionKey = "\(min(i, targetIndex))-\(max(i, targetIndex))"
                 if connections.contains(connectionKey) {
@@ -505,6 +564,7 @@ struct OrganicNetwork {
                 ))
             }
         }
+        }  // End of nodeCount > 1 check
 
         return OrganicNetwork(neurons: neurons, pathways: pathways)
     }

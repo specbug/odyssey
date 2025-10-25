@@ -8,7 +8,13 @@ actor Backend {
     init(environment: APIEnvironment = .current,
          urlSession: URLSession = .shared) {
         self.environment = environment
-        self.urlSession = urlSession
+        // Configure URLSession with timeout
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 10 // 10 second timeout
+        configuration.timeoutIntervalForResource = 10
+        self.urlSession = URLSession(configuration: configuration)
+
+        print("🔧 Backend initialized with API URL: \(environment.baseURL.absoluteString)")
     }
 
     func restoreSession() async throws -> AppState.UserSession {
@@ -104,11 +110,16 @@ actor Backend {
             urlString += "&file_id=\(fileId)"
         }
 
+        print("🌐 fetchDueCards: URL = \(urlString)")
+
         guard let url = URL(string: urlString) else {
+            print("❌ fetchDueCards: Invalid URL")
             throw APIError.invalidURL
         }
 
+        print("🌐 fetchDueCards: Calling URLSession.data...")
         let (data, response) = try await urlSession.data(from: url)
+        print("🌐 fetchDueCards: Received response")
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw APIError.invalidResponse
