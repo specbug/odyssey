@@ -154,9 +154,9 @@ struct RootView: View {
                 BrowseView(viewModel: BrowseViewModel(backend: appState.backend))
             case .study:
                 if appState.isInStudySession {
-                    StudySessionView()
+                    StudySessionView(backend: appState.backend)
                 } else {
-                    StudyView()
+                    StudyView(viewModel: StudyViewModel(backend: appState.backend))
                 }
             case .add:
                 CaptureView()

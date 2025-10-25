@@ -12,8 +12,21 @@ struct StudySessionView: View {
 
     // Cards and stats
     @State private var dueCards: [StudyCard] = []
+    @State private var apiCards: [APIStudyCard] = []  // Keep API cards for IDs
     @State private var currentCardIndex: Int = 0
     @State private var sessionStats = SessionStats()
+    @State private var loadedImages: [String: NSImage] = [:]  // Image cache
+
+    // Backend for API calls
+    private let backend: Backend
+
+    init(backend: Backend? = nil) {
+        if let backend = backend {
+            self.backend = backend
+        } else {
+            self.backend = Backend()
+        }
+    }
 
     // Theme
     @State private var currentThemeIndex: Int = 0
@@ -37,26 +50,36 @@ struct StudySessionView: View {
                 .animation(.easeInOut(duration: 0.5), value: currentThemeIndex)
 
             VStack(spacing: 0) {
-                // Top bar
+                // Top bar (fixed)
                 topBar
                     .padding(.horizontal, 24)
                     .padding(.vertical, 16)
 
-                Spacer()
+                // Center content (scrollable)
+                GeometryReader { geometry in
+                    ScrollView {
+                        VStack {
+                            Spacer()
+                                .frame(minHeight: 20)
 
-                // Center content
-                if reviewComplete {
-                    centerContent
+                            if reviewComplete {
+                                centerContent
+                                    .frame(maxWidth: .infinity)
+                            } else {
+                                centerContent
+                                    .frame(maxWidth: 700)
+                                    .padding(.horizontal, 40)
+                            }
+
+                            Spacer()
+                                .frame(minHeight: 20)
+                        }
                         .frame(maxWidth: .infinity)
-                } else {
-                    centerContent
-                        .frame(maxWidth: 700)
-                        .padding(.horizontal, 40)
+                        .frame(minHeight: geometry.size.height) // Ensure minimum height for centering
+                    }
                 }
 
-                Spacer()
-
-                // Bottom action bar
+                // Bottom action bar (fixed)
                 if !reviewComplete && currentCard != nil {
                     bottomActionBar
                         .padding(.horizontal, 40)
@@ -207,11 +230,17 @@ struct StudySessionView: View {
     }
 
     private func activeCardState(card: StudyCard) -> some View {
-        VStack(spacing: 32) {
+        // Debug: Log render state
+        print("🎨 Rendering card \(card.id):")
+        print("   - showAnswer: \(showAnswer)")
+        print("   - isClozeCard: \(card.isClozeCard)")
+        print("   - will show answer section: \(!card.isClozeCard && showAnswer && !card.answer.isEmpty)")
+
+        return VStack(spacing: 32) {
             // Card content
             StudyCardContent(
                 content: card.question,
-                imageStore: [:], // TODO: Pass actual image store
+                imageStore: loadedImages, // Use loaded images
                 isClozeCard: card.isClozeCard,
                 clozeIndex: card.clozeIndex ?? 1,
                 showAnswer: showAnswer,
@@ -231,7 +260,7 @@ struct StudySessionView: View {
 
                     StudyCardContent(
                         content: card.answer,
-                        imageStore: [:],
+                        imageStore: loadedImages,
                         isClozeCard: false,
                         clozeIndex: 1,
                         showAnswer: true,
@@ -295,138 +324,176 @@ struct StudySessionView: View {
     // MARK: - Actions
 
     private func loadCards() {
-        // TODO: Load actual cards from backend
-        // For now, use placeholder data
         isLoading = true
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-            // Placeholder cards
-            dueCards = [
-                StudyCard(
-                    id: "1",
-                    question: "What is the capital of France?",
-                    answer: "Paris",
-                    isClozeCard: false,
-                    clozeIndex: nil
-                ),
-                StudyCard(
-                    id: "2",
-                    question: "The capital of {{c1::Germany}} is {{c2::Berlin}}.",
-                    answer: "",
-                    isClozeCard: true,
-                    clozeIndex: 1
-                ),
-                StudyCard(
-                    id: "3",
-                    question: "What is $E = mc^2$ known as?",
-                    answer: "Einstein's mass-energy equivalence equation",
-                    isClozeCard: false,
-                    clozeIndex: nil
-                ),
-                StudyCard(
-                    id: "4",
-                    question: "The {{c1::mitochondria}} is the powerhouse of the cell.",
-                    answer: "",
-                    isClozeCard: true,
-                    clozeIndex: 1
-                ),
-                StudyCard(
-                    id: "5",
-                    question: "What year did World War II end?",
-                    answer: "1945",
-                    isClozeCard: false,
-                    clozeIndex: nil
-                ),
-                StudyCard(
-                    id: "6",
-                    question: "The {{c1::Pythagorean theorem}} states that $a^2 + b^2 = c^2$.",
-                    answer: "",
-                    isClozeCard: true,
-                    clozeIndex: 1
-                ),
-                StudyCard(
-                    id: "7",
-                    question: "Who wrote 'Romeo and Juliet'?",
-                    answer: "William Shakespeare",
-                    isClozeCard: false,
-                    clozeIndex: nil
-                ),
-                StudyCard(
-                    id: "8",
-                    question: "Water boils at {{c1::100°C}} or {{c2::212°F}} at sea level.",
-                    answer: "",
-                    isClozeCard: true,
-                    clozeIndex: 1
-                ),
-                StudyCard(
-                    id: "9",
-                    question: "What is the derivative of $x^2$?",
-                    answer: "$2x$",
-                    isClozeCard: false,
-                    clozeIndex: nil
-                ),
-                StudyCard(
-                    id: "10",
-                    question: "The three states of matter are {{c1::solid}}, {{c2::liquid}}, and {{c3::gas}}.",
-                    answer: "",
-                    isClozeCard: true,
-                    clozeIndex: 1
-                ),
-                StudyCard(
-                    id: "11",
-                    question: "What is the speed of light in vacuum?",
-                    answer: "Approximately 299,792,458 meters per second (or about 3 × 10⁸ m/s)",
-                    isClozeCard: false,
-                    clozeIndex: nil
-                ),
-                StudyCard(
-                    id: "12",
-                    question: "The {{c1::Renaissance}} was a cultural movement that began in {{c2::Italy}} during the 14th century.",
-                    answer: "",
-                    isClozeCard: true,
-                    clozeIndex: 1
-                ),
-                StudyCard(
-                    id: "13",
-                    question: "What is the integral of $\\frac{1}{x}$ with respect to $x$?",
-                    answer: "$\\ln|x| + C$ where C is the constant of integration",
-                    isClozeCard: false,
-                    clozeIndex: nil
-                ),
-                StudyCard(
-                    id: "14",
-                    question: "DNA stands for {{c1::Deoxyribonucleic Acid}}.",
-                    answer: "",
-                    isClozeCard: true,
-                    clozeIndex: 1
-                ),
-                StudyCard(
-                    id: "15",
-                    question: "Who painted the Mona Lisa?",
-                    answer: "Leonardo da Vinci",
-                    isClozeCard: false,
-                    clozeIndex: nil
-                )
-            ]
+        Task {
+            do {
+                // Fetch due cards from API
+                let dueCardsResponse = try await backend.fetchDueCards(limit: 50)
 
-            currentCard = dueCards.first
-            currentCardIndex = 0
-            isLoading = false
+                // Combine all types of cards (due, new, learning)
+                let allCards = dueCardsResponse.dueCards + dueCardsResponse.newCards + dueCardsResponse.learningCards
 
-            // Load timeline for first card
-            loadTimelineForCurrentCard()
+                // Store API cards for later use (for IDs)
+                apiCards = allCards
+
+                // Map to local StudyCard model
+                dueCards = allCards.compactMap { apiCard in
+                    mapAPICardToStudyCard(apiCard)
+                }
+
+                if dueCards.isEmpty {
+                    // No cards to review
+                    reviewComplete = true
+                    isLoading = false
+                    return
+                }
+
+                currentCard = dueCards.first
+                currentCardIndex = 0
+
+                // Load images for all cards
+                await loadImagesForCards()
+
+                isLoading = false
+
+                // Load timeline for first card
+                loadTimelineForCurrentCard()
+            } catch {
+                print("❌ Error loading cards: \(error.localizedDescription)")
+                // Show empty state or error
+                isLoading = false
+                reviewComplete = true
+            }
         }
     }
 
+    private func mapAPICardToStudyCard(_ apiCard: APIStudyCard) -> StudyCard? {
+        guard let annotation = apiCard.annotation else {
+            print("⚠️ Card \(apiCard.id) has no annotation")
+            return nil
+        }
+
+        // Determine if this is a cloze card
+        // Check both API clozeIndex AND question text for cloze patterns
+        var isClozeCard = apiCard.clozeIndex != nil
+        var clozeIndex = apiCard.clozeIndex
+
+        // Fallback: detect cloze patterns in question text if API doesn't provide clozeIndex
+        if !isClozeCard && containsClozePattern(annotation.question) {
+            print("⚠️ Card \(apiCard.id): Detected cloze pattern in question but API clozeIndex is nil, using fallback")
+            isClozeCard = true
+            clozeIndex = 1  // Default to first cloze
+        }
+
+        // Debug logging
+        print("📝 Card \(apiCard.id):")
+        print("   - isClozeCard: \(isClozeCard)")
+        print("   - clozeIndex: \(clozeIndex?.description ?? "nil")")
+        print("   - question length: \(annotation.question.count)")
+        print("   - answer length: \(annotation.answer.count)")
+        print("   - question preview: \(String(annotation.question.prefix(100)))")
+
+        return StudyCard(
+            id: String(apiCard.id),
+            question: annotation.question,
+            answer: annotation.answer,
+            isClozeCard: isClozeCard,
+            clozeIndex: clozeIndex
+        )
+    }
+
+    private func containsClozePattern(_ text: String) -> Bool {
+        let clozePattern = "\\{\\{c\\d+::.+?\\}\\}"
+        guard let regex = try? NSRegularExpression(pattern: clozePattern, options: []) else {
+            return false
+        }
+        let range = NSRange(location: 0, length: text.utf16.count)
+        return regex.firstMatch(in: text, options: [], range: range) != nil
+    }
+
+    private func loadImagesForCards() async {
+        // Extract all unique image UUIDs from all cards
+        var imageUUIDs: Set<String> = []
+
+        for card in dueCards {
+            imageUUIDs.formUnion(extractImageUUIDs(from: card.question))
+            imageUUIDs.formUnion(extractImageUUIDs(from: card.answer))
+        }
+
+        guard !imageUUIDs.isEmpty else {
+            print("📷 No images to load")
+            return
+        }
+
+        print("📷 Loading \(imageUUIDs.count) images...")
+
+        // Fetch images from API
+        for uuid in imageUUIDs {
+            do {
+                let imageData = try await backend.fetchImage(uuid: uuid)
+                if let image = NSImage(data: imageData) {
+                    loadedImages[uuid] = image
+                    print("✅ Loaded image: \(uuid.prefix(8))...")
+                } else {
+                    print("❌ Failed to create NSImage from data: \(uuid.prefix(8))...")
+                }
+            } catch {
+                print("❌ Error loading image \(uuid.prefix(8))...: \(error.localizedDescription)")
+            }
+        }
+
+        print("📷 Finished loading images. Total: \(loadedImages.count)")
+    }
+
+    private func extractImageUUIDs(from text: String) -> Set<String> {
+        let imagePattern = "\\[image:([a-fA-F0-9\\-]+)\\]"
+        guard let regex = try? NSRegularExpression(pattern: imagePattern, options: []) else {
+            return []
+        }
+
+        let nsString = text as NSString
+        let range = NSRange(location: 0, length: nsString.length)
+        let matches = regex.matches(in: text, options: [], range: range)
+
+        var uuids: Set<String> = []
+        for match in matches {
+            if match.numberOfRanges > 1 {
+                let uuidRange = match.range(at: 1)
+                let uuid = nsString.substring(with: uuidRange)
+                uuids.insert(uuid)
+            }
+        }
+
+        return uuids
+    }
+
     private func loadTimelineForCurrentCard() {
-        // TODO: Load actual timeline from backend
-        // Placeholder data
-        timelineIntervals = [
-            .init(intervalText: "10m"),
-            .init(intervalText: "1d"),
-            .init(intervalText: "3d"),
-            .init(intervalText: "1w")
-        ]
+        // Get the API card ID for the current card
+        guard currentCardIndex < apiCards.count else { return }
+        let apiCard = apiCards[currentCardIndex]
+
+        Task {
+            do {
+                let timelineResponse = try await backend.fetchCardTimeline(cardId: apiCard.id)
+
+                // Map timeline points to interval info
+                let intervals = timelineResponse.timeline.timelinePoints.map { point in
+                    TimelineVisualizationView.IntervalInfo(intervalText: point.intervalText)
+                }
+
+                timelineIntervals = intervals
+            } catch {
+                print("❌ Error loading timeline: \(error.localizedDescription)")
+                // Use fallback placeholder data
+                timelineIntervals = [
+                    .init(intervalText: "10m"),
+                    .init(intervalText: "1d"),
+                    .init(intervalText: "3d"),
+                    .init(intervalText: "1w")
+                ]
+            }
+        }
     }
 
     private func handleShowAnswer() {
@@ -436,33 +503,70 @@ struct StudySessionView: View {
     }
 
     private func handleReview(rating: Int) {
-        // Update stats (rating >= 2 means correct in FSRS)
-        sessionStats.total += 1
-        if rating >= 2 {
-            sessionStats.correct += 1
-        }
+        // Get the API card ID for the current card
+        guard currentCardIndex < apiCards.count else { return }
+        let apiCard = apiCards[currentCardIndex]
 
-        // Move to next card
-        if currentCardIndex < dueCards.count - 1 {
-            currentCardIndex += 1
-            currentCard = dueCards[currentCardIndex]
-            showAnswer = false
+        // Set loading state
+        isLoading = true
 
-            // Change theme
-            currentThemeIndex = (currentThemeIndex + 1) % StudyColorThemes.all.count
+        Task {
+            do {
+                // Submit review to API
+                _ = try await backend.reviewCard(
+                    cardId: apiCard.id,
+                    rating: rating,
+                    timeTaken: nil,
+                    sessionId: nil
+                )
 
-            // Load timeline for new card
-            loadTimelineForCurrentCard()
-        } else {
-            // Session complete
-            withAnimation {
-                reviewComplete = true
+                // Update stats (rating >= 2 means correct in FSRS: Hard, Good, Easy)
+                sessionStats.total += 1
+                if rating >= 2 {
+                    sessionStats.correct += 1
+                }
+
+                isLoading = false
+
+                // Move to next card
+                if currentCardIndex < dueCards.count - 1 {
+                    currentCardIndex += 1
+                    currentCard = dueCards[currentCardIndex]
+                    showAnswer = false
+
+                    // Change theme
+                    currentThemeIndex = (currentThemeIndex + 1) % StudyColorThemes.all.count
+
+                    // Load timeline for new card
+                    loadTimelineForCurrentCard()
+                } else {
+                    // Session complete
+                    withAnimation {
+                        reviewComplete = true
+                    }
+                }
+            } catch {
+                print("❌ Error submitting review: \(error.localizedDescription)")
+                isLoading = false
+                // Still move to next card even if review submission failed
+                // to avoid blocking the user
+                if currentCardIndex < dueCards.count - 1 {
+                    currentCardIndex += 1
+                    currentCard = dueCards[currentCardIndex]
+                    showAnswer = false
+                    currentThemeIndex = (currentThemeIndex + 1) % StudyColorThemes.all.count
+                    loadTimelineForCurrentCard()
+                } else {
+                    withAnimation {
+                        reviewComplete = true
+                    }
+                }
             }
         }
     }
 
     private func skipCard() {
-        handleReview(rating: 0) // Skip is like rating 0
+        handleReview(rating: 1) // Skip is like "Again" (rating 1)
     }
 
     private func viewInDocument() {

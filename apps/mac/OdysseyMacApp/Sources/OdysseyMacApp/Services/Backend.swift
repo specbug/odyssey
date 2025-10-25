@@ -8,7 +8,13 @@ actor Backend {
     init(environment: APIEnvironment = .current,
          urlSession: URLSession = .shared) {
         self.environment = environment
-        self.urlSession = urlSession
+        // Configure URLSession with timeout
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 10 // 10 second timeout
+        configuration.timeoutIntervalForResource = 10
+        self.urlSession = URLSession(configuration: configuration)
+
+        print("🔧 Backend initialized with API URL: \(environment.baseURL.absoluteString)")
     }
 
     func restoreSession() async throws -> AppState.UserSession {
@@ -94,6 +100,147 @@ actor Backend {
                     print("❌ Unknown decoding error")
                 }
             }
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func fetchDueCards(limit: Int = 50, fileId: Int? = nil) async throws -> DueCardsResponse {
+        var urlString = "\(environment.baseURL.absoluteString)/study-cards/due?limit=\(limit)"
+        if let fileId = fileId {
+            urlString += "&file_id=\(fileId)"
+        }
+
+        print("🌐 fetchDueCards: URL = \(urlString)")
+
+        guard let url = URL(string: urlString) else {
+            print("❌ fetchDueCards: Invalid URL")
+            throw APIError.invalidURL
+        }
+
+        print("🌐 fetchDueCards: Calling URLSession.data...")
+        let (data, response) = try await urlSession.data(from: url)
+        print("🌐 fetchDueCards: Received response")
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = try? JSONDecoder().decode([String: String].self, from: data)["detail"]
+            throw APIError.httpError(statusCode: httpResponse.statusCode, message: errorMessage)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = customDateDecodingStrategy()
+
+        do {
+            let dueCards = try decoder.decode(DueCardsResponse.self, from: data)
+            return dueCards
+        } catch {
+            // Log the actual response for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("❌ Failed to decode due cards response. Actual response:")
+                print(responseString)
+            }
+            print("❌ Decoding error: \(error)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func reviewCard(cardId: Int, rating: Int, timeTaken: Int? = nil, sessionId: Int? = nil) async throws -> CardReviewResult {
+        let urlString = "\(environment.baseURL.absoluteString)/study-cards/\(cardId)/review"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        // Create request body
+        struct ReviewRequest: Codable {
+            let cardId: Int
+            let rating: Int
+            let timeTaken: Int?
+            let sessionId: Int?
+
+            enum CodingKeys: String, CodingKey {
+                case cardId = "card_id"
+                case rating
+                case timeTaken = "time_taken"
+                case sessionId = "session_id"
+            }
+        }
+
+        let requestBody = ReviewRequest(
+            cardId: cardId,
+            rating: rating,
+            timeTaken: timeTaken,
+            sessionId: sessionId
+        )
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        request.httpBody = try encoder.encode(requestBody)
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = try? JSONDecoder().decode([String: String].self, from: data)["detail"]
+            throw APIError.httpError(statusCode: httpResponse.statusCode, message: errorMessage)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = customDateDecodingStrategy()
+
+        do {
+            let result = try decoder.decode(CardReviewResult.self, from: data)
+            return result
+        } catch {
+            // Log the actual response for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("❌ Failed to decode review result. Actual response:")
+                print(responseString)
+            }
+            print("❌ Decoding error: \(error)")
+            throw APIError.decodingError(error)
+        }
+    }
+
+    func fetchCardTimeline(cardId: Int) async throws -> TimelineResponse {
+        let urlString = "\(environment.baseURL.absoluteString)/study-cards/\(cardId)/timeline"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, response) = try await urlSession.data(from: url)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = try? JSONDecoder().decode([String: String].self, from: data)["detail"]
+            throw APIError.httpError(statusCode: httpResponse.statusCode, message: errorMessage)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = customDateDecodingStrategy()
+
+        do {
+            let timeline = try decoder.decode(TimelineResponse.self, from: data)
+            return timeline
+        } catch {
+            // Log the actual response for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("❌ Failed to decode timeline response. Actual response:")
+                print(responseString)
+            }
+            print("❌ Decoding error: \(error)")
             throw APIError.decodingError(error)
         }
     }
