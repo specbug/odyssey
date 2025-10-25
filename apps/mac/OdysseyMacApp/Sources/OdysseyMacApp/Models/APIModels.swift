@@ -129,6 +129,126 @@ struct PaginatedResponse<T: Codable>: Codable {
     let limit: Int
 }
 
+// MARK: - Due Cards Response
+
+struct DueCardsResponse: Codable {
+    let dueCards: [APIStudyCard]
+    let newCards: [APIStudyCard]
+    let learningCards: [APIStudyCard]
+    let totalDue: Int
+    let totalNew: Int
+    let totalLearning: Int
+
+    enum CodingKeys: String, CodingKey {
+        case dueCards = "due_cards"
+        case newCards = "new_cards"
+        case learningCards = "learning_cards"
+        case totalDue = "total_due"
+        case totalNew = "total_new"
+        case totalLearning = "total_learning"
+    }
+}
+
+// MARK: - Card Review Response
+
+struct CardReviewResponse: Codable {
+    let id: Int
+    let cardId: Int
+    let sessionId: Int?
+    let rating: Int
+    let timeTaken: Int?
+    let reviewDate: Date
+    let stateBefore: String?
+    let difficultyBefore: Double?
+    let stabilityBefore: Double?
+    let stateAfter: String?
+    let difficultyAfter: Double?
+    let stabilityAfter: Double?
+    let scheduledDaysAfter: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case cardId = "card_id"
+        case sessionId = "session_id"
+        case rating
+        case timeTaken = "time_taken"
+        case reviewDate = "review_date"
+        case stateBefore = "state_before"
+        case difficultyBefore = "difficulty_before"
+        case stabilityBefore = "stability_before"
+        case stateAfter = "state_after"
+        case difficultyAfter = "difficulty_after"
+        case stabilityAfter = "stability_after"
+        case scheduledDaysAfter = "scheduled_days_after"
+    }
+}
+
+struct CardReviewResult: Codable {
+    let card: APIStudyCard
+    let review: CardReviewResponse
+    let nextReviewDate: Date
+    let message: String
+
+    enum CodingKeys: String, CodingKey {
+        case card
+        case review
+        case nextReviewDate = "next_review_date"
+        case message
+    }
+}
+
+// MARK: - Timeline Response
+
+struct TimelinePoint: Codable {
+    let rating: Int
+    let ratingLabel: String
+    let nextReviewDate: Date
+    let intervalDays: Int
+    let intervalText: String
+    let cardState: String
+    let difficultyAfter: Double
+    let stabilityAfter: Double
+
+    enum CodingKeys: String, CodingKey {
+        case rating
+        case ratingLabel = "rating_label"
+        case nextReviewDate = "next_review_date"
+        case intervalDays = "interval_days"
+        case intervalText = "interval_text"
+        case cardState = "card_state"
+        case difficultyAfter = "difficulty_after"
+        case stabilityAfter = "stability_after"
+    }
+}
+
+struct CardTimeline: Codable {
+    let cardId: Int
+    let currentState: String
+    let currentDifficulty: Double
+    let currentStability: Double
+    let currentScheduledDays: Int
+    let nextReviewDate: Date?
+    let timelinePoints: [TimelinePoint]
+    let generatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case cardId = "card_id"
+        case currentState = "current_state"
+        case currentDifficulty = "current_difficulty"
+        case currentStability = "current_stability"
+        case currentScheduledDays = "current_scheduled_days"
+        case nextReviewDate = "next_review_date"
+        case timelinePoints = "timeline_points"
+        case generatedAt = "generated_at"
+    }
+}
+
+struct TimelineResponse: Codable {
+    let success: Bool
+    let timeline: CardTimeline
+    let message: String?
+}
+
 // MARK: - API Error
 
 enum APIError: LocalizedError {

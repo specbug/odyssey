@@ -2,11 +2,27 @@ import SwiftUI
 
 struct StudyView: View {
     @EnvironmentObject private var appState: AppState
-    @State private var cardsDueToday: Int = 12
-    @State private var cardsCompletedToday: Int = 5
+    @StateObject private var viewModel: StudyViewModel
     @State private var showStudySession: Bool = false
     @State private var network: OrganicNetwork = OrganicNetwork.generate(nodeCount: 12)
     @State private var animateIn: Bool = false
+
+    init(viewModel: StudyViewModel? = nil) {
+        if let viewModel = viewModel {
+            _viewModel = StateObject(wrappedValue: viewModel)
+        } else {
+            // This will be replaced when the view is created with the actual backend
+            _viewModel = StateObject(wrappedValue: StudyViewModel(backend: Backend()))
+        }
+    }
+
+    private var cardsDueToday: Int {
+        viewModel.cardsDueToday + viewModel.newCardsToday + viewModel.learningCardsToday
+    }
+
+    private var cardsCompletedToday: Int {
+        viewModel.cardsCompletedToday
+    }
 
     var body: some View {
         ZStack {
@@ -40,6 +56,11 @@ struct StudyView: View {
             withAnimation(.spring(response: 1.0, dampingFraction: 0.75).delay(0.2)) {
                 animateIn = true
             }
+        }
+        .task {
+            await viewModel.loadDueCardStats()
+            // Update network node count based on actual cards
+            network = OrganicNetwork.generate(nodeCount: max(1, cardsDueToday))
         }
     }
 
