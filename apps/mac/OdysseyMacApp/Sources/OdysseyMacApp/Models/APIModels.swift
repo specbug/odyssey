@@ -249,6 +249,48 @@ struct TimelineResponse: Codable {
     let message: String?
 }
 
+// MARK: - Progression Models
+
+struct ProgressionInterval: Codable {
+    let step: Int
+    let intervalText: String
+    let intervalDays: Int
+    let nextReviewDate: Date
+    let cardState: String
+    let difficulty: Double
+    let stability: Double
+
+    enum CodingKeys: String, CodingKey {
+        case step
+        case intervalText = "interval_text"
+        case intervalDays = "interval_days"
+        case nextReviewDate = "next_review_date"
+        case cardState = "card_state"
+        case difficulty
+        case stability
+    }
+}
+
+struct CardProgression: Codable {
+    let cardId: Int
+    let currentState: String
+    let progressionIntervals: [ProgressionInterval]
+    let generatedAt: Date
+
+    enum CodingKeys: String, CodingKey {
+        case cardId = "card_id"
+        case currentState = "current_state"
+        case progressionIntervals = "progression_intervals"
+        case generatedAt = "generated_at"
+    }
+}
+
+struct ProgressionResponse: Codable {
+    let success: Bool
+    let progression: CardProgression
+    let message: String?
+}
+
 // MARK: - API Error
 
 enum APIError: LocalizedError {

@@ -86,17 +86,16 @@ struct ReviewButtonsView: View {
         keyEquivalent: String
     ) -> some View {
         Button(action: { onReview(rating) }) {
-            VStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Image(systemName: icon)
                     .font(.system(size: 20, weight: .semibold))
 
                 Text(label)
-                    .font(.system(size: 15, weight: .medium))
+                    .font(.system(size: 17, weight: .semibold))
             }
             .foregroundStyle(foregroundColor)
-            .frame(minWidth: 100)
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.horizontal, 28)
+            .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .fill(foregroundColor.opacity(0.15))
