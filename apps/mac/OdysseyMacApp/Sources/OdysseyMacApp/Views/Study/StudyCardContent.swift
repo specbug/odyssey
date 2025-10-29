@@ -11,6 +11,8 @@ struct StudyCardContent: View {
     let textColor: Color
     let fontSize: CGFloat
     let fontWeight: Int
+    let lineHeight: CGFloat
+    let letterSpacing: String
 
     var body: some View {
         if isClozeCard {
@@ -23,7 +25,9 @@ struct StudyCardContent: View {
                 clozeColor: clozeColor,
                 textColor: textColor,
                 fontSize: fontSize,
-                fontWeight: fontWeight
+                fontWeight: fontWeight,
+                lineHeight: lineHeight,
+                letterSpacing: letterSpacing
             )
         } else {
             // Basic card: render normally
@@ -33,7 +37,9 @@ struct StudyCardContent: View {
                 clozeColor: clozeColor,
                 textColor: textColor,
                 fontSize: fontSize,
-                fontWeight: fontWeight
+                fontWeight: fontWeight,
+                lineHeight: lineHeight,
+                letterSpacing: letterSpacing
             )
         }
     }
@@ -48,6 +54,8 @@ private struct BasicCardRenderer: View {
     let textColor: Color
     let fontSize: CGFloat
     let fontWeight: Int
+    let lineHeight: CGFloat
+    let letterSpacing: String
 
     var body: some View {
         InlineContentRenderer(
@@ -58,7 +66,9 @@ private struct BasicCardRenderer: View {
             clozeIndex: nil,
             showClozeAnswer: true,
             fontSize: fontSize,
-            fontWeight: fontWeight
+            fontWeight: fontWeight,
+            lineHeight: lineHeight,
+            letterSpacing: letterSpacing
         )
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -75,6 +85,8 @@ private struct ClozeCardRenderer: View {
     let textColor: Color
     let fontSize: CGFloat
     let fontWeight: Int
+    let lineHeight: CGFloat
+    let letterSpacing: String
 
     var body: some View {
         InlineContentRenderer(
@@ -85,7 +97,9 @@ private struct ClozeCardRenderer: View {
             clozeIndex: clozeIndex,
             showClozeAnswer: showAnswer,
             fontSize: fontSize,
-            fontWeight: fontWeight
+            fontWeight: fontWeight,
+            lineHeight: lineHeight,
+            letterSpacing: letterSpacing
         )
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -103,6 +117,8 @@ private struct InlineContentRenderer: View {
     let showClozeAnswer: Bool
     let fontSize: CGFloat
     let fontWeight: Int
+    let lineHeight: CGFloat
+    let letterSpacing: String
 
     var body: some View {
         let segments = parseContent()
@@ -118,7 +134,9 @@ private struct InlineContentRenderer: View {
                         clozeIndex: clozeIndex,
                         showClozeAnswer: showClozeAnswer,
                         fontSize: fontSize,
-                        fontWeight: fontWeight
+                        fontWeight: fontWeight,
+                        lineHeight: lineHeight,
+                        letterSpacing: letterSpacing
                     )
 
                 case .image(let uuid):
@@ -204,6 +222,8 @@ private struct TextSegmentRenderer: View {
     let showClozeAnswer: Bool
     let fontSize: CGFloat
     let fontWeight: Int
+    let lineHeight: CGFloat
+    let letterSpacing: String
 
     @State private var contentHeight: CGFloat = 100
 
@@ -218,6 +238,8 @@ private struct TextSegmentRenderer: View {
                 textColor: textColor,
                 fontSize: fontSize,
                 fontWeight: fontWeight,
+                lineHeight: lineHeight,
+                letterSpacing: letterSpacing,
                 heightBinding: $contentHeight
             )
             .frame(height: max(contentHeight, 50))
@@ -230,6 +252,8 @@ private struct TextSegmentRenderer: View {
                 textColor: textColor,
                 fontSize: fontSize,
                 fontWeight: fontWeight,
+                lineHeight: lineHeight,
+                letterSpacing: letterSpacing,
                 heightBinding: $contentHeight
             )
             .frame(height: max(contentHeight, 50))
@@ -249,6 +273,8 @@ private struct ClozeAwareLatexView: View {
     let textColor: Color
     let fontSize: CGFloat
     let fontWeight: Int
+    let lineHeight: CGFloat
+    let letterSpacing: String
     @Binding var heightBinding: CGFloat
 
     var body: some View {
@@ -260,6 +286,8 @@ private struct ClozeAwareLatexView: View {
             textColor: textColor,
             fontSize: fontSize,
             fontWeight: fontWeight,
+            lineHeight: lineHeight,
+            letterSpacing: letterSpacing,
             heightBinding: $heightBinding
         )
     }
@@ -363,11 +391,13 @@ private struct ImageSegmentRenderer: View {
                 clozeColor: "rgba(114, 174, 248, 0.35)",
                 textColor: .white,
                 fontSize: 42,
-                fontWeight: 600
+                fontWeight: 400,
+                lineHeight: 1.3,
+                letterSpacing: "-0.02em"
             )
             .padding(40)
         }
-        .frame(maxWidth: 700)
+        .frame(maxWidth: 900)
     }
 }
 
@@ -386,11 +416,13 @@ private struct ImageSegmentRenderer: View {
                 clozeColor: "rgba(255, 235, 59, 0.6)",
                 textColor: .white,
                 fontSize: 42,
-                fontWeight: 600
+                fontWeight: 400,
+                lineHeight: 1.3,
+                letterSpacing: "-0.02em"
             )
             .padding(40)
         }
-        .frame(maxWidth: 700)
+        .frame(maxWidth: 900)
     }
 }
 
@@ -409,10 +441,12 @@ private struct ImageSegmentRenderer: View {
                 clozeColor: "rgba(255, 235, 59, 0.6)",
                 textColor: .white,
                 fontSize: 42,
-                fontWeight: 600
+                fontWeight: 400,
+                lineHeight: 1.3,
+                letterSpacing: "-0.02em"
             )
             .padding(40)
         }
-        .frame(maxWidth: 700)
+        .frame(maxWidth: 900)
     }
 }

@@ -245,6 +245,40 @@ actor Backend {
         }
     }
 
+    func fetchCardProgression(cardId: Int, steps: Int = 4) async throws -> ProgressionResponse {
+        let urlString = "\(environment.baseURL.absoluteString)/study-cards/\(cardId)/progression?steps=\(steps)"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        let (data, response) = try await urlSession.data(from: url)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = try? JSONDecoder().decode([String: String].self, from: data)["detail"]
+            throw APIError.httpError(statusCode: httpResponse.statusCode, message: errorMessage)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = customDateDecodingStrategy()
+
+        do {
+            let progression = try decoder.decode(ProgressionResponse.self, from: data)
+            return progression
+        } catch {
+            // Log the actual response for debugging
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("❌ Failed to decode progression response. Actual response:")
+                print(responseString)
+            }
+            print("❌ Decoding error: \(error)")
+            throw APIError.decodingError(error)
+        }
+    }
+
     func fetchPDFFile(fileId: Int) async throws -> PDFFile {
         let urlString = "\(environment.baseURL.absoluteString)/files/\(fileId)"
         guard let url = URL(string: urlString) else {

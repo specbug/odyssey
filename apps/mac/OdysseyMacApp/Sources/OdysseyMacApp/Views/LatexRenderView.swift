@@ -10,14 +10,18 @@ struct LatexRenderView: NSViewRepresentable {
     let textColor: Color
     let fontSize: CGFloat
     let fontWeight: Int
+    let lineHeight: CGFloat
+    let letterSpacing: String
     var heightBinding: Binding<CGFloat>?
 
-    init(text: String, clozeColor: String = "rgba(114, 174, 248, 0.35)", textColor: Color = .primary, fontSize: CGFloat = 22, fontWeight: Int = 400, heightBinding: Binding<CGFloat>? = nil) {
+    init(text: String, clozeColor: String = "rgba(114, 174, 248, 0.35)", textColor: Color = .primary, fontSize: CGFloat = 22, fontWeight: Int = 400, lineHeight: CGFloat = 1.6, letterSpacing: String = "normal", heightBinding: Binding<CGFloat>? = nil) {
         self.text = text
         self.clozeColor = clozeColor
         self.textColor = textColor
         self.fontSize = fontSize
         self.fontWeight = fontWeight
+        self.lineHeight = lineHeight
+        self.letterSpacing = letterSpacing
         self.heightBinding = heightBinding
     }
 
@@ -95,7 +99,8 @@ struct LatexRenderView: NSViewRepresentable {
                     font-family: "Dr", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
                     font-size: \(Int(fontSize))px;
                     font-weight: \(fontWeight);
-                    line-height: 1.6;
+                    line-height: \(lineHeight);
+                    letter-spacing: \(letterSpacing);
                 }
 
                 /* Style for inline LaTeX */

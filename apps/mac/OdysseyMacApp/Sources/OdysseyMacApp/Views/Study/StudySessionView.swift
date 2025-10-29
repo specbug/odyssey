@@ -62,14 +62,9 @@ struct StudySessionView: View {
                             Spacer()
                                 .frame(minHeight: 20)
 
-                            if reviewComplete {
-                                centerContent
-                                    .frame(maxWidth: .infinity)
-                            } else {
-                                centerContent
-                                    .frame(maxWidth: 700)
-                                    .padding(.horizontal, 40)
-                            }
+                            centerContent
+                                .frame(maxWidth: reviewComplete ? .infinity : 900)
+                                .padding(.horizontal, reviewComplete ? 0 : 40)
 
                             Spacer()
                                 .frame(minHeight: 20)
@@ -219,14 +214,96 @@ struct StudySessionView: View {
     }
 
     private var completionState: some View {
-        StudyCompletionView(
-            totalReviewed: sessionStats.total,
-            correctCount: sessionStats.correct,
-            foregroundColor: currentTheme.fg,
-            backgroundColor: currentTheme.bg,
-            onContinue: { appState.isInStudySession = false }
-        )
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        VStack(spacing: 32) {
+            if sessionStats.total == 0 {
+                // All caught up - no cards reviewed
+                VStack(spacing: 24) {
+                    // Logo
+                    Image(systemName: "star.circle.fill")
+                        .font(.system(size: 80))
+                        .foregroundStyle(currentTheme.fg.opacity(0.9))
+
+                    // Message
+                    VStack(spacing: 8) {
+                        Text("All caught up!")
+                            .font(.system(size: 32, weight: .semibold))
+                            .foregroundStyle(currentTheme.fg)
+
+                        Text("Nothing's due for review.")
+                            .font(.system(size: 20))
+                            .foregroundStyle(currentTheme.fg.opacity(0.8))
+                    }
+                    .multilineTextAlignment(.center)
+                }
+            } else {
+                // Session completed - show stats
+                VStack(spacing: 32) {
+                    // Completion asterisk
+                    StudyProgressIndicator(
+                        totalSteps: sessionStats.total,
+                        currentStep: sessionStats.total,
+                        size: 120,
+                        activeColor: Color(hex: "#ff4d06"),
+                        inactiveColor: Color(hex: "#ff4d06").opacity(0.2)
+                    )
+
+                    // Title
+                    Text("Review Complete")
+                        .font(.system(size: 32, weight: .semibold))
+                        .foregroundStyle(currentTheme.fg)
+
+                    // Stats
+                    HStack(spacing: 48) {
+                        // Cards reviewed
+                        VStack(spacing: 4) {
+                            Text("\(sessionStats.total)")
+                                .font(.system(size: 48, weight: .bold))
+                                .foregroundStyle(currentTheme.fg)
+
+                            Text(sessionStats.total == 1 ? "card reviewed" : "cards reviewed")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(currentTheme.fg.opacity(0.7))
+                        }
+
+                        // Accuracy
+                        VStack(spacing: 4) {
+                            Text("\(accuracy)%")
+                                .font(.system(size: 48, weight: .bold))
+                                .foregroundStyle(currentTheme.fg)
+
+                            Text("accuracy")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(currentTheme.fg.opacity(0.7))
+                        }
+                    }
+                }
+            }
+
+            // Continue button
+            Button(action: { appState.isInStudySession = false }) {
+                HStack(spacing: 12) {
+                    Text("Continue Reading")
+                        .font(.system(size: 18, weight: .semibold))
+
+                    Image(systemName: "arrow.forward")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .foregroundStyle(currentTheme.bg)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 16)
+                .background(
+                    Capsule()
+                        .fill(currentTheme.fg)
+                )
+            }
+            .buttonStyle(.plain)
+        }
+        .frame(maxWidth: 500)
+    }
+
+    private var accuracy: Int {
+        guard sessionStats.total > 0 else { return 0 }
+        return Int(round(Double(sessionStats.correct) / Double(sessionStats.total) * 100))
     }
 
     private func activeCardState(card: StudyCard) -> some View {
@@ -247,7 +324,9 @@ struct StudySessionView: View {
                 clozeColor: getClozeColor(),
                 textColor: currentTheme.fg,
                 fontSize: 42,
-                fontWeight: 600
+                fontWeight: 400,
+                lineHeight: 1.3,
+                letterSpacing: "-0.02em"
             )
 
             // Answer section (for basic cards only)
@@ -267,7 +346,9 @@ struct StudySessionView: View {
                         clozeColor: getClozeColor(),
                         textColor: currentTheme.fg,
                         fontSize: 32,
-                        fontWeight: 500
+                        fontWeight: 400,
+                        lineHeight: 1.4,
+                        letterSpacing: "-0.01em"
                     )
                 }
             }
@@ -475,16 +556,16 @@ struct StudySessionView: View {
 
         Task {
             do {
-                let timelineResponse = try await backend.fetchCardTimeline(cardId: apiCard.id)
+                let progressionResponse = try await backend.fetchCardProgression(cardId: apiCard.id, steps: 4)
 
-                // Map timeline points to interval info
-                let intervals = timelineResponse.timeline.timelinePoints.map { point in
-                    TimelineVisualizationView.IntervalInfo(intervalText: point.intervalText)
+                // Map progression intervals to interval info
+                let intervals = progressionResponse.progression.progressionIntervals.map { interval in
+                    TimelineVisualizationView.IntervalInfo(intervalText: interval.intervalText)
                 }
 
                 timelineIntervals = intervals
             } catch {
-                print("❌ Error loading timeline: \(error.localizedDescription)")
+                print("❌ Error loading progression: \(error.localizedDescription)")
                 // Use fallback placeholder data
                 timelineIntervals = [
                     .init(intervalText: "10m"),
