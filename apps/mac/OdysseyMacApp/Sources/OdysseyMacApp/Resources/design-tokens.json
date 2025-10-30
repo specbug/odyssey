@@ -1,0 +1,53 @@
+{
+  "colors": {
+    "ink": "rgba(0, 0, 0, 0.8)",
+    "white": "#FFFFFF",
+    "accent": "#ff4d06",
+    "accentHover": "#ff6b35",
+    "background": "#FA863D",
+    "secondaryBackground": "#F4742F",
+    "secondaryText": "#C74200",
+    "yellowAccent": "#FFCB2E",
+    "destructive": "#ED3749",
+    "canvas": "#fafbfc",
+    "surface": "#FFFFFF",
+    "surfaceSubtle": "#FEF9F3",
+    "border": "#E8E1D8",
+    "mutedText": "rgba(0, 0, 0, 0.55)",
+    "shadow": "rgba(37, 24, 13, 0.08)",
+    "browsePink": "#f56bb5",
+    "browsePurple": "#d071ef",
+    "browseViolet": "#ad89fb",
+    "browseBlue": "#72aef8",
+    "browseCyan": "#65c6f6",
+    "browseTeal": "#52dada",
+    "browseGreen": "#63d463",
+    "browseLime": "#8fd43a",
+    "browseYellow": "#fac800",
+    "browseOrange": "#e0a642",
+    "browseCoral": "#fa863d",
+    "browseRed": "#ff5252"
+  },
+  "fonts": {
+    "primaryFamily": "Dr, -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif",
+    "monospaceFamily": "\"R Plex Mono\", source-code-pro, Menlo, Monaco, Consolas, \"Courier New\", monospace"
+  },
+  "spacing": {
+    "grid": 8,
+    "xxs": 4,
+    "xs": 8,
+    "sm": 12,
+    "md": 16,
+    "lg": 24,
+    "xl": 32,
+    "xxl": 40,
+    "xxxl": 48,
+    "xxxxl": 56,
+    "xxxxxl": 60
+  },
+  "radius": {
+    "sm": 8,
+    "md": 12,
+    "lg": 16
+  }
+}

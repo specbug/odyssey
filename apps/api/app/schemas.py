@@ -39,15 +39,18 @@ class PDFFileResponse(PDFFileBase):
 
 class AnnotationBase(BaseModel):
     annotation_id: str
-    page_index: int
+    page_index: Optional[int] = None  # Optional for standalone notes
     question: str
     answer: str
-    highlighted_text: str
-    position_data: str
+    highlighted_text: Optional[str] = None
+    position_data: Optional[str] = None
+    source: Optional[str] = None
+    tag: Optional[str] = None
+    deck: str = "Default"
 
 
 class AnnotationCreate(AnnotationBase):
-    pass  # file_id is passed as path parameter, not in request body
+    pass  # file_id can be passed as path parameter or None for standalone
 
 
 class AnnotationUpdate(BaseModel):
@@ -55,11 +58,14 @@ class AnnotationUpdate(BaseModel):
     answer: Optional[str] = None
     highlighted_text: Optional[str] = None
     position_data: Optional[str] = None
+    source: Optional[str] = None
+    tag: Optional[str] = None
+    deck: Optional[str] = None
 
 
 class AnnotationResponse(AnnotationBase):
     id: int
-    file_id: int
+    file_id: Optional[int] = None  # Optional for standalone notes
     created_date: datetime
     updated_date: datetime
 
@@ -84,6 +90,38 @@ class ReadPositionUpdate(BaseModel):
 
 class TotalPagesUpdate(BaseModel):
     total_pages: int = Field(..., ge=1, description="Total number of pages in the PDF")
+
+
+# Image Schemas
+
+
+class ImageBase(BaseModel):
+    uuid: str
+    mime_type: str = "image/png"
+
+
+class ImageCreate(BaseModel):
+    uuid: str
+    annotation_id: Optional[int] = None
+    file_path: str
+    mime_type: str
+    file_size: int
+
+
+class ImageResponse(ImageBase):
+    id: int
+    annotation_id: Optional[int] = None
+    file_size: int
+    created_date: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class ImageUploadResponse(BaseModel):
+    success: bool
+    uuid: str
+    message: str
 
 
 # Spaced Repetition Schemas (FSRS)

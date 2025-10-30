@@ -1,0 +1,14 @@
+{
+  "name": "@odyssey/ui-foundation",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shared color, typography, spacing tokens for Odyssey surfaces.",
+  "exports": {
+    ".": "./index.js",
+    "./tokens.json": "./tokens.json"
+  },
+  "scripts": {
+    "lint": "node --version"
+  }
+}

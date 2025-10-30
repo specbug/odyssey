@@ -12,7 +12,7 @@ import gzip
 import io
 
 from .database import SessionLocal, engine, get_db
-from .models import Base, PDFFile, Annotation, StudyCard, CardReview, ReviewSession
+from .models import Base, PDFFile, Annotation, StudyCard, CardReview, ReviewSession, Image
 from .schemas import (
     PDFFileResponse,
     AnnotationCreate,
@@ -22,6 +22,9 @@ from .schemas import (
     ZoomLevelUpdate,
     ReadPositionUpdate,
     TotalPagesUpdate,
+    ImageCreate,
+    ImageResponse,
+    ImageUploadResponse,
     StudyCardCreate,
     StudyCardResponse,
     StudyCardUpdate,
@@ -70,10 +73,13 @@ app.add_middleware(
 
 # Configuration
 UPLOAD_DIR = os.getenv("UPLOAD_DIR", "./uploads")
+IMAGES_DIR = os.path.join(UPLOAD_DIR, "images")
 MAX_FILE_SIZE = int(os.getenv("MAX_FILE_SIZE", "50000000"))  # 50MB
+MAX_IMAGE_SIZE = int(os.getenv("MAX_IMAGE_SIZE", "10000000"))  # 10MB
 
-# Ensure upload directory exists
+# Ensure upload directories exist
 ensure_upload_dir(UPLOAD_DIR)
+ensure_upload_dir(IMAGES_DIR)
 
 
 # Simple GZip middleware for compression
@@ -416,6 +422,169 @@ async def delete_file(file_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"message": "File deleted successfully"}
+
+
+# Image Endpoints
+
+
+@app.post("/images/upload", response_model=ImageUploadResponse)
+async def upload_image(
+    file: UploadFile = File(...),
+    uuid: str = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Upload an image file. Returns the UUID that can be used in [image:UUID] markers.
+    If uuid is provided, it will be used; otherwise, a new UUID will be generated.
+    """
+    try:
+        import uuid as uuid_lib
+        import imghdr
+
+        # Generate UUID if not provided
+        if uuid is None:
+            uuid = str(uuid_lib.uuid4())
+
+        # Read file content
+        file_content = await file.read()
+        file_size = len(file_content)
+
+        # Validate file size
+        if file_size > MAX_IMAGE_SIZE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Image file too large. Maximum size is {MAX_IMAGE_SIZE} bytes"
+            )
+
+        # Detect image type
+        image_type = imghdr.what(None, h=file_content)
+        if image_type is None:
+            raise HTTPException(status_code=400, detail="Invalid image file")
+
+        mime_type = f"image/{image_type}"
+
+        # Generate filename: uuid.extension
+        filename = f"{uuid}.{image_type}"
+        file_path = os.path.join(IMAGES_DIR, filename)
+
+        # Save image to disk
+        with open(file_path, "wb") as f:
+            f.write(file_content)
+
+        # Create database record
+        db_image = Image(
+            uuid=uuid,
+            file_path=file_path,
+            mime_type=mime_type,
+            file_size=file_size,
+        )
+
+        db.add(db_image)
+        db.commit()
+        db.refresh(db_image)
+
+        print(f"✅ Image uploaded successfully: uuid={uuid}, size={file_size}, type={mime_type}")
+
+        return ImageUploadResponse(
+            success=True,
+            uuid=uuid,
+            message="Image uploaded successfully"
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        error_msg = str(e)
+        error_traceback = traceback.format_exc()
+        print(f"❌ Image upload error: {error_msg}")
+        print(f"❌ Full traceback: {error_traceback}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error uploading image: {error_msg}"
+        )
+
+
+@app.get("/images/{uuid}")
+async def get_image(uuid: str, db: Session = Depends(get_db)):
+    """Retrieve an image file by UUID."""
+    image = db.query(Image).filter(Image.uuid == uuid).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    if not os.path.exists(image.file_path):
+        raise HTTPException(status_code=404, detail="Image file not found on disk")
+
+    return FileResponse(
+        image.file_path,
+        media_type=image.mime_type,
+        headers={"Cache-Control": "public, max-age=31536000"}  # Cache for 1 year
+    )
+
+
+@app.delete("/images/{uuid}")
+async def delete_image(uuid: str, db: Session = Depends(get_db)):
+    """Delete an image and its file."""
+    image = db.query(Image).filter(Image.uuid == uuid).first()
+    if not image:
+        raise HTTPException(status_code=404, detail="Image not found")
+
+    # Delete file from disk
+    if os.path.exists(image.file_path):
+        os.remove(image.file_path)
+
+    # Delete from database
+    db.delete(image)
+    db.commit()
+
+    return {"message": "Image deleted successfully"}
+
+
+# Annotation Endpoints
+
+
+@app.post("/annotations", response_model=AnnotationResponse)
+async def create_standalone_annotation(
+    annotation: AnnotationCreate,
+    db: Session = Depends(get_db)
+):
+    """Create a standalone annotation (not linked to any PDF file)."""
+    try:
+        print(f"📝 Creating standalone annotation:")
+        print(f"  annotation_id: {annotation.annotation_id}")
+        print(f"  question: {annotation.question[:50] if annotation.question else 'None'}...")
+        print(f"  answer: {annotation.answer[:50] if annotation.answer else 'None'}...")
+        print(f"  source: {annotation.source}")
+        print(f"  tag: {annotation.tag}")
+        print(f"  deck: {annotation.deck}")
+
+        # Create annotation without file_id
+        db_annotation = Annotation(
+            file_id=None,
+            annotation_id=annotation.annotation_id,
+            page_index=annotation.page_index,
+            question=annotation.question,
+            answer=annotation.answer,
+            highlighted_text=annotation.highlighted_text or "",
+            position_data=annotation.position_data or "",
+            source=annotation.source,
+            tag=annotation.tag,
+            deck=annotation.deck,
+        )
+
+        db.add(db_annotation)
+        db.commit()
+        db.refresh(db_annotation)
+
+        print(f"✅ Successfully created standalone annotation with ID: {db_annotation.id}")
+        return db_annotation
+
+    except Exception as e:
+        print(f"❌ Error creating standalone annotation: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error creating standalone annotation: {str(e)}"
+        )
 
 
 @app.post("/files/{file_id}/annotations", response_model=AnnotationResponse)
