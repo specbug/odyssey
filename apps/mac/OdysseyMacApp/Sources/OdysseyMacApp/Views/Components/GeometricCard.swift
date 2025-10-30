@@ -220,7 +220,7 @@ struct GeometricStateBadge: View {
         case .review:
             return AnyShape(RoundedRectangle(cornerRadius: 2))
         case .learning:
-            return AnyShape(Triangle())
+            return AnyShape(PlayTriangle())
         case .buried:
             return AnyShape(Diamond())
         case .suspended:
@@ -246,6 +246,18 @@ struct Triangle: Shape {
         Path { path in
             path.move(to: CGPoint(x: rect.midX, y: rect.minY))
             path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY))
+            path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
+            path.closeSubpath()
+        }
+    }
+}
+
+struct PlayTriangle: Shape {
+    func path(in rect: CGRect) -> Path {
+        Path { path in
+            // Right-pointing triangle (play button)
+            path.move(to: CGPoint(x: rect.minX, y: rect.minY))
+            path.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
             path.addLine(to: CGPoint(x: rect.minX, y: rect.maxY))
             path.closeSubpath()
         }

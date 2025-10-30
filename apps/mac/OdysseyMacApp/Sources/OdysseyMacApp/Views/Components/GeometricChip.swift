@@ -13,10 +13,9 @@ struct GeometricChip: View {
     @State private var hoverColor: Color
 
     // Fixed dimensions - wider and shorter for better scanning
-    private let chipWidth: CGFloat = 320
     private let chipHeight: CGFloat = 140
-    private let mainBorderWidth: CGFloat = 3  // Thick main border
-    private let shadowBorderWidth: CGFloat = 1  // Thin shadow border
+    private let mainBorderWidth: CGFloat = 3  // Main border
+    private let shadowBorderWidth: CGFloat = 3  // Shadow border
     private let shadowOffset: CGFloat = 5  // Offset with gap
 
     init(card: CardSummary, palette: OdysseyColorPalette, onTap: @escaping () -> Void) {
@@ -29,10 +28,11 @@ struct GeometricChip: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            // Shadow border (thin, offset, creates gap effect)
+            // Shadow border (offset, creates gap effect)
             Rectangle()
-                .stroke(Color.black.opacity(0.15), lineWidth: shadowBorderWidth)
-                .frame(width: chipWidth, height: chipHeight)
+                .stroke(Color.black.opacity(0.6), lineWidth: shadowBorderWidth)
+                .frame(maxWidth: .infinity)
+                .frame(height: chipHeight)
                 .offset(x: shadowOffset, y: shadowOffset)
 
             // Main chip content
@@ -43,22 +43,25 @@ struct GeometricChip: View {
                     RenderedCardText(
                         text: card.front,
                         maxLines: 3,
-                        fontSize: 17,  // Larger font
+                        fontSize: 20,  // Larger font for better readability
                         palette: palette
                     )
 
                     Spacer(minLength: 0)
                 }
-                .padding(16)
+                .padding(.horizontal, 16)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
                 // Footer metadata
                 footer
             }
-            .frame(width: chipWidth, height: chipHeight)
+            .frame(maxWidth: .infinity)
+            .frame(height: chipHeight)
             .background(OdysseyColor.surface)
             .overlay(
-                // Main thick border
+                // Main thick border (lighter color)
                 Rectangle()
                     .stroke(borderColor, lineWidth: mainBorderWidth)
             )
@@ -101,10 +104,10 @@ struct GeometricChip: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 10)
+        .padding(.vertical, 6)
         .background(
             Rectangle()
-                .fill(OdysseyColor.surfaceSubtle)
+                .fill(Color(hex: "#ff4d06").opacity(0.05))
         )
     }
 
@@ -114,7 +117,7 @@ struct GeometricChip: View {
         if isHovered {
             return hoverColor  // Random XKCD color assigned on init
         }
-        return Color.black  // Default black border
+        return Color.black.opacity(0.9)  // Dark black border
     }
 }
 
@@ -131,7 +134,7 @@ struct GeometricStateChip: View {
                 .frame(width: 9, height: 9)
 
             Text(state.label)
-                .font(.system(size: 11, weight: .bold))
+                .font(.system(size: 9, weight: .bold))
                 .foregroundStyle(stateColor)
                 .textCase(.uppercase)
                 .tracking(0.4)
@@ -151,7 +154,7 @@ struct GeometricStateChip: View {
         case .review:
             return AnyShape(Rectangle())
         case .learning:
-            return AnyShape(Triangle())
+            return AnyShape(PlayTriangle())
         case .buried:
             return AnyShape(Diamond())
         case .suspended:
@@ -163,7 +166,7 @@ struct GeometricStateChip: View {
         switch state {
         case .new: return Color(hex: "#ff4d06")  // Accent orange
         case .review: return Color(hex: "#66bb6a")  // Green
-        case .learning: return Color(hex: "#ffcb2e")  // Yellow
+        case .learning: return Color(hex: "#52B2BF")  // Ocean blue
         case .buried: return Color(hex: "#ba8c63")  // Brown
         case .suspended: return OdysseyColor.mutedText.opacity(0.6)
         }
@@ -176,7 +179,8 @@ struct GeometricStateChip: View {
     ScrollView {
         LazyVGrid(
             columns: [
-                GridItem(.adaptive(minimum: 320, maximum: 340), spacing: 16)
+                GridItem(.flexible(), spacing: 16),
+                GridItem(.flexible(), spacing: 16)
             ],
             spacing: 16
         ) {

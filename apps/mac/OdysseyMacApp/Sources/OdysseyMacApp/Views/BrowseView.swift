@@ -151,22 +151,29 @@ struct BrowseView: View {
     // MARK: - Main Content
 
     private var mainContent: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 32) {
-                // Header with starburst
-                headerWithStarburst
+        HStack(spacing: 0) {
+            // Left pane: Card browsing (60%)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 32) {
+                    // Header with starburst
+                    headerWithStarburst
 
-                // Search and filters
-                searchAndFilters
+                    // Search and filters
+                    searchAndFilters
 
-                // Card grid
-                cardGrid
+                    // Card grid
+                    cardGrid
+                }
+                .padding(.horizontal, 48)
+                .padding(.vertical, 32)
             }
-            .padding(.horizontal, 48)
-            .padding(.vertical, 32)
-            .frame(maxWidth: 1000, alignment: .topLeading)
+            .scrollBounceBehavior(.basedOnSize)
+            .frame(minWidth: 0, maxWidth: .infinity)
+
+            // Right pane: Preview panel (40%)
+            previewPanel
+                .frame(maxWidth: .infinity)
         }
-        .scrollBounceBehavior(.basedOnSize)
     }
 
     // MARK: - Header with Starburst
@@ -343,7 +350,8 @@ struct BrowseView: View {
     private var cardGrid: some View {
         LazyVGrid(
             columns: [
-                GridItem(.adaptive(minimum: 320, maximum: 340), spacing: 16)
+                GridItem(.flexible(), spacing: 16),
+                GridItem(.flexible(), spacing: 16)
             ],
             spacing: 16
         ) {
@@ -372,9 +380,33 @@ struct BrowseView: View {
                 VStack {
                     RotatingStarburstView(size: 40, color: Color(hex: "#ff4d06"))
                 }
-                .frame(width: 320, height: 140)
+                .frame(maxWidth: .infinity)
+                .frame(height: 140)
             }
         }
+    }
+
+    // MARK: - Preview Panel
+
+    private var previewPanel: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Placeholder for preview panel
+            VStack {
+                Spacer()
+
+                Text("Preview")
+                    .font(OdysseyFont.label)
+                    .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
+
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(OdysseyColor.surface)
+        }
+        .overlay(
+            Rectangle()
+                .stroke(OdysseyColor.border, lineWidth: 1)
+        )
     }
 
     // MARK: - Loading, Error & Empty States
@@ -518,7 +550,7 @@ struct CardSummary: Identifiable, Hashable {
             switch self {
             case .new: return OdysseyColor.browseColors[3]
             case .review: return Color(red: 59/255, green: 166/255, blue: 107/255)
-            case .learning: return OdysseyColor.browseColors[10]
+            case .learning: return Color(hex: "#52B2BF")  // Ocean blue
             case .buried: return OdysseyColor.browseColors[8]
             case .suspended: return OdysseyColor.mutedText.opacity(0.6)
             }
