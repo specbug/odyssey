@@ -81,6 +81,54 @@ enum OdysseyFont {
     static func dr(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
         Font.custom("Dr", size: size).weight(weight)
     }
+
+    // MARK: - Geometric Type Scale
+    // Inspired by Orbit's bold, contrasting typography
+    // Heavy weights for labels, lighter weights for content
+
+    /// Display text - Very large, geometric (48pt, heavy)
+    static let display = Font.system(size: 48, weight: .heavy)
+
+    /// Headline - Bold section headers (32pt, bold)
+    static let headline = Font.system(size: 32, weight: .bold)
+
+    /// Title - Page titles (24pt, semibold)
+    static let title = Font.system(size: 24, weight: .semibold)
+
+    /// Label - UI labels (17pt, bold)
+    static let label = Font.system(size: 17, weight: .bold)
+
+    /// Label Small - Compact labels (13pt, bold)
+    static let labelSmall = Font.system(size: 13, weight: .bold)
+
+    /// Label Tiny - Micro labels (11pt, bold)
+    static let labelTiny = Font.system(size: 11, weight: .bold)
+
+    /// Body - Content text (17pt, regular)
+    static let body = Font.system(size: 17, weight: .regular)
+
+    /// Body Small - Secondary content (15pt, regular)
+    static let bodySmall = Font.system(size: 15, weight: .regular)
+
+    /// Caption - Metadata (12pt, medium)
+    static let caption = Font.system(size: 12, weight: .medium)
+
+    /// Mono - Monospaced text (13pt, regular)
+    static let mono = Font.system(size: 13, design: .monospaced)
+
+    // MARK: - Prompt Styles (for card content)
+
+    /// Prompt XLarge - Very large prompts (36pt, light)
+    static let promptXLarge = Font.system(size: 36, weight: .light)
+
+    /// Prompt Large - Large prompts (28pt, regular)
+    static let promptLarge = Font.system(size: 28, weight: .regular)
+
+    /// Prompt Medium - Medium prompts (20pt, semibold)
+    static let promptMedium = Font.system(size: 20, weight: .semibold)
+
+    /// Prompt Small - Small prompts (16pt, regular)
+    static let promptSmall = Font.system(size: 16, weight: .regular)
 }
 
 // MARK: - Token Loading

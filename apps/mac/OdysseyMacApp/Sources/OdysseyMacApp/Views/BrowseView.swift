@@ -5,18 +5,18 @@ struct BrowseView: View {
     @StateObject private var viewModel: BrowseViewModel
 
     @State private var query: String = ""
-    @State private var expandedCardId: UUID? = nil
-    @State private var selectedCards: Set<UUID> = []
     @State private var stateFilter: StateFilter = .all
     @State private var deckFilter: String? = nil
     @State private var tagFilter: String? = nil
     @State private var sortOrder: SortOrder = .dueDate
 
+    // Dynamic palette based on time of day
+    @State private var currentPalette = OdysseyColorPalette.timeOfDay
+
     init(viewModel: BrowseViewModel? = nil) {
         if let viewModel = viewModel {
             _viewModel = StateObject(wrappedValue: viewModel)
         } else {
-            // This will be replaced when the view is created with the actual backend
             _viewModel = StateObject(wrappedValue: BrowseViewModel(backend: Backend()))
         }
     }
@@ -30,6 +30,17 @@ struct BrowseView: View {
         case suspended = "Suspended"
 
         var id: String { rawValue }
+
+        var symbol: String {
+            switch self {
+            case .all: return "circle"
+            case .new: return "circle.fill"
+            case .review: return "circle.lefthalf.filled"
+            case .learning: return "circle.dashed"
+            case .buried: return "circle.bottomhalf.filled"
+            case .suspended: return "circle.slash"
+            }
+        }
     }
 
     enum SortOrder: String, CaseIterable, Identifiable {
@@ -103,8 +114,15 @@ struct BrowseView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
+            // Full-bleed vibrant background
+            currentPalette.backgroundColor
+                .ignoresSafeArea()
+                .opacity(0.15)
+
+            // Canvas base
             OdysseyColor.canvas
                 .ignoresSafeArea()
+                .opacity(0.85)
 
             if viewModel.isLoading {
                 loadingView
@@ -113,343 +131,290 @@ struct BrowseView: View {
             } else if viewModel.cards.isEmpty {
                 emptyStateView
             } else {
-                VStack(alignment: .leading, spacing: OdysseySpacing.lg.value) {
-                    header
-                    searchAndFilters
-                    listView
-                }
-                .padding(.horizontal, 48)
-                .padding(.vertical, OdysseySpacing.xl.value)
-                .frame(maxWidth: 1320, alignment: .topLeading)
-            }
-
-            // Bulk actions bar
-            if !selectedCards.isEmpty {
-                bulkActionsBar
+                mainContent
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .task {
             await viewModel.loadInitialCards()
         }
+        .onAppear {
+            // Update palette every minute for time-of-day changes
+            Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+                withAnimation(OrbitAnimation.colorShift) {
+                    currentPalette = OdysseyColorPalette.timeOfDay
+                }
+            }
+        }
     }
 
-    private var header: some View {
-        Text("Browse Cards")
-            .font(.system(size: 28, weight: .semibold))
-            .foregroundStyle(OdysseyColor.ink)
+    // MARK: - Main Content
+
+    private var mainContent: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 32) {
+                // Header with starburst
+                headerWithStarburst
+
+                // Search and filters
+                searchAndFilters
+
+                // Card grid
+                cardGrid
+            }
+            .padding(.horizontal, 48)
+            .padding(.vertical, 32)
+            .frame(maxWidth: 1000, alignment: .topLeading)
+        }
+        .scrollBounceBehavior(.basedOnSize)
     }
+
+    // MARK: - Header with Starburst
+
+    private var headerWithStarburst: some View {
+        HStack(alignment: .center, spacing: 24) {
+            // Large starburst visualization
+            StarburstView(
+                values: filteredCards.prefix(24).map { card in
+                    // Normalize due date to 0-1 range
+                    let dueInDays = max(0, Double(card.dueInHours) / 24.0)
+                    return min(1.0, max(0.2, 1.0 - (dueInDays / 30.0)))  // 30 days max
+                },
+                size: 120,
+                strokeWidth: 3,
+                color: currentPalette.accentColor
+            )
+            .orbitAppear(delay: 0.1)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Browse Cards")
+                    .font(OdysseyFont.headline)
+                    .foregroundStyle(OdysseyColor.ink)
+
+                Text("\(filteredCards.count) cards")
+                    .font(OdysseyFont.labelSmall)
+                    .foregroundStyle(OdysseyColor.mutedText)
+                    .textCase(.uppercase)
+                    .tracking(0.5)
+            }
+            .orbitAppear(delay: 0.2)
+
+            Spacer()
+        }
+    }
+
+    // MARK: - Search and Filters
 
     private var searchAndFilters: some View {
-        VStack(spacing: OdysseySpacing.md.value) {
+        VStack(spacing: 16) {
             // Search bar
-            HStack(spacing: OdysseySpacing.sm.value) {
+            HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
-                    .foregroundStyle(OdysseyColor.mutedText.opacity(0.7))
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(currentPalette.accentColor)
 
                 TextField("Search question, deck, or source…", text: $query)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 15))
+                    .font(OdysseyFont.bodySmall)
                     .autocorrectionDisabled()
                     .foregroundStyle(OdysseyColor.ink)
 
                 if !query.isEmpty {
                     Button {
-                        query = ""
+                        withAnimation(OrbitAnimation.spring) {
+                            query = ""
+                        }
                     } label: {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(OdysseyColor.mutedText.opacity(0.6))
+                            .font(.system(size: 16))
+                            .foregroundStyle(OdysseyColor.mutedText)
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, OdysseySpacing.md.value)
-            .padding(.vertical, OdysseySpacing.sm.value)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
                     .fill(OdysseyColor.surface)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(query.isEmpty ? OdysseyColor.border : OdysseyColor.accent.opacity(0.5), lineWidth: 1)
+                    .stroke(query.isEmpty ? OdysseyColor.border : currentPalette.accentColor, lineWidth: 1.5)
             )
-            .shadow(color: Color.black.opacity(0.04), radius: 2, y: 1)
+            .shadow(color: OdysseyColor.shadow.opacity(0.05), radius: 4, y: 2)
+            .animation(OrbitAnimation.springFast, value: query)
 
-            // Filters and Sort
-            HStack(spacing: OdysseySpacing.md.value) {
+            // Geometric filters
+            HStack(spacing: 12) {
                 // State filter
-                Menu {
-                    ForEach(StateFilter.allCases) { filter in
-                        Button(filter.rawValue) {
-                            stateFilter = filter
+                FilterButton(
+                    icon: stateFilter.symbol,
+                    label: stateFilter.rawValue,
+                    isActive: stateFilter != .all,
+                    color: currentPalette.accentColor
+                ) {
+                    // Cycle through filters
+                    let allCases = StateFilter.allCases
+                    if let currentIndex = allCases.firstIndex(of: stateFilter) {
+                        withAnimation(OrbitAnimation.springBouncy) {
+                            stateFilter = allCases[(currentIndex + 1) % allCases.count]
                         }
                     }
-                } label: {
-                    HStack(spacing: OdysseySpacing.xs.value) {
-                        Image(systemName: "line.3.horizontal.decrease.circle")
-                        Text("State: \(stateFilter.rawValue)")
-                            .font(.system(size: 13, weight: .medium))
-                    }
                 }
-                .buttonStyle(
-                    OdysseyPillButtonStyle(
-                        background: stateFilter == .all ? OdysseyColor.border.opacity(0.25) : OdysseyColor.accent.opacity(0.16),
-                        foreground: stateFilter == .all ? OdysseyColor.mutedText : OdysseyColor.accent
-                    )
-                )
 
                 // Deck filter
                 Menu {
                     Button("All Decks") {
-                        deckFilter = nil
+                        withAnimation(OrbitAnimation.spring) {
+                            deckFilter = nil
+                        }
                     }
-
+                    Divider()
                     ForEach(availableDecks, id: \.self) { deck in
                         Button(deck) {
-                            deckFilter = deck
+                            withAnimation(OrbitAnimation.spring) {
+                                deckFilter = deck
+                            }
                         }
                     }
                 } label: {
-                    HStack(spacing: OdysseySpacing.xs.value) {
-                        Image(systemName: "square.grid.2x2")
-                        Text("Deck: \(deckFilter ?? "All")")
-                            .font(.system(size: 13, weight: .medium))
-                    }
+                    FilterButton(
+                        icon: "square.grid.2x2",
+                        label: deckFilter ?? "All Decks",
+                        isActive: deckFilter != nil,
+                        color: currentPalette.secondaryAccentColor
+                    ) {}
                 }
-                .buttonStyle(
-                    OdysseyPillButtonStyle(
-                        background: deckFilter == nil ? OdysseyColor.border.opacity(0.25) : OdysseyColor.border.opacity(0.35),
-                        foreground: OdysseyColor.mutedText
-                    )
-                )
+                .buttonStyle(.plain)
 
                 // Tag filter
                 Menu {
                     Button("All Tags") {
-                        tagFilter = nil
+                        withAnimation(OrbitAnimation.spring) {
+                            tagFilter = nil
+                        }
                     }
-
+                    Divider()
                     ForEach(availableTags, id: \.self) { tag in
                         Button(tag) {
-                            tagFilter = tag
+                            withAnimation(OrbitAnimation.spring) {
+                                tagFilter = tag
+                            }
                         }
                     }
                 } label: {
-                    HStack(spacing: OdysseySpacing.xs.value) {
-                        Image(systemName: "tag")
-                        Text("Tag: \(tagFilter ?? "All")")
-                            .font(.system(size: 13, weight: .medium))
-                    }
+                    FilterButton(
+                        icon: "tag",
+                        label: tagFilter ?? "All Tags",
+                        isActive: tagFilter != nil,
+                        color: currentPalette.secondaryAccentColor
+                    ) {}
                 }
-                .buttonStyle(
-                    OdysseyPillButtonStyle(
-                        background: tagFilter == nil ? OdysseyColor.border.opacity(0.25) : OdysseyColor.border.opacity(0.35),
-                        foreground: OdysseyColor.mutedText
-                    )
-                )
+                .buttonStyle(.plain)
 
-                // Sort order
+                Spacer()
+
+                // Sort button
                 Menu {
                     ForEach(SortOrder.allCases) { order in
                         Button(order.rawValue) {
-                            sortOrder = order
+                            withAnimation(OrbitAnimation.spring) {
+                                sortOrder = order
+                            }
                         }
                     }
                 } label: {
-                    HStack(spacing: OdysseySpacing.xs.value) {
-                        Image(systemName: "arrow.up.arrow.down")
-                        Text("Sort: \(sortOrder.rawValue)")
-                            .font(.system(size: 13, weight: .medium))
-                    }
+                    FilterButton(
+                        icon: "arrow.up.arrow.down",
+                        label: sortOrder.rawValue,
+                        isActive: true,
+                        color: OdysseyColor.mutedText
+                    ) {}
                 }
-                .buttonStyle(
-                    OdysseyPillButtonStyle(
-                        background: OdysseyColor.border.opacity(0.25),
-                        foreground: OdysseyColor.mutedText
-                    )
-                )
-
-                Spacer()
-
-                if !selectedCards.isEmpty {
-                    Text("\(selectedCards.count) selected")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(OdysseyColor.accent)
-                } else {
-                    Text("\(filteredCards.count) cards")
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundStyle(OdysseyColor.mutedText)
-                }
+                .buttonStyle(.plain)
             }
         }
+        .orbitAppear(delay: 0.3)
     }
 
-    private var listView: some View {
-        ScrollView {
-            LazyVStack(spacing: OdysseySpacing.lg.value) {
-                ForEach(Array(filteredCards.enumerated()), id: \.element.id) { index, card in
-                    CardRow(
-                        card: card,
-                        isExpanded: expandedCardId == card.id,
-                        isSelected: selectedCards.contains(card.id),
-                        onTap: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                expandedCardId = expandedCardId == card.id ? nil : card.id
-                            }
-                        },
-                        onSelect: {
-                            if selectedCards.contains(card.id) {
-                                selectedCards.remove(card.id)
-                            } else {
-                                selectedCards.insert(card.id)
-                            }
-                        }
-                    )
-                    .onAppear {
-                        // Trigger load more when reaching the last few items
-                        if index == filteredCards.count - 3 {
-                            Task {
-                                await viewModel.loadMoreCards()
-                            }
+    // MARK: - Chip Grid
+
+    private var cardGrid: some View {
+        LazyVGrid(
+            columns: [
+                GridItem(.adaptive(minimum: 280, maximum: 300), spacing: 16)
+            ],
+            spacing: 16
+        ) {
+            ForEach(Array(filteredCards.enumerated()), id: \.element.id) { index, card in
+                GeometricChip(
+                    card: card,
+                    palette: currentPalette,
+                    onTap: {
+                        // Future: Navigate to detail view
+                        print("Tapped card: \(card.front)")
+                    }
+                )
+                .orbitAppear(delay: 0.4 + Double(index) * 0.02)
+                .onAppear {
+                    // Load more when near end
+                    if index == filteredCards.count - 3 {
+                        Task {
+                            await viewModel.loadMoreCards()
                         }
                     }
                 }
-
-                // Loading more indicator
-                if viewModel.isLoadingMore {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                            .controlSize(.regular)
-                        Spacer()
-                    }
-                    .padding(.vertical, OdysseySpacing.lg.value)
-                }
             }
-            .padding(.bottom, selectedCards.isEmpty ? 0 : 100)
-            .padding(.vertical, OdysseySpacing.lg.value)
-            .padding(.horizontal, OdysseySpacing.lg.value)
-        }
-        .scrollBounceBehavior(.basedOnSize)
-    }
 
-    private var bulkActionsBar: some View {
-        VStack {
-            Spacer()
-
-            HStack(spacing: OdysseySpacing.md.value) {
-                Text("\(selectedCards.count) cards selected")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(OdysseyColor.ink)
-
-                Spacer()
-
-                Button {
-                    // Suspend selected cards
-                    selectedCards.removeAll()
-                } label: {
-                    Label("Suspend", systemImage: "pause.circle")
-                        .font(.system(size: 13, weight: .medium))
+            // Loading more indicator
+            if viewModel.isLoadingMore {
+                VStack {
+                    RotatingStarburstView(size: 40, color: currentPalette.accentColor)
                 }
-                .buttonStyle(
-                    OdysseyPillButtonStyle(
-                        background: OdysseyColor.browseColors[8].opacity(0.15),
-                        foreground: OdysseyColor.browseColors[8].opacity(0.85)
-                    )
-                )
-
-                Button {
-                    // Change deck
-                    selectedCards.removeAll()
-                } label: {
-                    Label("Change Deck", systemImage: "folder")
-                        .font(.system(size: 13, weight: .medium))
-                }
-                .buttonStyle(
-                    OdysseyPillButtonStyle(
-                        background: OdysseyColor.browseColors[3].opacity(0.15),
-                        foreground: OdysseyColor.browseColors[3]
-                    )
-                )
-
-                Button {
-                    // Delete selected cards
-                    selectedCards.removeAll()
-                } label: {
-                    Label("Delete", systemImage: "trash")
-                        .font(.system(size: 13, weight: .medium))
-                }
-                .buttonStyle(
-                    OdysseyPillButtonStyle(
-                        background: OdysseyColor.browseColors[11].opacity(0.15),
-                        foreground: OdysseyColor.browseColors[11]
-                    )
-                )
-
-                Button {
-                    selectedCards.removeAll()
-                } label: {
-                    Text("Cancel")
-                        .font(.system(size: 13, weight: .medium))
-                }
-                .buttonStyle(
-                    OdysseyPillButtonStyle(
-                        background: OdysseyColor.surfaceSubtle,
-                        foreground: OdysseyColor.mutedText
-                    )
-                )
+                .frame(width: 280, height: 180)
             }
-            .padding(.horizontal, OdysseySpacing.lg.value)
-            .padding(.vertical, OdysseySpacing.md.value)
-            .background(
-                RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                    .fill(OdysseyColor.surface)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                    .stroke(OdysseyColor.border, lineWidth: 1)
-            )
-            .shadow(color: OdysseyColor.shadow.opacity(0.4), radius: 32, y: 20)
-            .padding(.horizontal, OdysseySpacing.xl.value)
-            .padding(.bottom, OdysseySpacing.lg.value)
         }
-        .transition(.move(edge: .bottom).combined(with: .opacity))
     }
 
     // MARK: - Loading, Error & Empty States
 
     private var loadingView: some View {
-        VStack(spacing: OdysseySpacing.xl.value) {
+        VStack(spacing: 32) {
             Spacer()
-            ProgressView()
-                .progressViewStyle(.circular)
-                .controlSize(.large)
+            RotatingStarburstView(size: 80, color: currentPalette.accentColor)
             Text("Loading cards...")
-                .font(.system(size: 16, weight: .medium))
+                .font(OdysseyFont.label)
                 .foregroundStyle(OdysseyColor.mutedText)
             Spacer()
         }
     }
 
     private func errorView(error: Error) -> some View {
-        VStack(spacing: OdysseySpacing.xl.value) {
+        VStack(spacing: 32) {
             Spacer()
 
-            VStack(spacing: OdysseySpacing.md.value) {
-                Image(systemName: "exclamationmark.triangle")
-                    .font(.system(size: 48))
-                    .foregroundStyle(OdysseyColor.browseColors[11].opacity(0.7))
+            VStack(spacing: 16) {
+                // Geometric error icon
+                ZStack {
+                    Circle()
+                        .fill(OdysseyColor.destructive.opacity(0.1))
+                        .frame(width: 80, height: 80)
+
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 36))
+                        .foregroundStyle(OdysseyColor.destructive)
+                }
 
                 Text("Failed to load cards")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(OdysseyFont.title)
                     .foregroundStyle(OdysseyColor.ink)
 
                 Text(error.localizedDescription)
-                    .font(.system(size: 14))
+                    .font(OdysseyFont.bodySmall)
                     .foregroundStyle(OdysseyColor.mutedText)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, OdysseySpacing.xl.value)
+                    .padding(.horizontal, 32)
 
                 Button {
                     Task {
@@ -457,16 +422,17 @@ struct BrowseView: View {
                     }
                 } label: {
                     Text("Try Again")
-                        .font(.system(size: 14, weight: .medium))
-                        .padding(.horizontal, OdysseySpacing.lg.value)
-                        .padding(.vertical, OdysseySpacing.sm.value)
+                        .font(OdysseyFont.labelSmall)
+                        .foregroundStyle(OdysseyColor.white)
+                        .padding(.horizontal, 24)
+                        .padding(.vertical, 12)
+                        .background(
+                            Capsule()
+                                .fill(currentPalette.accentColor)
+                        )
                 }
-                .buttonStyle(
-                    OdysseyPillButtonStyle(
-                        background: OdysseyColor.accent.opacity(0.15),
-                        foreground: OdysseyColor.accent
-                    )
-                )
+                .buttonStyle(.plain)
+                .interactiveSpring()
             }
 
             Spacer()
@@ -474,20 +440,19 @@ struct BrowseView: View {
     }
 
     private var emptyStateView: some View {
-        VStack(spacing: OdysseySpacing.xl.value) {
+        VStack(spacing: 32) {
             Spacer()
 
-            VStack(spacing: OdysseySpacing.md.value) {
-                Image(systemName: "square.stack.3d.up.slash")
-                    .font(.system(size: 48))
-                    .foregroundStyle(OdysseyColor.mutedText.opacity(0.5))
+            VStack(spacing: 16) {
+                // Geometric empty state icon
+                CompactStarburstView(rayCount: 8, size: 80, color: OdysseyColor.mutedText.opacity(0.3))
 
                 Text("No cards yet")
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(OdysseyFont.title)
                     .foregroundStyle(OdysseyColor.ink)
 
                 Text("Create your first flashcard from the Add tab")
-                    .font(.system(size: 14))
+                    .font(OdysseyFont.bodySmall)
                     .foregroundStyle(OdysseyColor.mutedText)
                     .multilineTextAlignment(.center)
             }
@@ -497,167 +462,36 @@ struct BrowseView: View {
     }
 }
 
-// MARK: - Card Row (List View)
+// MARK: - Filter Button
 
-private struct CardRow: View {
-    let card: CardSummary
-    let isExpanded: Bool
-    let isSelected: Bool
-    let onTap: () -> Void
-    let onSelect: () -> Void
-    @State private var isHovered = false
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Main content
-            HStack(alignment: .top, spacing: OdysseySpacing.md.value) {
-                // Checkbox
-                Button(action: onSelect) {
-                    Image(systemName: isSelected ? "checkmark.square.fill" : "square")
-                        .font(.system(size: 18))
-                        .foregroundStyle(isSelected ? OdysseyColor.accent : OdysseyColor.mutedText.opacity(0.5))
-                }
-                .buttonStyle(.plain)
-                .opacity(isHovered || isSelected ? 1 : 0)
-                .animation(.easeInOut(duration: 0.2), value: isHovered)
-
-                // Card content
-                VStack(alignment: .leading, spacing: OdysseySpacing.sm.value) {
-                    // Question
-                    Text(card.front)
-                        .font(OdysseyFont.dr(20, weight: .medium))
-                        .foregroundStyle(OdysseyColor.ink)
-                        .multilineTextAlignment(.leading)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.disabled)
-
-                    // Metadata
-                    ZStack(alignment: .topTrailing) {
-                        HStack(alignment: .center, spacing: OdysseySpacing.sm.value) {
-                            Text(card.deck)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(OdysseyColor.mutedText.opacity(0.85))
-
-                            Text(card.tag)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(OdysseyColor.mutedText.opacity(0.7))
-
-                            StateBadge(state: card.state)
-
-                            Text(card.dueDateString)
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundStyle(OdysseyColor.mutedText.opacity(0.8))
-
-                            Spacer(minLength: 0)
-                        }
-
-                        // Source chip
-                        HStack(spacing: 4) {
-                            Image(systemName: "link")
-                                .font(.system(size: 10))
-                            Text(card.source)
-                                .font(.system(size: 12, weight: .medium))
-                                .lineLimit(1)
-                                .truncationMode(.tail)
-                        }
-                        .foregroundStyle(OdysseyColor.mutedText.opacity(0.75))
-                        .padding(.horizontal, OdysseySpacing.sm.value)
-                        .padding(.vertical, OdysseySpacing.xxs.value)
-                        .background(
-                            Capsule()
-                                .fill(OdysseyColor.border.opacity(0.25))
-                        )
-                        .frame(maxWidth: 200, alignment: .trailing)
-                    }
-
-                    // Answer (expanded)
-                    if isExpanded {
-                        VStack(alignment: .leading, spacing: OdysseySpacing.sm.value) {
-                            Divider()
-                                .padding(.vertical, OdysseySpacing.xs.value)
-
-                            Text(card.back)
-                                .font(OdysseyFont.dr(16))
-                                .foregroundStyle(OdysseyColor.ink)
-                                .multilineTextAlignment(.leading)
-                                .textSelection(.disabled)
-                        }
-                        .padding(.top, OdysseySpacing.sm.value)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-                // Expand chevron & actions
-                HStack(spacing: OdysseySpacing.sm.value) {
-                    if isHovered || isExpanded {
-                        Button {
-                            // Play card
-                        } label: {
-                            Image(systemName: "play.circle")
-                                .font(.system(size: 18))
-                                .foregroundStyle(OdysseyColor.accent)
-                        }
-                        .buttonStyle(.plain)
-                        .transition(.opacity)
-
-                        Button {
-                            // Edit card
-                        } label: {
-                            Image(systemName: "square.and.pencil")
-                                .font(.system(size: 18))
-                                .foregroundStyle(OdysseyColor.mutedText.opacity(0.7))
-                        }
-                        .buttonStyle(.plain)
-                        .transition(.opacity)
-                    }
-
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundStyle(OdysseyColor.mutedText)
-                }
-            }
-            .padding(.horizontal, OdysseySpacing.lg.value)
-            .padding(.vertical, OdysseySpacing.xl.value)
-        }
-        .frame(minHeight: 120)
-        .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(OdysseyColor.surface)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .stroke(
-                    isSelected ? OdysseyColor.accent : (isHovered ? Color(red: 255/255, green: 77/255, blue: 6/255).opacity(0.2) : Color.black.opacity(0.06)),
-                    lineWidth: isSelected ? 2 : 1
-                )
-        )
-        .shadow(color: Color.black.opacity(isHovered ? 0.08 : 0.04), radius: isHovered ? 8 : 2, y: isHovered ? 2 : 1)
-        .animation(.timingCurve(0.4, 0.0, 0.2, 1, duration: 0.5), value: isHovered)
-        .contentShape(Rectangle())
-        .onTapGesture(perform: onTap)
-        .onHover { hovering in
-            if hovering != isHovered {
-                isHovered = hovering
-            }
-        }
-    }
-}
-
-// MARK: - State Badge
-
-private struct StateBadge: View {
-    var state: CardSummary.State
+struct FilterButton: View {
+    let icon: String
+    let label: String
+    let isActive: Bool
+    let color: Color
+    let action: () -> Void
 
     var body: some View {
-        Text(state.label)
-            .font(.system(size: 11, weight: .semibold))
-            .padding(.horizontal, OdysseySpacing.sm.value)
-            .padding(.vertical, OdysseySpacing.xxs.value)
-            .background(state.background)
-            .clipShape(Capsule())
-            .foregroundStyle(state.foreground)
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+
+                Text(label)
+                    .font(OdysseyFont.labelTiny)
+                    .textCase(.uppercase)
+                    .tracking(0.3)
+            }
+            .foregroundStyle(isActive ? color : OdysseyColor.mutedText)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(
+                Capsule()
+                    .fill(isActive ? color.opacity(0.15) : OdysseyColor.border.opacity(0.3))
+            )
+        }
+        .buttonStyle(.plain)
+        .interactiveSpring()
     }
 }
 
@@ -812,6 +646,8 @@ extension CardSummary {
         )
     ]
 }
+
+// MARK: - Preview
 
 #Preview {
     BrowseView()
