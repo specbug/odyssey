@@ -23,7 +23,7 @@ struct RenderedCardText: View {
 
     var body: some View {
         Text(renderedContent)
-            .font(.system(size: fontSize, weight: .medium))
+            .font(OdysseyFont.dr(fontSize, weight: .medium))  // Use Dr font
             .lineLimit(maxLines)
             .truncationMode(.tail)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -44,9 +44,8 @@ struct RenderedCardText: View {
 
             case .cloze(let content, _):
                 var clozeSegment = AttributedString(content)
-                clozeSegment.foregroundColor = Color(palette.accentColor)
+                clozeSegment.foregroundColor = Color(hex: "#ff4d06")  // Accent color
                 clozeSegment.underlineStyle = .single
-                // Note: underlineColor not available in SwiftUI AttributedString
                 attributedString.append(clozeSegment)
 
             case .latex(let content, let isBlock):
@@ -85,9 +84,11 @@ struct RenderedCardText: View {
     // MARK: - Image Placeholder
 
     private func renderImagePlaceholder(_ uuid: String) -> AttributedString {
-        // Show a small geometric image indicator
+        // Show a geometric image indicator using Unicode
+        // Using camera emoji as a visible placeholder
         var placeholder = AttributedString(" [📷] ")
-        placeholder.foregroundColor = Color(palette.accentColor.opacity(0.7))
+        placeholder.foregroundColor = Color(hex: "#ff4d06")  // Accent color
+        placeholder.font = .system(size: fontSize + 2)  // Slightly larger
         return placeholder
     }
 }

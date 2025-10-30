@@ -182,7 +182,7 @@ struct BrowseView: View {
                 },
                 size: 120,
                 strokeWidth: 3,
-                color: currentPalette.accentColor
+                color: Color(hex: "#ff4d06")  // Accent color
             )
             .orbitAppear(delay: 0.1)
 
@@ -211,7 +211,7 @@ struct BrowseView: View {
             HStack(spacing: 12) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(currentPalette.accentColor)
+                    .foregroundStyle(Color(hex: "#ff4d06"))
 
                 TextField("Search question, deck, or source…", text: $query)
                     .textFieldStyle(.plain)
@@ -240,7 +240,7 @@ struct BrowseView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .stroke(query.isEmpty ? OdysseyColor.border : currentPalette.accentColor, lineWidth: 1.5)
+                    .stroke(query.isEmpty ? OdysseyColor.border : Color(hex: "#ff4d06"), lineWidth: 1.5)
             )
             .shadow(color: OdysseyColor.shadow.opacity(0.05), radius: 4, y: 2)
             .animation(OrbitAnimation.springFast, value: query)
@@ -252,7 +252,7 @@ struct BrowseView: View {
                     icon: stateFilter.symbol,
                     label: stateFilter.rawValue,
                     isActive: stateFilter != .all,
-                    color: currentPalette.accentColor
+                    color: Color(hex: "#ff4d06")
                 ) {
                     // Cycle through filters
                     let allCases = StateFilter.allCases
@@ -343,7 +343,7 @@ struct BrowseView: View {
     private var cardGrid: some View {
         LazyVGrid(
             columns: [
-                GridItem(.adaptive(minimum: 280, maximum: 300), spacing: 16)
+                GridItem(.adaptive(minimum: 320, maximum: 340), spacing: 16)
             ],
             spacing: 16
         ) {
@@ -370,9 +370,9 @@ struct BrowseView: View {
             // Loading more indicator
             if viewModel.isLoadingMore {
                 VStack {
-                    RotatingStarburstView(size: 40, color: currentPalette.accentColor)
+                    RotatingStarburstView(size: 40, color: Color(hex: "#ff4d06"))
                 }
-                .frame(width: 280, height: 180)
+                .frame(width: 320, height: 140)
             }
         }
     }
@@ -382,7 +382,7 @@ struct BrowseView: View {
     private var loadingView: some View {
         VStack(spacing: 32) {
             Spacer()
-            RotatingStarburstView(size: 80, color: currentPalette.accentColor)
+            RotatingStarburstView(size: 80, color: Color(hex: "#ff4d06"))
             Text("Loading cards...")
                 .font(OdysseyFont.label)
                 .foregroundStyle(OdysseyColor.mutedText)
@@ -428,7 +428,7 @@ struct BrowseView: View {
                         .padding(.vertical, 12)
                         .background(
                             Capsule()
-                                .fill(currentPalette.accentColor)
+                                .fill(Color(hex: "#ff4d06"))
                         )
                 }
                 .buttonStyle(.plain)

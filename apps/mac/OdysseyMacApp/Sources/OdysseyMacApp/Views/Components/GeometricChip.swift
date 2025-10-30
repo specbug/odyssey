@@ -1,8 +1,8 @@
 import SwiftUI
 
 // MARK: - Geometric Chip
-// Fixed-size card chip with geometric stacked aesthetic
-// Inspired by Orbit's bold, minimal design with offset shadows
+// Fixed-size card chip with geometric dual-border system
+// Inspired by Orbit's bold, minimal stacked aesthetic
 
 struct GeometricChip: View {
     let card: CardSummary
@@ -10,36 +10,46 @@ struct GeometricChip: View {
     let onTap: () -> Void
 
     @State private var isHovered = false
+    @State private var hoverColor: Color
 
-    // Fixed dimensions
-    private let chipWidth: CGFloat = 280
-    private let chipHeight: CGFloat = 180
-    private let borderWidth: CGFloat = 2
-    private let shadowOffset: CGFloat = 4
+    // Fixed dimensions - wider and shorter for better scanning
+    private let chipWidth: CGFloat = 320
+    private let chipHeight: CGFloat = 140
+    private let mainBorderWidth: CGFloat = 3  // Thick main border
+    private let shadowBorderWidth: CGFloat = 1  // Thin shadow border
+    private let shadowOffset: CGFloat = 5  // Offset with gap
+
+    init(card: CardSummary, palette: OdysseyColorPalette, onTap: @escaping () -> Void) {
+        self.card = card
+        self.palette = palette
+        self.onTap = onTap
+        // Assign random color on initialization for this chip
+        _hoverColor = State(initialValue: XKCDColors.randomVibrant())
+    }
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            // Offset shadow block (stacked card effect)
+            // Shadow border (thin, offset, creates gap effect)
             Rectangle()
-                .fill(shadowColor)
+                .stroke(Color.black.opacity(0.15), lineWidth: shadowBorderWidth)
                 .frame(width: chipWidth, height: chipHeight)
                 .offset(x: shadowOffset, y: shadowOffset)
 
-            // Main chip
+            // Main chip content
             VStack(alignment: .leading, spacing: 0) {
                 // Content area
                 VStack(alignment: .leading, spacing: 8) {
                     // Rendered card text (with cloze/latex/images)
                     RenderedCardText(
                         text: card.front,
-                        maxLines: 4,
-                        fontSize: 14,
+                        maxLines: 3,
+                        fontSize: 17,  // Larger font
                         palette: palette
                     )
 
                     Spacer(minLength: 0)
                 }
-                .padding(12)
+                .padding(16)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
                 // Footer metadata
@@ -48,9 +58,9 @@ struct GeometricChip: View {
             .frame(width: chipWidth, height: chipHeight)
             .background(OdysseyColor.surface)
             .overlay(
-                // Bold geometric border
+                // Main thick border
                 Rectangle()
-                    .stroke(borderColor, lineWidth: borderWidth)
+                    .stroke(borderColor, lineWidth: mainBorderWidth)
             )
         }
         .contentShape(Rectangle())
@@ -60,7 +70,7 @@ struct GeometricChip: View {
                 isHovered = hovering
             }
         }
-        .scaleEffect(isHovered ? 1.02 : 1.0)
+        .scaleEffect(isHovered ? 1.01 : 1.0)
         .animation(OrbitAnimation.springFast, value: isHovered)
     }
 
@@ -69,29 +79,29 @@ struct GeometricChip: View {
     private var footer: some View {
         HStack(spacing: 8) {
             // Geometric state indicator
-            GeometricStateChip(state: card.state, palette: palette)
+            GeometricStateChip(state: card.state)
 
             // Deck name
             Text(card.deck)
-                .font(.system(size: 11, weight: .medium))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(OdysseyColor.mutedText.opacity(0.8))
                 .lineLimit(1)
 
             Spacer(minLength: 0)
 
-            // Due date indicator (subtle)
+            // Due date indicator (subtle geometric dot)
             if card.dueInHours < 0 {
                 Circle()
-                    .fill(Color(red: 1.0, green: 0.3, blue: 0.2))
-                    .frame(width: 6, height: 6)
+                    .fill(Color(hex: "#ff4d06"))  // Accent color for overdue
+                    .frame(width: 7, height: 7)
             } else if card.dueInHours < 24 {
                 Circle()
-                    .fill(palette.accentColor)
-                    .frame(width: 6, height: 6)
+                    .fill(Color(hex: "#ff4d06").opacity(0.5))
+                    .frame(width: 7, height: 7)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
         .background(
             Rectangle()
                 .fill(OdysseyColor.surfaceSubtle)
@@ -102,13 +112,9 @@ struct GeometricChip: View {
 
     private var borderColor: Color {
         if isHovered {
-            return palette.accentColor
+            return hoverColor  // Random XKCD color assigned on init
         }
-        return palette.backgroundColor.opacity(0.5)
-    }
-
-    private var shadowColor: Color {
-        palette.backgroundColor.opacity(0.2)
+        return Color.black  // Default black border
     }
 }
 
@@ -116,23 +122,22 @@ struct GeometricChip: View {
 
 struct GeometricStateChip: View {
     let state: CardSummary.State
-    let palette: OdysseyColorPalette
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 5) {
             // Geometric shape indicator
             stateShape
                 .fill(stateColor)
-                .frame(width: 8, height: 8)
+                .frame(width: 9, height: 9)
 
             Text(state.label)
-                .font(.system(size: 10, weight: .bold))
+                .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(stateColor)
                 .textCase(.uppercase)
-                .tracking(0.3)
+                .tracking(0.4)
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 3)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
         .background(
             Rectangle()
                 .fill(stateColor.opacity(0.12))
@@ -156,9 +161,9 @@ struct GeometricStateChip: View {
 
     private var stateColor: Color {
         switch state {
-        case .new: return palette.backgroundColor
+        case .new: return Color(hex: "#ff4d06")  // Accent orange
         case .review: return Color(hex: "#66bb6a")  // Green
-        case .learning: return palette.accentColor
+        case .learning: return Color(hex: "#ffcb2e")  // Yellow
         case .buried: return Color(hex: "#ba8c63")  // Brown
         case .suspended: return OdysseyColor.mutedText.opacity(0.6)
         }
@@ -168,54 +173,57 @@ struct GeometricStateChip: View {
 // MARK: - Preview
 
 #Preview {
-    let palette = OdysseyColorPalette.named(.blue)
+    ScrollView {
+        LazyVGrid(
+            columns: [
+                GridItem(.adaptive(minimum: 320, maximum: 340), spacing: 16)
+            ],
+            spacing: 16
+        ) {
+            GeometricChip(
+                card: CardSummary(
+                    deck: "Physics",
+                    tag: "Mechanics",
+                    front: "{{c1::Kinematics}} is the study of force, matter and motion.",
+                    back: "Answer here",
+                    source: "Page 28",
+                    state: .review,
+                    dueInHours: 12
+                ),
+                palette: OdysseyColorPalette.named(.blue),
+                onTap: {}
+            )
 
-    VStack(spacing: 32) {
-        // Regular card
-        GeometricChip(
-            card: CardSummary(
-                deck: "Physics",
-                tag: "Mechanics",
-                front: "{{c1::Kinematics}} is the study of force, matter and motion.",
-                back: "Answer here",
-                source: "Page 28",
-                state: .review,
-                dueInHours: 12
-            ),
-            palette: palette,
-            onTap: {}
-        )
+            GeometricChip(
+                card: CardSummary(
+                    deck: "Mathematics",
+                    tag: "Calculus",
+                    front: "The derivative is defined as $\\frac{dy}{dx} = \\lim_{h\\to 0} \\frac{f(x+h)-f(x)}{h}$",
+                    back: "Answer",
+                    source: "Textbook",
+                    state: .learning,
+                    dueInHours: 2
+                ),
+                palette: OdysseyColorPalette.named(.red),
+                onTap: {}
+            )
 
-        // LaTeX card
-        GeometricChip(
-            card: CardSummary(
-                deck: "Mathematics",
-                tag: "Calculus",
-                front: "The derivative is defined as $\\frac{dy}{dx} = \\lim_{h\\to 0} \\frac{f(x+h)-f(x)}{h}$",
-                back: "Answer",
-                source: "Textbook",
-                state: .learning,
-                dueInHours: 2
-            ),
-            palette: OdysseyColorPalette.named(.red),
-            onTap: {}
-        )
-
-        // Image card
-        GeometricChip(
-            card: CardSummary(
-                deck: "Art History",
-                tag: "Renaissance",
-                front: "Photo of Mona Lisa [image:5BB62O44-911E-45O3-8D67-7D00C18539AC]",
-                back: "Answer",
-                source: "Museum Guide",
-                state: .new,
-                dueInHours: 48
-            ),
-            palette: OdysseyColorPalette.named(.purple),
-            onTap: {}
-        )
+            GeometricChip(
+                card: CardSummary(
+                    deck: "Art History",
+                    tag: "Renaissance",
+                    front: "Photo of Mona Lisa [image:5BB62O44-911E-45O3-8D67-7D00C18539AC]",
+                    back: "Answer",
+                    source: "Museum Guide",
+                    state: .new,
+                    dueInHours: 48
+                ),
+                palette: OdysseyColorPalette.named(.purple),
+                onTap: {}
+            )
+        }
+        .padding()
     }
-    .padding()
+    .frame(width: 800, height: 600)
     .background(OdysseyColor.canvas)
 }

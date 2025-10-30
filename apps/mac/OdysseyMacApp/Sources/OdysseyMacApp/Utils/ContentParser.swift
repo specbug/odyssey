@@ -87,10 +87,12 @@ struct ContentParser {
     private static func findNextLatex(in text: String) -> Range<String.Index>? {
         // Match $$...$$ or $...$
         // Try block first ($$), then inline ($)
-        if let range = text.range(of: #"\$\$[^$]+\$\$"#, options: .regularExpression) {
+        // Improved: Handle nested braces and complex expressions
+        if let range = text.range(of: #"\$\$.+?\$\$"#, options: .regularExpression) {
             return range
         }
-        return text.range(of: #"\$[^$]+\$"#, options: .regularExpression)
+        // Match $...$ but avoid matching $$ boundaries
+        return text.range(of: #"\$(?!\$).+?\$(?!\$)"#, options: .regularExpression)
     }
 
     private static func findNextImage(in text: String) -> Range<String.Index>? {
@@ -147,7 +149,11 @@ struct ContentParser {
     static func latexToUnicode(_ latex: String) -> String {
         var result = latex
 
-        // Greek letters
+        // Handle fractions first (before removing braces)
+        result = result.replacingOccurrences(of: #"\\frac\{([^}]+)\}\{([^}]+)\}"#, with: "($1)/($2)", options: .regularExpression)
+        result = result.replacingOccurrences(of: #"\\text\{([^}]+)\}"#, with: "$1", options: .regularExpression)
+
+        // Greek letters (lowercase)
         result = result.replacingOccurrences(of: "\\alpha", with: "α")
         result = result.replacingOccurrences(of: "\\beta", with: "β")
         result = result.replacingOccurrences(of: "\\gamma", with: "γ")
@@ -161,6 +167,15 @@ struct ContentParser {
         result = result.replacingOccurrences(of: "\\tau", with: "τ")
         result = result.replacingOccurrences(of: "\\phi", with: "φ")
         result = result.replacingOccurrences(of: "\\omega", with: "ω")
+
+        // Greek letters (uppercase)
+        result = result.replacingOccurrences(of: "\\Gamma", with: "Γ")
+        result = result.replacingOccurrences(of: "\\Delta", with: "Δ")
+        result = result.replacingOccurrences(of: "\\Theta", with: "Θ")
+        result = result.replacingOccurrences(of: "\\Lambda", with: "Λ")
+        result = result.replacingOccurrences(of: "\\Sigma", with: "Σ")
+        result = result.replacingOccurrences(of: "\\Phi", with: "Φ")
+        result = result.replacingOccurrences(of: "\\Omega", with: "Ω")
 
         // Math operators
         result = result.replacingOccurrences(of: "\\sum", with: "∑")
@@ -177,15 +192,23 @@ struct ContentParser {
         result = result.replacingOccurrences(of: "\\geq", with: "≥")
         result = result.replacingOccurrences(of: "\\approx", with: "≈")
         result = result.replacingOccurrences(of: "\\equiv", with: "≡")
+        result = result.replacingOccurrences(of: "\\to", with: "→")
+        result = result.replacingOccurrences(of: "\\rightarrow", with: "→")
+        result = result.replacingOccurrences(of: "\\leftarrow", with: "←")
+        result = result.replacingOccurrences(of: "\\lim", with: "lim")
+        result = result.replacingOccurrences(of: "\\sqrt", with: "√")
 
         // Superscripts (simple cases)
         result = result.replacingOccurrences(of: "^2", with: "²")
         result = result.replacingOccurrences(of: "^3", with: "³")
+        result = result.replacingOccurrences(of: "^1", with: "¹")
 
         // Subscripts (simple cases)
         result = result.replacingOccurrences(of: "_0", with: "₀")
         result = result.replacingOccurrences(of: "_1", with: "₁")
         result = result.replacingOccurrences(of: "_2", with: "₂")
+        result = result.replacingOccurrences(of: "_i", with: "ᵢ")
+        result = result.replacingOccurrences(of: "_n", with: "ₙ")
 
         // Remove remaining LaTeX commands
         result = result.replacingOccurrences(of: #"\\[a-zA-Z]+"#, with: "", options: .regularExpression)
