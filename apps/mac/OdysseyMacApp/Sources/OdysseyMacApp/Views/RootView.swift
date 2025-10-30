@@ -159,7 +159,7 @@ struct RootView: View {
                     StudyView(viewModel: StudyViewModel(backend: appState.backend))
                 }
             case .add:
-                CaptureView()
+                CaptureView(initialCard: nil, onCardUpdated: nil)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

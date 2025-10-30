@@ -28,8 +28,17 @@ struct CaptureView: View {
     @FocusState private var isPrimaryFocused: Bool
     @FocusState private var isSecondaryFocused: Bool
 
+    // Edit mode support
+    let initialCard: CardSummary?
+    let onCardUpdated: ((CardSummary) -> Void)?
+
     enum Field: Hashable {
         case primary, secondary, source
+    }
+
+    // Computed property to determine if we're in edit mode
+    private var isEditMode: Bool {
+        initialCard != nil
     }
 
     private var canSave: Bool {
@@ -138,7 +147,7 @@ struct CaptureView: View {
                                     imageStore: imageStore,
                                     clozeColor: "rgba(114, 174, 248, 1.0)"
                                 )
-                                .frame(minHeight: 120, alignment: .topLeading)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
                             } else {
                                 Text("Add the thought you want to keep...")
                                     .font(OdysseyFont.dr(28))
@@ -191,7 +200,7 @@ struct CaptureView: View {
                                     imageStore: imageStore,
                                     clozeColor: "rgba(114, 174, 248, 1.0)"
                                 )
-                                .frame(minHeight: 140, alignment: .topLeading)
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
                             } else {
                                 Text("Remember forever...")
                                     .font(OdysseyFont.dr(28))
@@ -396,9 +405,23 @@ struct CaptureView: View {
             }
         }
         .onAppear {
-            // Auto-focus primary field for quicker capture
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                focusedField = .primary
+            // Pre-fill fields if editing
+            if let card = initialCard {
+                primaryText = card.front
+                secondaryText = card.back
+                source = card.source
+                tag = card.tag
+                selectedDeck = card.deck
+
+                // Load images referenced in the card text
+                Task {
+                    await loadImagesFromText()
+                }
+            } else {
+                // Auto-focus primary field for quicker capture (only in create mode)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                    focusedField = .primary
+                }
             }
         }
     }
@@ -415,6 +438,56 @@ struct CaptureView: View {
         tagDraft = ""
     }
 
+    private func loadImagesFromText() async {
+        // Extract all image UUIDs from primaryText and secondaryText
+        let combinedText = primaryText + " " + secondaryText
+        let imageUUIDs = extractImageUUIDs(from: combinedText)
+
+        print("📷 Found \(imageUUIDs.count) images in text: \(imageUUIDs)")
+
+        for uuid in imageUUIDs {
+            // Skip if image is already loaded (e.g., from paste event)
+            if imageStore[uuid] != nil {
+                print("⏭️  Skipping \(uuid) - already in store")
+                continue
+            }
+
+            do {
+                // Fetch image data from backend
+                let imageData = try await appState.backend.fetchImage(uuid: uuid)
+
+                // Convert Data to NSImage
+                if let nsImage = NSImage(data: imageData) {
+                    await MainActor.run {
+                        imageStore[uuid] = nsImage
+                        print("✅ Loaded image from backend: \(uuid)")
+                    }
+                } else {
+                    print("❌ Failed to convert data to NSImage for: \(uuid)")
+                }
+            } catch {
+                print("⚠️  Could not load image \(uuid) from backend (may be new/unpublished): \(error)")
+            }
+        }
+    }
+
+    private func extractImageUUIDs(from text: String) -> [String] {
+        let pattern = "\\[image:([a-fA-F0-9\\-]+)\\]"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else {
+            return []
+        }
+
+        let nsString = text as NSString
+        let range = NSRange(location: 0, length: nsString.length)
+        let matches = regex.matches(in: text, options: [], range: range)
+
+        return matches.compactMap { match in
+            guard match.numberOfRanges > 1 else { return nil }
+            let uuidRange = match.range(at: 1)
+            return nsString.substring(with: uuidRange)
+        }
+    }
+
     private func submit() {
         guard canSave, !isSubmitting else { return }
 
@@ -426,57 +499,106 @@ struct CaptureView: View {
                 // 1. Upload all images first
                 print("📤 Uploading \(imageStore.count) images...")
                 for (uuid, nsImage) in imageStore {
-                    // Convert NSImage to PNG data
-                    guard let tiffData = nsImage.tiffRepresentation,
-                          let bitmapImage = NSBitmapImageRep(data: tiffData),
-                          let pngData = bitmapImage.representation(using: .png, properties: [:]) else {
-                        throw NSError(domain: "CaptureView", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert image to PNG"])
+                    // Convert NSImage to PNG data - use existing bitmap representation directly
+                    // This preserves the full pixel data without any scaling
+                    guard let bitmapRep = nsImage.representations.compactMap({ $0 as? NSBitmapImageRep }).first else {
+                        throw NSError(domain: "CaptureView", code: 1, userInfo: [NSLocalizedDescriptionKey: "No bitmap representation found in image"])
                     }
+
+                    print("📸 Using bitmap: \(bitmapRep.pixelsWide)x\(bitmapRep.pixelsHigh)px")
+
+                    guard let pngData = bitmapRep.representation(using: .png, properties: [:]) else {
+                        throw NSError(domain: "CaptureView", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode PNG"])
+                    }
+
+                    print("💾 PNG data size: \(pngData.count) bytes")
 
                     // Upload image to backend
                     let uploadedUUID = try await appState.backend.uploadImage(imageData: pngData, uuid: uuid)
                     print("✅ Uploaded image: \(uploadedUUID)")
                 }
 
-                // 2. Create standalone annotation
-                print("📝 Creating annotation...")
-                let annotationId = UUID().uuidString
-                let annotation = try await appState.backend.createStandaloneAnnotation(
-                    annotationId: annotationId,
-                    question: primaryText,
-                    answer: secondaryText,
-                    source: source.isEmpty ? nil : source,
-                    tag: tag.isEmpty ? nil : tag,
-                    deck: selectedDeck
-                )
-                print("✅ Created annotation: \(annotation.id)")
+                if isEditMode, let card = initialCard {
+                    // EDIT MODE: Update existing annotation
+                    print("📝 Updating annotation \(card.annotationId)...")
+                    let updatedAnnotation = try await appState.backend.updateAnnotation(
+                        annotationId: card.annotationId,
+                        question: primaryText,
+                        answer: secondaryText,
+                        source: source.isEmpty ? nil : source,
+                        tag: tag.isEmpty ? nil : tag,
+                        deck: selectedDeck
+                    )
+                    print("✅ Updated annotation: \(updatedAnnotation.id)")
 
-                // 3. Create study card
-                print("🎯 Creating study card...")
-                let studyCard = try await appState.backend.createStudyCardForAnnotation(annotationId: annotation.id)
-                print("✅ Created study card: \(studyCard.id)")
+                    // Create updated card summary
+                    let updatedCard = CardSummary(
+                        annotationId: card.annotationId,
+                        deck: selectedDeck,
+                        tag: tag,
+                        front: primaryText,
+                        back: secondaryText,
+                        source: source,
+                        state: card.state,
+                        dueDate: card.dueDate
+                    )
 
-                // 4. Show success and clear form
-                await MainActor.run {
-                    isSubmitting = false
-
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        showSuccessFlash = true
-                    }
-
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                        primaryText = ""
-                        secondaryText = ""
-                        source = ""
-                        tag = ""
-                        imageStore = [:]
-                        errorMessage = nil
+                    // Call update callback
+                    await MainActor.run {
+                        isSubmitting = false
+                        onCardUpdated?(updatedCard)
 
                         withAnimation(.easeInOut(duration: 0.25)) {
-                            showSuccessFlash = false
+                            showSuccessFlash = true
                         }
 
-                        focusedField = .primary
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                showSuccessFlash = false
+                            }
+                        }
+                    }
+                } else {
+                    // CREATE MODE: Create new annotation and study card
+                    print("📝 Creating annotation...")
+                    let annotationId = UUID().uuidString
+                    let annotation = try await appState.backend.createStandaloneAnnotation(
+                        annotationId: annotationId,
+                        question: primaryText,
+                        answer: secondaryText,
+                        source: source.isEmpty ? nil : source,
+                        tag: tag.isEmpty ? nil : tag,
+                        deck: selectedDeck
+                    )
+                    print("✅ Created annotation: \(annotation.id)")
+
+                    // Create study card
+                    print("🎯 Creating study card...")
+                    let studyCard = try await appState.backend.createStudyCardForAnnotation(annotationId: annotation.id)
+                    print("✅ Created study card: \(studyCard.id)")
+
+                    // Show success and clear form
+                    await MainActor.run {
+                        isSubmitting = false
+
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            showSuccessFlash = true
+                        }
+
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                            primaryText = ""
+                            secondaryText = ""
+                            source = ""
+                            tag = ""
+                            imageStore = [:]
+                            errorMessage = nil
+
+                            withAnimation(.easeInOut(duration: 0.25)) {
+                                showSuccessFlash = false
+                            }
+
+                            focusedField = .primary
+                        }
                     }
                 }
 
@@ -512,8 +634,45 @@ private struct TextSegmentView: View {
             fontSize: 28,
             heightBinding: $contentHeight
         )
-        .frame(height: max(contentHeight, 100))
+        .frame(minHeight: max(contentHeight, 100))
         .frame(maxWidth: .infinity, alignment: .topLeading)
+    }
+}
+
+private struct ImageSegmentView: View {
+    let image: NSImage
+    let uuid: String
+
+    var body: some View {
+        // Get image size and calculate appropriate display size
+        let imageSize = image.size
+        let _ = print("🖼️ Image \(uuid.prefix(8))... size: \(imageSize)")
+
+        let maxWidth: CGFloat = 450
+        let maxHeight: CGFloat = 350
+
+        let widthRatio = maxWidth / imageSize.width
+        let heightRatio = maxHeight / imageSize.height
+        let scale = min(widthRatio, heightRatio, 1.0)
+
+        let displayWidth = imageSize.width * scale
+        let displayHeight = imageSize.height * scale
+        let _ = print("📐 Display size: \(displayWidth) x \(displayHeight), scale: \(scale)")
+
+        return HStack {
+            Image(nsImage: image)
+                .resizable()
+                .scaledToFit()
+                .frame(width: displayWidth, height: displayHeight)
+                .cornerRadius(8)
+                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color.black.opacity(0.08), lineWidth: 1)
+                )
+                .padding(.vertical, 8)
+            Spacer()
+        }
     }
 }
 
@@ -550,30 +709,7 @@ private struct InlineImageRenderer: View {
                     )
                 case .image(let uuid):
                     if let image = imageStore[uuid] {
-                        // Get image size and calculate appropriate display size
-                        let imageSize = image.size
-                        let maxWidth: CGFloat = 450   // Increased for readability
-                        let maxHeight: CGFloat = 350  // Increased for readability
-
-                        let widthRatio = maxWidth / imageSize.width
-                        let heightRatio = maxHeight / imageSize.height
-                        let scale = min(widthRatio, heightRatio, 1.0) // Don't upscale
-
-                        let displayWidth = imageSize.width * scale
-                        let displayHeight = imageSize.height * scale
-
-                        Image(nsImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: displayWidth, height: displayHeight)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                            .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .stroke(Color.black.opacity(0.08), lineWidth: 1)
-                            )
-                            .padding(.vertical, 8)
+                        ImageSegmentView(image: image, uuid: uuid)
                     } else {
                         // Image not found in store - show placeholder
                         Text("[Image not loaded: \(uuid.prefix(8))...]")
@@ -586,6 +722,7 @@ private struct InlineImageRenderer: View {
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private enum ContentSegment {
@@ -745,5 +882,5 @@ private struct ChipMenuLabel: View {
 }
 
 #Preview {
-    CaptureView()
+    CaptureView(initialCard: nil, onCardUpdated: nil)
 }

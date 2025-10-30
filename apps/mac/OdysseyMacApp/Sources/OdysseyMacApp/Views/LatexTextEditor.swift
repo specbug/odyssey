@@ -238,6 +238,14 @@ struct LatexTextEditor: NSViewRepresentable {
 
             // If we found an image, handle it
             if let image = foundImage, let coordinator = coordinator {
+                // DEBUG: Log image properties
+                print("🖼️ PASTE: NSImage.size = \(image.size)")
+                if let bitmapRep = image.representations.compactMap({ $0 as? NSBitmapImageRep }).first {
+                    print("🖼️ PASTE: Bitmap pixels = \(bitmapRep.pixelsWide)x\(bitmapRep.pixelsHigh)")
+                } else {
+                    print("⚠️ PASTE: No bitmap representation found!")
+                }
+
                 // Generate UUID for this image
                 let uuid = UUID().uuidString
 
