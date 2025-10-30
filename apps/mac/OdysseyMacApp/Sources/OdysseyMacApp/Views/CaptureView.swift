@@ -36,43 +36,38 @@ struct CaptureView: View {
         !primaryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private var dividerColor: Color {
-        OdysseyColor.browseColors[3]
+    // MARK: - Color Palette (Odyssey Neon)
+
+    private var primaryAccent: Color {
+        Color(hex: "#ff4d06") // Odyssey orange accent
     }
 
-    private var chipBackground: Color {
-        Color(red: 240.0 / 255.0, green: 241.0 / 255.0, blue: 243.0 / 255.0)
+    private var latexPink: Color {
+        Color(hex: "#ff5252") // Pink/red for LaTeX
     }
 
-    private var chipBorder: Color {
-        Color(red: 210.0 / 255.0, green: 211.0 / 255.0, blue: 213.0 / 255.0)
+    private var clozeBlue: Color {
+        Color(red: 114.0 / 255.0, green: 174.0 / 255.0, blue: 248.0 / 255.0) // #72AEF8 solid
     }
 
-    private var chipPrimary: Color {
-        OdysseyColor.ink
+    private var ink: Color {
+        Color.black.opacity(0.8)
     }
 
-    private var chipSecondary: Color {
-        OdysseyColor.mutedText.opacity(0.7)
+    private var mutedText: Color {
+        Color.black.opacity(0.4)
     }
 
-    private var saveGradient: LinearGradient {
-        LinearGradient(
-            colors: [OdysseyColor.accent, OdysseyColor.accentHover],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+    private var subtleBorder: Color {
+        Color.black.opacity(0.08)
     }
 
-    private var successGradient: LinearGradient {
-        LinearGradient(
-            colors: [
-                OdysseyColor.browseColors[6],
-                OdysseyColor.browseColors[5]
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
+    private var surfaceBackground: Color {
+        OdysseyColor.surface
+    }
+
+    private var shadowColor: Color {
+        OdysseyColor.shadow.opacity(0.05)
     }
 
     private var tagDisplayText: String {
@@ -81,62 +76,83 @@ struct CaptureView: View {
 
     var body: some View {
         ZStack {
+            // Match BrowseView background
             OdysseyColor.canvas
                 .ignoresSafeArea()
 
             ScrollView {
                 VStack(spacing: 0) {
-                    // Preview/Edit Toggle Button
+                    // Preview/Edit Toggle Button (top-right, labeled)
                     HStack {
                         Spacer()
                         Button(action: {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 1.0)) {
                                 isPreviewMode.toggle()
                             }
                         }) {
-                            ZStack {
-                                // Background circle
-                                Circle()
-                                    .fill(isPreviewMode ? OdysseyColor.accent.opacity(0.12) : OdysseyColor.mutedText.opacity(0.08))
-                                    .frame(width: 32, height: 32)
-
-                                // Icon
-                                Image(systemName: isPreviewMode ? "pencil.line" : "eye.fill")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundStyle(isPreviewMode ? OdysseyColor.accent : OdysseyColor.mutedText.opacity(0.7))
+                            HStack(spacing: 6) {
+                                if isPreviewMode {
+                                    // Edit icon (SF Symbol)
+                                    Image(systemName: "pencil.circle")
+                                        .font(.system(size: 14, weight: .medium))
+                                } else {
+                                    // Preview icon (SF Symbol)
+                                    Image(systemName: "circle")
+                                        .font(.system(size: 14, weight: .regular))
+                                }
+                                Text(isPreviewMode ? "Edit" : "Preview")
+                                    .font(.system(size: 14, weight: .medium))
                             }
+                            .foregroundStyle(ink)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                ZStack {
+                                    // Geometric offset shadow layer
+                                    Rectangle()
+                                        .fill(Color.black.opacity(0.08))
+                                        .offset(x: 2, y: 3)
+
+                                    // Main background
+                                    Rectangle()
+                                        .fill(Color.white)
+                                }
+                            )
+                            .overlay(
+                                Rectangle()
+                                    .stroke(OdysseyColor.border.opacity(0.5), lineWidth: 1.5)
+                            )
                         }
                         .buttonStyle(.plain)
-                        .help(isPreviewMode ? "Edit" : "Preview")
                     }
-                    .padding(.horizontal, OdysseySpacing.xxxxl.value)
-                    .padding(.top, OdysseySpacing.md.value)
+                    .padding(.horizontal, 48)
+                    .padding(.top, 24)
 
                     // Primary text field
-                    VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
+                    VStack(alignment: .leading, spacing: 4) {
                         if isPreviewMode {
                             // Preview mode - render LaTeX, cloze, and images inline
                             if !primaryText.isEmpty {
                                 InlineImageRenderer(
                                     text: primaryText,
                                     imageStore: imageStore,
-                                    clozeColor: "rgba(114, 174, 248, 0.35)"
+                                    clozeColor: "rgba(114, 174, 248, 1.0)"
                                 )
-                                .frame(minHeight: 110, alignment: .topLeading)
+                                .frame(minHeight: 120, alignment: .topLeading)
                             } else {
                                 Text("Add the thought you want to keep...")
-                                    .font(OdysseyFont.dr(22))
-                                    .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
+                                    .font(OdysseyFont.dr(28))
+                                    .foregroundStyle(mutedText)
                                     .padding(.top, 4)
-                                    .frame(minHeight: 110, alignment: .topLeading)
+                                    .frame(minHeight: 120, alignment: .topLeading)
                             }
                         } else {
                             // Edit mode - show syntax-highlighted editor with image markers
                             ZStack(alignment: .topLeading) {
                                 if primaryText.isEmpty {
                                     Text("Add the thought you want to keep...")
-                                        .font(OdysseyFont.dr(22))
-                                        .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
+                                        .font(OdysseyFont.dr(28))
+                                        .foregroundStyle(mutedText)
                                         .padding(.top, 4)
                                         .padding(.leading, 2)
                                         .allowsHitTesting(false)
@@ -145,41 +161,41 @@ struct CaptureView: View {
                                 LatexTextEditor(
                                     text: $primaryText,
                                     placeholder: "Add the thought you want to keep...",
-                                    font: NSFont(name: "Dr", size: 22) ?? NSFont.systemFont(ofSize: 22),
-                                    textColor: NSColor(OdysseyColor.ink),
-                                    latexColor: NSColor(OdysseyColor.browseColors[0]),
-                                    clozeColor: NSColor(OdysseyColor.browseColors[3]),
+                                    font: NSFont(name: "Dr", size: 28) ?? NSFont.systemFont(ofSize: 28, weight: .light),
+                                    textColor: NSColor(ink),
+                                    latexColor: NSColor(latexPink),
+                                    clozeColor: NSColor(clozeBlue),
                                     heightBinding: $primaryTextHeight,
                                     onImagePasted: { image, uuid in
                                         imageStore[uuid] = image
                                     }
                                 )
-                                .frame(height: max(primaryTextHeight, 110), alignment: .topLeading)
+                                .frame(height: max(primaryTextHeight, 120), alignment: .topLeading)
                             }
                         }
 
                         Rectangle()
-                            .fill(dividerColor)
+                            .fill(primaryAccent.opacity(0.2))
                             .frame(height: 2)
                     }
-                    .padding(.horizontal, OdysseySpacing.xxxxl.value)
-                    .padding(.top, OdysseySpacing.md.value)
+                    .padding(.horizontal, 48)
+                    .padding(.top, 24)
 
                     // Secondary text field
-                    VStack(alignment: .leading, spacing: OdysseySpacing.xs.value) {
+                    VStack(alignment: .leading, spacing: 4) {
                         if isPreviewMode {
                             // Preview mode - render LaTeX, cloze, and images inline
                             if !secondaryText.isEmpty {
                                 InlineImageRenderer(
                                     text: secondaryText,
                                     imageStore: imageStore,
-                                    clozeColor: "rgba(114, 174, 248, 0.35)"
+                                    clozeColor: "rgba(114, 174, 248, 1.0)"
                                 )
                                 .frame(minHeight: 140, alignment: .topLeading)
                             } else {
                                 Text("Remember forever...")
-                                    .font(OdysseyFont.dr(22))
-                                    .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
+                                    .font(OdysseyFont.dr(28))
+                                    .foregroundStyle(mutedText)
                                     .padding(.top, 4)
                                     .frame(minHeight: 140, alignment: .topLeading)
                             }
@@ -188,8 +204,8 @@ struct CaptureView: View {
                             ZStack(alignment: .topLeading) {
                                 if secondaryText.isEmpty {
                                     Text("Remember forever...")
-                                        .font(OdysseyFont.dr(22))
-                                        .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
+                                        .font(OdysseyFont.dr(28))
+                                        .foregroundStyle(mutedText)
                                         .padding(.top, 4)
                                         .padding(.leading, 2)
                                         .allowsHitTesting(false)
@@ -198,10 +214,10 @@ struct CaptureView: View {
                                 LatexTextEditor(
                                     text: $secondaryText,
                                     placeholder: "Remember forever...",
-                                    font: NSFont(name: "Dr", size: 22) ?? NSFont.systemFont(ofSize: 22),
-                                    textColor: NSColor(OdysseyColor.ink),
-                                    latexColor: NSColor(OdysseyColor.browseColors[0]),
-                                    clozeColor: NSColor(OdysseyColor.browseColors[3]),
+                                    font: NSFont(name: "Dr", size: 28) ?? NSFont.systemFont(ofSize: 28, weight: .light),
+                                    textColor: NSColor(ink),
+                                    latexColor: NSColor(latexPink),
+                                    clozeColor: NSColor(clozeBlue),
                                     heightBinding: $secondaryTextHeight,
                                     onImagePasted: { image, uuid in
                                         imageStore[uuid] = image
@@ -212,47 +228,55 @@ struct CaptureView: View {
                         }
 
                         Rectangle()
-                            .fill(OdysseyColor.border.opacity(0.35))
-                            .frame(height: 1)
+                            .fill(primaryAccent.opacity(0.2))
+                            .frame(height: 2)
                     }
-                    .padding(.horizontal, OdysseySpacing.xxxxl.value)
-                    .padding(.top, OdysseySpacing.xxxxxl.value)
+                    .padding(.horizontal, 48)
+                    .padding(.top, 32)
 
                     // Source, Tag & Deck row
-                    HStack(spacing: OdysseySpacing.md.value) {
-                        // Source field
-                        HStack(spacing: OdysseySpacing.sm.value) {
+                    HStack(spacing: 12) {
+                        // Source field (BrowseView search bar style)
+                        HStack(spacing: 12) {
                             Image(systemName: "link")
-                                .font(.system(size: 13))
-                                .foregroundStyle(OdysseyColor.mutedText.opacity(0.65))
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundStyle(primaryAccent)
 
-                            ZStack(alignment: .leading) {
-                                if source.isEmpty {
-                                    Text("Source")
-                                        .font(.system(size: 15))
-                                        .foregroundStyle(OdysseyColor.mutedText.opacity(0.5))
+                            TextField("Source", text: $source)
+                                .textFieldStyle(.plain)
+                                .font(OdysseyFont.bodySmall)
+                                .foregroundStyle(ink)
+                                .focused($focusedField, equals: .source)
+
+                            if !source.isEmpty {
+                                Button {
+                                    withAnimation(.spring(response: 0.2, dampingFraction: 1.0)) {
+                                        source = ""
+                                    }
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 16))
+                                        .foregroundStyle(mutedText)
                                 }
-
-                                TextField("", text: $source)
-                                    .textFieldStyle(.plain)
-                                    .font(.system(size: 15))
-                                    .foregroundStyle(OdysseyColor.ink)
-                                    .focused($focusedField, equals: .source)
+                                .buttonStyle(.plain)
                             }
                         }
-                        .padding(.horizontal, OdysseySpacing.md.value)
-                        .padding(.vertical, OdysseySpacing.sm.value)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                         .background(
-                            RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
-                                .fill(chipBackground)
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(surfaceBackground)
                         )
                         .overlay(
-                            RoundedRectangle(cornerRadius: OdysseyRadius.md.value, style: .continuous)
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
                                 .stroke(
-                                    focusedField == .source ? OdysseyColor.accent.opacity(0.45) : Color.clear,
-                                    lineWidth: 1
+                                    focusedField == .source ? primaryAccent : OdysseyColor.border,
+                                    lineWidth: 1.5
                                 )
                         )
+                        .shadow(color: shadowColor, radius: 4, y: 2)
+                        .animation(.spring(response: 0.2, dampingFraction: 1.0), value: focusedField)
+                        .animation(.spring(response: 0.2, dampingFraction: 1.0), value: source)
                         .frame(minWidth: 320, maxWidth: .infinity)
 
                         // Tag field
@@ -288,15 +312,10 @@ struct CaptureView: View {
                             }
                         } label: {
                             ChipMenuLabel(
-                                iconName: "tag.fill",
-                                text: tagDisplayText,
-                                isPlaceholder: tag.isEmpty,
-                                background: chipBackground,
-                                border: chipBorder,
-                                iconColor: chipSecondary,
-                                textColor: chipPrimary,
-                                placeholderColor: chipSecondary.opacity(0.6),
-                                minWidth: 160
+                                iconName: "tag",
+                                text: tag.isEmpty ? "Tag" : tag,
+                                isActive: !tag.isEmpty,
+                                accentColor: primaryAccent
                             )
                         }
                         .buttonStyle(.plain)
@@ -319,60 +338,28 @@ struct CaptureView: View {
                             Button("Neural Nets") { selectedDeck = "Neural Nets" }
                         } label: {
                             ChipMenuLabel(
-                                iconName: "folder.fill",
+                                iconName: "folder",
                                 text: selectedDeck,
-                                isPlaceholder: false,
-                                background: chipBackground,
-                                border: chipBorder,
-                                iconColor: chipSecondary,
-                                textColor: chipPrimary,
-                                placeholderColor: chipSecondary,
-                                minWidth: 190
+                                isActive: true,
+                                accentColor: primaryAccent
                             )
                         }
                         .buttonStyle(.plain)
 
-                        Button(action: submit) {
-                            ZStack {
-                                if isSubmitting {
-                                    ProgressView()
-                                        .progressViewStyle(.circular)
-                                        .controlSize(.small)
-                                        .tint(OdysseyColor.white)
-                                } else {
-                                    Image(systemName: "square.and.arrow.down")
-                                        .font(.system(size: 18, weight: .semibold))
-                                }
-                            }
-                            .frame(width: 44, height: 44)
-                            .background(
-                                Circle()
-                                    .fill(
-                                        showSuccessFlash ? successGradient :
-                                        (canSave ? saveGradient : LinearGradient(colors: [chipBackground, chipBackground], startPoint: .top, endPoint: .bottom))
-                                    )
-                            )
-                            .overlay(
-                                Circle()
-                                    .stroke(
-                                        !canSave && !showSuccessFlash ? chipBorder : Color.clear,
-                                        lineWidth: 1
-                                    )
-                            )
-                            .foregroundStyle((canSave || showSuccessFlash) ? OdysseyColor.white : chipSecondary)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!canSave || isSubmitting || showSuccessFlash)
-                        .animation(.easeInOut(duration: 0.2), value: canSave)
-                        .animation(.easeInOut(duration: 0.2), value: showSuccessFlash)
+                        // Save button - animated rainbow logo
+                        AnimatedLogoButton(
+                            isEnabled: canSave,
+                            isSubmitting: isSubmitting,
+                            showSuccess: showSuccessFlash,
+                            action: submit
+                        )
                         .accessibilityLabel("Save Card")
                     }
-                    .padding(.horizontal, OdysseySpacing.xxxxl.value)
-                    .padding(.top, OdysseySpacing.xxxl.value)
+                    .padding(.horizontal, 48)
+                    .padding(.top, 32)
 
-                    Spacer(minLength: 120)
+                    Spacer(minLength: 48)
                 }
-                .frame(maxWidth: 860)
                 .frame(maxWidth: .infinity)
             }
 
@@ -380,26 +367,32 @@ struct CaptureView: View {
             if let errorMessage = errorMessage {
                 VStack {
                     Spacer()
-                    HStack {
+                    HStack(spacing: 12) {
                         Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.white)
+                            .foregroundColor(primaryAccent)
+                            .font(.system(size: 14))
                         Text(errorMessage)
-                            .foregroundColor(.white)
-                            .font(.system(size: 13))
+                            .foregroundColor(ink)
+                            .font(.system(size: 13, weight: .medium))
                         Spacer()
                         Button(action: { self.errorMessage = nil }) {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.white.opacity(0.7))
+                                .foregroundColor(mutedText)
+                                .font(.system(size: 16))
                         }
                         .buttonStyle(.plain)
                     }
-                    .padding()
-                    .background(Color.red.opacity(0.9))
+                    .padding(16)
+                    .background(primaryAccent.opacity(0.08))
                     .cornerRadius(8)
-                    .padding()
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(primaryAccent.opacity(0.2), lineWidth: 1)
+                    )
+                    .padding(16)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .animation(.easeInOut(duration: 0.3), value: errorMessage)
+                .animation(.easeInOut(duration: 0.25), value: errorMessage)
             }
         }
         .onAppear {
@@ -516,6 +509,7 @@ private struct TextSegmentView: View {
             text: text,
             clozeColor: clozeColor,
             textColor: textColor,
+            fontSize: 28,
             heightBinding: $contentHeight
         )
         .frame(height: max(contentHeight, 100))
@@ -552,7 +546,7 @@ private struct InlineImageRenderer: View {
                     TextSegmentView(
                         text: content,
                         clozeColor: clozeColor,
-                        textColor: OdysseyColor.ink
+                        textColor: Color.black.opacity(0.8)
                     )
                 case .image(let uuid):
                     if let image = imageStore[uuid] {
@@ -574,12 +568,12 @@ private struct InlineImageRenderer: View {
                             .frame(width: displayWidth, height: displayHeight)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                            .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+                            .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .stroke(OdysseyColor.border.opacity(0.2), lineWidth: 1)
+                                    .stroke(Color.black.opacity(0.08), lineWidth: 1)
                             )
-                            .padding(.vertical, 4)
+                            .padding(.vertical, 8)
                     } else {
                         // Image not found in store - show placeholder
                         Text("[Image not loaded: \(uuid.prefix(8))...]")
@@ -685,28 +679,29 @@ private struct TagCreationPopover: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: OdysseySpacing.sm.value) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("Create Tag")
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 14, weight: .bold))
+                .kerning(0.28)
 
             TextField("Name", text: $tagDraft)
                 .textFieldStyle(.roundedBorder)
-                .font(.system(size: 14))
+                .font(.system(size: 13))
                 .focused($isFieldFocused)
                 .onSubmit(handleCreate)
 
-            HStack {
+            HStack(spacing: 8) {
                 Spacer()
                 Button("Cancel", role: .cancel, action: onCancel)
-                    .font(.system(size: 13))
+                    .font(.system(size: 12))
                 Button("Create") {
                     handleCreate()
                 }
-                .font(.system(size: 13, weight: .semibold))
+                .font(.system(size: 12, weight: .bold))
                 .disabled(trimmedDraft.isEmpty)
             }
         }
-        .padding(OdysseySpacing.md.value)
+        .padding(16)
         .frame(width: 240)
         .onAppear {
             DispatchQueue.main.async {
@@ -724,44 +719,28 @@ private struct TagCreationPopover: View {
 private struct ChipMenuLabel: View {
     let iconName: String
     let text: String
-    let isPlaceholder: Bool
-    let background: Color
-    let border: Color
-    let iconColor: Color
-    let textColor: Color
-    let placeholderColor: Color
-    let minWidth: CGFloat
+    let isActive: Bool
+    let accentColor: Color
 
     var body: some View {
-        HStack(spacing: OdysseySpacing.xs.value) {
+        HStack(spacing: 6) {
             Image(systemName: iconName)
                 .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(iconColor)
 
             Text(text)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(isPlaceholder ? placeholderColor : textColor)
+                .font(OdysseyFont.labelTiny)
+                .textCase(.uppercase)
+                .tracking(0.3)
                 .lineLimit(1)
-
-            Spacer(minLength: 0)
-
-            Image(systemName: "chevron.down")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(iconColor)
         }
-        .padding(.horizontal, OdysseySpacing.md.value)
-        .padding(.vertical, OdysseySpacing.sm.value)
-        .frame(minWidth: minWidth, alignment: .leading)
+        .foregroundStyle(isActive ? accentColor : OdysseyColor.mutedText)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
         .background(
             Capsule()
-                .fill(background)
-        )
-        .overlay(
-            Capsule()
-                .stroke(border, lineWidth: 1)
+                .fill(isActive ? accentColor.opacity(0.15) : OdysseyColor.border.opacity(0.3))
         )
         .contentShape(Capsule())
-        .fixedSize(horizontal: true, vertical: false)
     }
 }
 
