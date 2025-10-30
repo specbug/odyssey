@@ -51,7 +51,7 @@ struct RenderedCardText: View {
             case .latex(let content, let isBlock):
                 let rendered = renderLatex(content, isBlock: isBlock)
                 var latexSegment = AttributedString(rendered)
-                latexSegment.foregroundColor = Color(palette.secondaryAccentColor)
+                latexSegment.foregroundColor = Color(hex: "#ff4d06")  // Accent color
                 latexSegment.font = .system(size: fontSize, design: .monospaced)
                 attributedString.append(latexSegment)
 
@@ -84,11 +84,11 @@ struct RenderedCardText: View {
     // MARK: - Image Placeholder
 
     private func renderImagePlaceholder(_ uuid: String) -> AttributedString {
-        // Show a geometric image indicator using Unicode
-        // Using camera emoji as a visible placeholder
-        var placeholder = AttributedString(" [📷] ")
+        // Show a geometric image indicator with outlined style
+        // Simple geometric text representation matching design system
+        var placeholder = AttributedString(" [IMG] ")
         placeholder.foregroundColor = Color(hex: "#ff4d06")  // Accent color
-        placeholder.font = .system(size: fontSize + 2)  // Slightly larger
+        placeholder.font = .system(size: fontSize - 2, weight: .semibold, design: .monospaced)
         return placeholder
     }
 }
