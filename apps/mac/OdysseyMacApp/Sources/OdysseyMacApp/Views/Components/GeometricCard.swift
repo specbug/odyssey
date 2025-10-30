@@ -308,6 +308,7 @@ struct AnyShape: Shape {
 
 #Preview {
     let sampleCard = CardSummary(
+        annotationId: 1,
         deck: "Physics",
         tag: "Mechanics",
         front: "{{c1::Kinematics}} is the study of force, matter and motion.",

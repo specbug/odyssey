@@ -497,6 +497,66 @@ actor Backend {
         }
     }
 
+    func updateAnnotation(
+        annotationId: Int,
+        question: String,
+        answer: String,
+        source: String?,
+        tag: String?,
+        deck: String
+    ) async throws -> Annotation {
+        let urlString = "\(environment.baseURL.absoluteString)/annotations/\(annotationId)"
+        guard let url = URL(string: urlString) else {
+            throw APIError.invalidURL
+        }
+
+        // Create request body
+        struct AnnotationUpdateRequest: Codable {
+            let question: String
+            let answer: String
+            let source: String?
+            let tag: String?
+            let deck: String
+        }
+
+        let requestBody = AnnotationUpdateRequest(
+            question: question,
+            answer: answer,
+            source: source,
+            tag: tag,
+            deck: deck
+        )
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "PUT"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let encoder = JSONEncoder()
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        request.httpBody = try encoder.encode(requestBody)
+
+        let (data, response) = try await urlSession.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw APIError.invalidResponse
+        }
+
+        guard (200...299).contains(httpResponse.statusCode) else {
+            let errorMessage = try? JSONDecoder().decode([String: String].self, from: data)["detail"]
+            throw APIError.httpError(statusCode: httpResponse.statusCode, message: errorMessage)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = customDateDecodingStrategy()
+
+        do {
+            let annotation = try decoder.decode(Annotation.self, from: data)
+            return annotation
+        } catch {
+            throw APIError.decodingError(error)
+        }
+    }
+
     // MARK: - Helper Methods
 
     private func customDateDecodingStrategy() -> JSONDecoder.DateDecodingStrategy {

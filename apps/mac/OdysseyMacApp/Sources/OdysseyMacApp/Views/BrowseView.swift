@@ -10,6 +10,9 @@ struct BrowseView: View {
     @State private var tagFilter: String? = nil
     @State private var sortOrder: SortOrder = .dueDate
 
+    // Card selection for preview panel
+    @State private var selectedCard: CardSummary? = nil
+
     // Dynamic palette based on time of day
     @State private var currentPalette = OdysseyColorPalette.timeOfDay
 
@@ -360,8 +363,9 @@ struct BrowseView: View {
                     card: card,
                     palette: currentPalette,
                     onTap: {
-                        // Future: Navigate to detail view
-                        print("Tapped card: \(card.front)")
+                        withAnimation(OrbitAnimation.spring) {
+                            selectedCard = card
+                        }
                     }
                 )
                 .orbitAppear(delay: 0.4 + Double(index) * 0.02)
@@ -390,18 +394,42 @@ struct BrowseView: View {
 
     private var previewPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Placeholder for preview panel
-            VStack {
-                Spacer()
+            if let selectedCard = selectedCard {
+                // Show CaptureView in edit mode
+                CaptureView(
+                    initialCard: selectedCard,
+                    onCardUpdated: { updatedCard in
+                        Task {
+                            await viewModel.updateCard(updatedCard)
+                            // Update selected card with new data
+                            await MainActor.run {
+                                self.selectedCard = updatedCard
+                            }
+                        }
+                    }
+                )
+                .id(selectedCard.id)  // Force recreation when card changes
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                // Placeholder when no card selected
+                VStack {
+                    Spacer()
 
-                Text("Preview")
-                    .font(OdysseyFont.label)
-                    .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
+                    VStack(spacing: 12) {
+                        Image(systemName: "hand.tap")
+                            .font(.system(size: 48))
+                            .foregroundStyle(OdysseyColor.mutedText.opacity(0.3))
 
-                Spacer()
+                        Text("Select a card to preview")
+                            .font(OdysseyFont.label)
+                            .foregroundStyle(OdysseyColor.mutedText.opacity(0.4))
+                    }
+
+                    Spacer()
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(OdysseyColor.surface)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(OdysseyColor.surface)
         }
         .overlay(
             Rectangle()
@@ -558,6 +586,7 @@ struct CardSummary: Identifiable, Hashable {
     }
 
     let id = UUID()
+    var annotationId: Int
     var deck: String
     var tag: String
     var front: String
@@ -583,6 +612,7 @@ struct CardSummary: Identifiable, Hashable {
     }
 
     init(
+        annotationId: Int,
         deck: String,
         tag: String? = nil,
         front: String,
@@ -591,6 +621,7 @@ struct CardSummary: Identifiable, Hashable {
         state: State,
         dueDate: Date
     ) {
+        self.annotationId = annotationId
         self.deck = deck
         self.tag = tag ?? deck
         self.front = front
@@ -610,6 +641,7 @@ struct CardSummary: Identifiable, Hashable {
         state: State,
         dueInHours: Int
     ) {
+        self.annotationId = 0  // Placeholder for sample data
         self.deck = deck
         self.tag = tag ?? deck
         self.front = front
