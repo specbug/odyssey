@@ -105,7 +105,7 @@ struct BrowseView: View {
         case .dueDate:
             filtered.sort { $0.dueInHours < $1.dueInHours }
         case .created:
-            filtered.sort { $0.front < $1.front }
+            filtered.sort { $0.createdDate > $1.createdDate }  // Most recent first
         case .difficulty:
             filtered.sort { $0.dueInHours > $1.dueInHours }
         case .deck:
@@ -273,76 +273,75 @@ struct BrowseView: View {
                     }
                 }
 
-                // Deck filter
-                Menu {
-                    Button("All Decks") {
-                        withAnimation(OrbitAnimation.spring) {
-                            deckFilter = nil
-                        }
-                    }
-                    Divider()
-                    ForEach(availableDecks, id: \.self) { deck in
-                        Button(deck) {
-                            withAnimation(OrbitAnimation.spring) {
-                                deckFilter = deck
+                // Deck filter - cycles through decks
+                FilterButton(
+                    icon: "square.grid.2x2",
+                    label: deckFilter ?? "All Decks",
+                    isActive: deckFilter != nil,
+                    color: currentPalette.secondaryAccentColor
+                ) {
+                    // Cycle through decks (nil -> deck1 -> deck2 -> ... -> nil)
+                    withAnimation(OrbitAnimation.springBouncy) {
+                        if let currentDeck = deckFilter {
+                            if let currentIndex = availableDecks.firstIndex(of: currentDeck) {
+                                let nextIndex = currentIndex + 1
+                                if nextIndex < availableDecks.count {
+                                    deckFilter = availableDecks[nextIndex]
+                                } else {
+                                    deckFilter = nil  // Back to "All Decks"
+                                }
+                            } else {
+                                deckFilter = nil
                             }
+                        } else {
+                            deckFilter = availableDecks.first
                         }
                     }
-                } label: {
-                    FilterButton(
-                        icon: "square.grid.2x2",
-                        label: deckFilter ?? "All Decks",
-                        isActive: deckFilter != nil,
-                        color: currentPalette.secondaryAccentColor
-                    ) {}
                 }
-                .buttonStyle(.plain)
 
-                // Tag filter
-                Menu {
-                    Button("All Tags") {
-                        withAnimation(OrbitAnimation.spring) {
-                            tagFilter = nil
-                        }
-                    }
-                    Divider()
-                    ForEach(availableTags, id: \.self) { tag in
-                        Button(tag) {
-                            withAnimation(OrbitAnimation.spring) {
-                                tagFilter = tag
+                // Tag filter - cycles through tags
+                FilterButton(
+                    icon: "tag",
+                    label: tagFilter ?? "All Tags",
+                    isActive: tagFilter != nil,
+                    color: currentPalette.secondaryAccentColor
+                ) {
+                    // Cycle through tags (nil -> tag1 -> tag2 -> ... -> nil)
+                    withAnimation(OrbitAnimation.springBouncy) {
+                        if let currentTag = tagFilter {
+                            if let currentIndex = availableTags.firstIndex(of: currentTag) {
+                                let nextIndex = currentIndex + 1
+                                if nextIndex < availableTags.count {
+                                    tagFilter = availableTags[nextIndex]
+                                } else {
+                                    tagFilter = nil  // Back to "All Tags"
+                                }
+                            } else {
+                                tagFilter = nil
                             }
+                        } else {
+                            tagFilter = availableTags.first
                         }
                     }
-                } label: {
-                    FilterButton(
-                        icon: "tag",
-                        label: tagFilter ?? "All Tags",
-                        isActive: tagFilter != nil,
-                        color: currentPalette.secondaryAccentColor
-                    ) {}
                 }
-                .buttonStyle(.plain)
 
                 Spacer()
 
-                // Sort button
-                Menu {
-                    ForEach(SortOrder.allCases) { order in
-                        Button(order.rawValue) {
-                            withAnimation(OrbitAnimation.spring) {
-                                sortOrder = order
-                            }
+                // Sort button - cycles through options
+                FilterButton(
+                    icon: "arrow.up.arrow.down",
+                    label: sortOrder.rawValue,
+                    isActive: true,
+                    color: OdysseyColor.mutedText
+                ) {
+                    // Cycle through sort orders
+                    let allCases = SortOrder.allCases
+                    if let currentIndex = allCases.firstIndex(of: sortOrder) {
+                        withAnimation(OrbitAnimation.springBouncy) {
+                            sortOrder = allCases[(currentIndex + 1) % allCases.count]
                         }
                     }
-                } label: {
-                    FilterButton(
-                        icon: "arrow.up.arrow.down",
-                        label: sortOrder.rawValue,
-                        isActive: true,
-                        color: OdysseyColor.mutedText
-                    ) {}
                 }
-                .buttonStyle(.plain)
             }
         }
         .orbitAppear(delay: 0.3)
@@ -362,6 +361,7 @@ struct BrowseView: View {
                 GeometricChip(
                     card: card,
                     palette: currentPalette,
+                    isSelected: selectedCard?.id == card.id,
                     onTap: {
                         withAnimation(OrbitAnimation.spring) {
                             selectedCard = card
@@ -395,7 +395,7 @@ struct BrowseView: View {
     private var previewPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let selectedCard = selectedCard {
-                // Show CaptureView in edit mode
+                // Show CaptureView in preview mode
                 CaptureView(
                     initialCard: selectedCard,
                     onCardUpdated: { updatedCard in
@@ -406,7 +406,8 @@ struct BrowseView: View {
                                 self.selectedCard = updatedCard
                             }
                         }
-                    }
+                    },
+                    startsInPreviewMode: true
                 )
                 .id(selectedCard.id)  // Force recreation when card changes
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -594,6 +595,7 @@ struct CardSummary: Identifiable, Hashable {
     var source: String
     var state: State
     var dueDate: Date
+    var createdDate: Date
 
     // Computed property for backward compatibility
     var dueInHours: Int {
@@ -619,7 +621,8 @@ struct CardSummary: Identifiable, Hashable {
         back: String,
         source: String,
         state: State,
-        dueDate: Date
+        dueDate: Date,
+        createdDate: Date
     ) {
         self.annotationId = annotationId
         self.deck = deck
@@ -629,6 +632,7 @@ struct CardSummary: Identifiable, Hashable {
         self.source = source
         self.state = state
         self.dueDate = dueDate
+        self.createdDate = createdDate
     }
 
     // Legacy initializer for backward compatibility with sample data
@@ -649,6 +653,7 @@ struct CardSummary: Identifiable, Hashable {
         self.source = source
         self.state = state
         self.dueDate = Date().addingTimeInterval(TimeInterval(dueInHours) * 3600)
+        self.createdDate = Date()  // Default to now for sample data
     }
 }
 

@@ -7,6 +7,7 @@ import SwiftUI
 struct GeometricChip: View {
     let card: CardSummary
     let palette: OdysseyColorPalette
+    let isSelected: Bool
     let onTap: () -> Void
 
     @State private var isHovered = false
@@ -18,9 +19,10 @@ struct GeometricChip: View {
     private let shadowBorderWidth: CGFloat = 3  // Shadow border
     private let shadowOffset: CGFloat = 5  // Offset with gap
 
-    init(card: CardSummary, palette: OdysseyColorPalette, onTap: @escaping () -> Void) {
+    init(card: CardSummary, palette: OdysseyColorPalette, isSelected: Bool = false, onTap: @escaping () -> Void) {
         self.card = card
         self.palette = palette
+        self.isSelected = isSelected
         self.onTap = onTap
         // Assign random color on initialization for this chip
         _hoverColor = State(initialValue: XKCDColors.randomVibrant())
@@ -30,7 +32,7 @@ struct GeometricChip: View {
         ZStack(alignment: .topLeading) {
             // Shadow border (offset, creates gap effect)
             Rectangle()
-                .stroke(Color.black.opacity(0.6), lineWidth: shadowBorderWidth)
+                .stroke(shadowBorderColor, lineWidth: shadowBorderWidth)
                 .frame(maxWidth: .infinity)
                 .frame(height: chipHeight)
                 .offset(x: shadowOffset, y: shadowOffset)
@@ -73,8 +75,9 @@ struct GeometricChip: View {
                 isHovered = hovering
             }
         }
-        .scaleEffect(isHovered ? 1.01 : 1.0)
+        .scaleEffect(isSelected ? 1.03 : (isHovered ? 1.01 : 1.0))
         .animation(OrbitAnimation.springFast, value: isHovered)
+        .animation(OrbitAnimation.springFast, value: isSelected)
     }
 
     // MARK: - Subviews
@@ -114,10 +117,22 @@ struct GeometricChip: View {
     // MARK: - Colors
 
     private var borderColor: Color {
-        if isHovered {
-            return hoverColor  // Random XKCD color assigned on init
+        if isSelected {
+            // Selected state: vibrant, saturated color
+            return hoverColor.opacity(1.0)
+        } else if isHovered {
+            // Hover state: slightly muted color
+            return hoverColor.opacity(0.8)
         }
-        return Color.black.opacity(0.9)  // Dark black border
+        return Color.black.opacity(0.9)  // Default dark black border
+    }
+
+    private var shadowBorderColor: Color {
+        if isSelected {
+            // Selected state: match the border color for cohesive highlight
+            return hoverColor.opacity(0.7)
+        }
+        return Color.black.opacity(0.6)  // Default shadow
     }
 }
 
