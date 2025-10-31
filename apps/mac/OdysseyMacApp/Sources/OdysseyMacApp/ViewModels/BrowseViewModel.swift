@@ -115,7 +115,8 @@ class BrowseViewModel: ObservableObject {
                 back: cleanedAnswer,
                 source: sourceText,
                 state: state,
-                dueDate: dueDate
+                dueDate: dueDate,
+                createdDate: annotation.createdDate
             )
 
             summaries.append(summary)

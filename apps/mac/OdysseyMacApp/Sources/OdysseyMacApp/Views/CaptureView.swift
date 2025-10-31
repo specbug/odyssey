@@ -32,6 +32,17 @@ struct CaptureView: View {
     let initialCard: CardSummary?
     let onCardUpdated: ((CardSummary) -> Void)?
 
+    // Initializer
+    init(
+        initialCard: CardSummary? = nil,
+        onCardUpdated: ((CardSummary) -> Void)? = nil,
+        startsInPreviewMode: Bool = false
+    ) {
+        self.initialCard = initialCard
+        self.onCardUpdated = onCardUpdated
+        self._isPreviewMode = State(initialValue: startsInPreviewMode)
+    }
+
     enum Field: Hashable {
         case primary, secondary, source
     }
@@ -91,7 +102,7 @@ struct CaptureView: View {
 
             ScrollView {
                 VStack(spacing: 0) {
-                    // Preview/Edit Toggle Button (top-right, labeled)
+                    // Preview/Edit Toggle Button (top-right, icon only)
                     HStack {
                         Spacer()
                         Button(action: {
@@ -99,38 +110,38 @@ struct CaptureView: View {
                                 isPreviewMode.toggle()
                             }
                         }) {
-                            HStack(spacing: 6) {
-                                if isPreviewMode {
-                                    // Edit icon (SF Symbol)
-                                    Image(systemName: "pencil.circle")
-                                        .font(.system(size: 14, weight: .medium))
-                                } else {
-                                    // Preview icon (SF Symbol)
-                                    Image(systemName: "circle")
-                                        .font(.system(size: 14, weight: .regular))
-                                }
-                                Text(isPreviewMode ? "Edit" : "Preview")
-                                    .font(.system(size: 14, weight: .medium))
-                            }
-                            .foregroundStyle(ink)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
-                            .background(
-                                ZStack {
-                                    // Geometric offset shadow layer
-                                    Rectangle()
-                                        .fill(Color.black.opacity(0.08))
-                                        .offset(x: 2, y: 3)
-
-                                    // Main background
-                                    Rectangle()
-                                        .fill(Color.white)
-                                }
-                            )
-                            .overlay(
+                            ZStack(alignment: .topLeading) {
+                                // Geometric offset border (shadow)
                                 Rectangle()
-                                    .stroke(OdysseyColor.border.opacity(0.5), lineWidth: 1.5)
-                            )
+                                    .stroke(Color.black.opacity(0.6), lineWidth: 1.5)
+                                    .frame(width: 32, height: 32)
+                                    .offset(x: 3, y: 3)
+
+                                // Main button
+                                ZStack {
+                                    // Black background
+                                    Rectangle()
+                                        .fill(Color.black.opacity(0.9))
+
+                                    // Icon
+                                    if isPreviewMode {
+                                        // Edit icon
+                                        Image(systemName: "pencil.line")
+                                            .font(.system(size: 13, weight: .medium))
+                                            .foregroundStyle(Color.white)
+                                    } else {
+                                        // Preview icon
+                                        Image(systemName: "eyes")
+                                            .font(.system(size: 13, weight: .medium))
+                                            .foregroundStyle(Color.white)
+                                    }
+                                }
+                                .frame(width: 32, height: 32)
+                                .overlay(
+                                    Rectangle()
+                                        .stroke(Color.black.opacity(0.9), lineWidth: 1.5)
+                                )
+                            }
                         }
                         .buttonStyle(.plain)
                     }
@@ -149,11 +160,9 @@ struct CaptureView: View {
                                 )
                                 .frame(maxWidth: .infinity, alignment: .topLeading)
                             } else {
-                                Text("Add the thought you want to keep...")
-                                    .font(OdysseyFont.dr(28))
-                                    .foregroundStyle(mutedText)
-                                    .padding(.top, 4)
-                                    .frame(minHeight: 120, alignment: .topLeading)
+                                // Show nothing in preview mode when empty
+                                Spacer()
+                                    .frame(minHeight: 120)
                             }
                         } else {
                             // Edit mode - show syntax-highlighted editor with image markers
@@ -202,11 +211,9 @@ struct CaptureView: View {
                                 )
                                 .frame(maxWidth: .infinity, alignment: .topLeading)
                             } else {
-                                Text("Remember forever...")
-                                    .font(OdysseyFont.dr(28))
-                                    .foregroundStyle(mutedText)
-                                    .padding(.top, 4)
-                                    .frame(minHeight: 140, alignment: .topLeading)
+                                // Show nothing in preview mode when empty
+                                Spacer()
+                                    .frame(minHeight: 140)
                             }
                         } else {
                             // Edit mode - show syntax-highlighted editor with image markers
@@ -323,7 +330,7 @@ struct CaptureView: View {
                             ChipMenuLabel(
                                 iconName: "tag",
                                 text: tag.isEmpty ? "Tag" : tag,
-                                isActive: !tag.isEmpty,
+                                isActive: false,
                                 accentColor: primaryAccent
                             )
                         }
@@ -349,7 +356,7 @@ struct CaptureView: View {
                             ChipMenuLabel(
                                 iconName: "folder",
                                 text: selectedDeck,
-                                isActive: true,
+                                isActive: false,
                                 accentColor: primaryAccent
                             )
                         }
@@ -540,7 +547,8 @@ struct CaptureView: View {
                         back: secondaryText,
                         source: source,
                         state: card.state,
-                        dueDate: card.dueDate
+                        dueDate: card.dueDate,
+                        createdDate: card.createdDate
                     )
 
                     // Call update callback
@@ -882,5 +890,5 @@ private struct ChipMenuLabel: View {
 }
 
 #Preview {
-    CaptureView(initialCard: nil, onCardUpdated: nil)
+    CaptureView()
 }

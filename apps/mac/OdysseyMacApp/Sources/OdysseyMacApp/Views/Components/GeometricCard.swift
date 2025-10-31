@@ -315,7 +315,8 @@ struct AnyShape: Shape {
         back: "Kinematics is a subfield of physics that describes the motion of objects without considering the forces that cause the motion.",
         source: "Page 42 • Classical Mechanics",
         state: .review,
-        dueDate: Date().addingTimeInterval(3600 * 48)
+        dueDate: Date().addingTimeInterval(3600 * 48),
+        createdDate: Date()
     )
 
     let palette = OdysseyColorPalette.named(.red)
