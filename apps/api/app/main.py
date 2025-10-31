@@ -94,9 +94,9 @@ class GZipMiddleware:
             headers = dict(scope.get("headers", []))
             accept_encoding = headers.get(b"accept-encoding", b"").decode()
             
-            # Skip compression for file downloads to avoid streaming issues
+            # Skip compression for file downloads and images to avoid streaming issues
             path = scope.get("path", "")
-            if path and "/download" in path:
+            if path and ("/download" in path or "/images/" in path):
                 await self.app(scope, receive, send)
                 return
 
