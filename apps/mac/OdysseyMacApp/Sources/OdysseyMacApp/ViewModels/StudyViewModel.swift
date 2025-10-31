@@ -7,6 +7,8 @@ class StudyViewModel: ObservableObject {
     @Published var newCardsToday: Int = 0
     @Published var learningCardsToday: Int = 0
     @Published var cardsCompletedToday: Int = 0
+    @Published var totalScheduledToday: Int = 0
+    @Published var reviewedToday: Int = 0
     @Published var isLoading: Bool = false
     @Published var error: Error?
 
@@ -35,13 +37,13 @@ class StudyViewModel: ObservableObject {
             cardsDueToday = dueCardsResponse.totalDue
             newCardsToday = dueCardsResponse.totalNew
             learningCardsToday = dueCardsResponse.totalLearning
+            totalScheduledToday = dueCardsResponse.totalScheduledToday
+            reviewedToday = dueCardsResponse.reviewedToday
 
-            // Calculate completed today (cards that have been reviewed today)
-            // This would ideally come from a separate API endpoint for session stats
-            // For now, we'll set it to 0 as we don't have that data
-            cardsCompletedToday = 0
+            // Legacy field for backwards compatibility (use reviewedToday)
+            cardsCompletedToday = dueCardsResponse.reviewedToday
 
-            print("✅ loadDueCardStats: Complete")
+            print("✅ loadDueCardStats: Complete - Total scheduled today: \(totalScheduledToday), Reviewed: \(reviewedToday)")
         } catch {
             self.error = error
             print("❌ Error loading due card stats: \(error)")

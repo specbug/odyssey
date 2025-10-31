@@ -138,6 +138,8 @@ struct DueCardsResponse: Codable {
     let totalDue: Int
     let totalNew: Int
     let totalLearning: Int
+    let totalScheduledToday: Int
+    let reviewedToday: Int
 
     enum CodingKeys: String, CodingKey {
         case dueCards = "due_cards"
@@ -146,6 +148,8 @@ struct DueCardsResponse: Codable {
         case totalDue = "total_due"
         case totalNew = "total_new"
         case totalLearning = "total_learning"
+        case totalScheduledToday = "total_scheduled_today"
+        case reviewedToday = "reviewed_today"
     }
 }
 

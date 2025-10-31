@@ -348,6 +348,90 @@ class SpacedRepetitionService:
         }
 
     @staticmethod
+    def get_cards_scheduled_for_today(db: Session, file_id: Optional[int] = None) -> int:
+        """Get count of unique cards that were scheduled for today.
+
+        This counts:
+        1. Cards that were reviewed today (they must have been due/available today)
+        2. Cards that are currently due and haven't been reviewed yet today
+
+        This gives a static count of total cards for the day that doesn't change
+        as you review cards.
+
+        Args:
+            db: Database session
+            file_id: Optional file ID to filter cards for a specific PDF file
+
+        Returns:
+            Count of unique cards scheduled for today
+        """
+        # Get start and end of today in UTC
+        today = datetime.utcnow().date()
+        start_of_today = datetime.combine(today, datetime.min.time())
+        end_of_today = datetime.combine(today, datetime.max.time())
+
+        # Build base query
+        base_query = db.query(StudyCard.id)
+        if file_id is not None:
+            base_query = base_query.join(Annotation).filter(Annotation.file_id == file_id)
+
+        # Get cards that were reviewed today (they were available/due today)
+        reviewed_today_query = base_query.filter(
+            StudyCard.last_review >= start_of_today,
+            StudyCard.last_review <= end_of_today
+        )
+        reviewed_today_ids = set([card_id for (card_id,) in reviewed_today_query.all()])
+
+        # Get cards that are currently due and haven't been reviewed today
+        due_not_reviewed_query = base_query.filter(
+            StudyCard.due <= end_of_today,
+            (StudyCard.last_review.is_(None)) | (StudyCard.last_review < start_of_today)
+        )
+        due_not_reviewed_ids = set([card_id for (card_id,) in due_not_reviewed_query.all()])
+
+        # Combine to get unique cards (union of both sets)
+        unique_card_ids = reviewed_today_ids | due_not_reviewed_ids
+
+        return len(unique_card_ids)
+
+    @staticmethod
+    def get_cards_reviewed_today(db: Session, file_id: Optional[int] = None) -> int:
+        """Get count of cards that were due today and have been reviewed today.
+
+        Args:
+            db: Database session
+            file_id: Optional file ID to filter cards for a specific PDF file
+
+        Returns:
+            Count of cards reviewed today (that were due today)
+        """
+        # Get start and end of today in UTC
+        today = datetime.utcnow().date()
+        start_of_today = datetime.combine(today, datetime.min.time())
+        end_of_today = datetime.combine(today, datetime.max.time())
+
+        # Query for card reviews that happened today
+        query = db.query(CardReview).filter(
+            CardReview.review_date >= start_of_today,
+            CardReview.review_date <= end_of_today
+        )
+
+        # Join with StudyCard to check if the card was due today
+        # A card is "due today" if its due date was <= end of today at the time it was reviewed
+        query = query.join(StudyCard, CardReview.card_id == StudyCard.id)
+
+        # If file_id is provided, further filter by file
+        if file_id is not None:
+            query = query.join(Annotation, StudyCard.annotation_id == Annotation.id).filter(
+                Annotation.file_id == file_id
+            )
+
+        # Get unique card IDs (in case a card was reviewed multiple times today)
+        reviewed_card_ids = query.distinct(CardReview.card_id).all()
+
+        return len(reviewed_card_ids)
+
+    @staticmethod
     def review_card(
         db: Session,
         card_id: int,

@@ -16,12 +16,16 @@ struct StudyView: View {
         }
     }
 
+    private var totalCardsToday: Int {
+        viewModel.totalScheduledToday
+    }
+
     private var cardsDueToday: Int {
         viewModel.cardsDueToday + viewModel.newCardsToday + viewModel.learningCardsToday
     }
 
     private var cardsCompletedToday: Int {
-        viewModel.cardsCompletedToday
+        viewModel.reviewedToday
     }
 
     var body: some View {
@@ -54,7 +58,7 @@ struct StudyView: View {
                     Button("Try Again") {
                         Task {
                             await viewModel.loadDueCardStats()
-                            network = OrganicNetwork.generate(nodeCount: max(1, cardsDueToday))
+                            network = OrganicNetwork.generate(nodeCount: max(1, totalCardsToday))
                         }
                     }
                     .buttonStyle(OdysseyPrimaryButtonStyle())
@@ -98,8 +102,8 @@ struct StudyView: View {
         }
         .task {
             await viewModel.loadDueCardStats()
-            // Update network node count based on actual cards
-            network = OrganicNetwork.generate(nodeCount: max(1, cardsDueToday))
+            // Update network node count based on total cards scheduled for today
+            network = OrganicNetwork.generate(nodeCount: max(1, totalCardsToday))
         }
     }
 
@@ -121,7 +125,7 @@ struct StudyView: View {
 
     private var networkVisualization: some View {
         OrganicNetworkView(
-            total: cardsDueToday,
+            total: totalCardsToday,
             completed: cardsCompletedToday,
             network: network,
             size: 450
@@ -132,21 +136,20 @@ struct StudyView: View {
     }
 
     private var statsDisplay: some View {
-        VStack(spacing: OdysseySpacing.md.value) {
-            // Cards due
-            HStack(alignment: .firstTextBaseline, spacing: OdysseySpacing.sm.value) {
-                Text("\(cardsDueToday)")
-                    .font(.system(size: 72, weight: .bold))
-                    .foregroundStyle(OdysseyColor.ink)
+        VStack(spacing: 8) {
+            // Total cards to review today (main count)
+            Text("\(totalCardsToday)")
+                .font(.system(size: 72, weight: .bold))
+                .foregroundStyle(OdysseyColor.ink)
 
-                Text(cardsDueToday == 1 ? "card due" : "cards due")
-                    .font(.system(size: 20, weight: .medium))
-                    .foregroundStyle(OdysseyColor.mutedText)
-            }
+            // "cards to review today" label
+            Text(totalCardsToday == 1 ? "card to review today" : "cards to review today")
+                .font(.system(size: 20, weight: .medium))
+                .foregroundStyle(OdysseyColor.mutedText)
 
-            // Cards completed
-            if cardsCompletedToday > 0 {
-                Text("\(cardsCompletedToday) completed today")
+            // Show "X due" subtext if there are cards due
+            if cardsDueToday > 0 {
+                Text("\(cardsDueToday) due")
                     .font(.system(size: 16))
                     .foregroundStyle(OdysseyColor.mutedText)
             }
