@@ -395,10 +395,7 @@ struct BrowseView: View {
     private var previewPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let selectedCard = selectedCard {
-                // Generate deterministic vibrant color based on card ID
-                let cardColor = XKCDColors.vibrantColor(seed: selectedCard.id.uuidString)
-
-                // Show CaptureView in preview mode with vibrant background
+                // Show CaptureView in preview mode with white background
                 CaptureView(
                     initialCard: selectedCard,
                     onCardUpdated: { updatedCard in
@@ -411,7 +408,7 @@ struct BrowseView: View {
                         }
                     },
                     startsInPreviewMode: true,
-                    previewBackgroundColor: cardColor
+                    previewBackgroundColor: .white
                 )
                 .id(selectedCard.id)  // Force recreation when card changes
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
