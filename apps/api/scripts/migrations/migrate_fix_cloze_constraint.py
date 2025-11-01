@@ -10,7 +10,8 @@ Since SQLite doesn't support modifying constraints, we recreate the table.
 import sqlite3
 import os
 
-DB_PATH = os.path.join(os.path.dirname(__file__), "pdf_annotations.db")
+# Path to your database (apps/api/pdf_annotations.db)
+DB_PATH = os.path.join(os.path.dirname(__file__), "../..", "pdf_annotations.db")
 
 
 def migrate():
