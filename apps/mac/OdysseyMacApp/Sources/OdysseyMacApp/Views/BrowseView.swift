@@ -395,7 +395,7 @@ struct BrowseView: View {
     private var previewPanel: some View {
         VStack(alignment: .leading, spacing: 0) {
             if let selectedCard = selectedCard {
-                // Show CaptureView in preview mode with white background
+                // Show CaptureView in preview mode with clean background
                 CaptureView(
                     initialCard: selectedCard,
                     onCardUpdated: { updatedCard in
@@ -408,7 +408,7 @@ struct BrowseView: View {
                         }
                     },
                     startsInPreviewMode: true,
-                    previewBackgroundColor: .white
+                    previewBackgroundColor: nil
                 )
                 .id(selectedCard.id)  // Force recreation when card changes
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

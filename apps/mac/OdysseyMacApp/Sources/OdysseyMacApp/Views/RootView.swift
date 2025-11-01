@@ -125,8 +125,8 @@ struct RootView: View {
             }
 
             Menu {
-                Button("Settings") {
-                    openSettings()
+                SettingsLink {
+                    Text("Settings")
                 }
                 Button("Sign Out", role: .destructive) {
                     appState.signOut()
@@ -163,12 +163,6 @@ struct RootView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    private func openSettings() {
-#if os(macOS)
-        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-#endif
     }
 
 #if os(macOS)
