@@ -247,6 +247,8 @@ class DueCardsResponse(BaseModel):
     total_due: int
     total_new: int
     total_learning: int
+    total_scheduled_today: int = 0  # Total cards scheduled for today (reviewed + pending)
+    reviewed_today: int = 0  # Cards that were due today and have been reviewed
 
 
 class ReviewOptions(BaseModel):

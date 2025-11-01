@@ -62,6 +62,27 @@ class BrowseViewModel: ObservableObject {
         await loadInitialCards()
     }
 
+    func updateCard(_ card: CardSummary) async {
+        do {
+            // Update annotation in backend
+            _ = try await backend.updateAnnotation(
+                annotationId: card.annotationId,
+                question: card.front,
+                answer: card.back,
+                source: card.source.isEmpty ? nil : card.source,
+                tag: card.tag.isEmpty ? nil : card.tag,
+                deck: card.deck
+            )
+
+            // Update the card in local array
+            if let index = cards.firstIndex(where: { $0.annotationId == card.annotationId }) {
+                cards[index] = card
+            }
+        } catch {
+            self.error = error
+        }
+    }
+
     // MARK: - Private Helpers
 
     private func mapStudyCardsToCardSummary(_ studyCards: [APIStudyCard]) async -> [CardSummary] {
@@ -87,13 +108,15 @@ class BrowseViewModel: ObservableObject {
 
             // Create CardSummary
             let summary = CardSummary(
+                annotationId: annotation.id,
                 deck: "Default",
                 tag: "Default",
                 front: cleanedQuestion,
                 back: cleanedAnswer,
                 source: sourceText,
                 state: state,
-                dueDate: dueDate
+                dueDate: dueDate,
+                createdDate: annotation.createdDate
             )
 
             summaries.append(summary)

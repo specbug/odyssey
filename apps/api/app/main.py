@@ -94,9 +94,9 @@ class GZipMiddleware:
             headers = dict(scope.get("headers", []))
             accept_encoding = headers.get(b"accept-encoding", b"").decode()
             
-            # Skip compression for file downloads to avoid streaming issues
+            # Skip compression for file downloads and images to avoid streaming issues
             path = scope.get("path", "")
-            if path and "/download" in path:
+            if path and ("/download" in path or "/images/" in path):
                 await self.app(scope, receive, send)
                 return
 
@@ -818,6 +818,10 @@ async def get_due_cards(limit: int = 50, file_id: Optional[int] = None, db: Sess
             StudyCardResponse.from_orm(card) for card in cards_data["learning_cards"]
         ]
 
+        # Get counts for cards scheduled and reviewed today
+        total_scheduled_today = SpacedRepetitionService.get_cards_scheduled_for_today(db, file_id)
+        reviewed_today = SpacedRepetitionService.get_cards_reviewed_today(db, file_id)
+
         return DueCardsResponse(
             due_cards=due_cards_response,
             new_cards=new_cards_response,
@@ -825,6 +829,8 @@ async def get_due_cards(limit: int = 50, file_id: Optional[int] = None, db: Sess
             total_due=len(cards_data["due_cards"]),
             total_new=len(cards_data["new_cards"]),
             total_learning=len(cards_data["learning_cards"]),
+            total_scheduled_today=total_scheduled_today,
+            reviewed_today=reviewed_today,
         )
 
     except Exception as e:
