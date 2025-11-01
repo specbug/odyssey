@@ -8,8 +8,8 @@ convert percentages to page numbers without knowing the total number of pages pe
 import sqlite3
 import os
 
-# Path to your database
-DB_PATH = os.path.join(os.path.dirname(__file__), "pdf_annotations.db")
+# Path to your database (apps/api/pdf_annotations.db)
+DB_PATH = os.path.join(os.path.dirname(__file__), "../..", "pdf_annotations.db")
 
 def migrate():
     """Change last_read_position from Float to Integer and reset all values to 0."""

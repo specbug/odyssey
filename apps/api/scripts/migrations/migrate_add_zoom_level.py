@@ -5,8 +5,8 @@ Run this once to update your existing database schema.
 import sqlite3
 import os
 
-# Path to your database
-DB_PATH = os.path.join(os.path.dirname(__file__), "pdf_annotations.db")
+# Path to your database (apps/api/pdf_annotations.db)
+DB_PATH = os.path.join(os.path.dirname(__file__), "../..", "pdf_annotations.db")
 
 def migrate():
     """Add zoom_level column to pdf_files table if it doesn't exist."""

@@ -7,8 +7,8 @@ import sqlite3
 import os
 
 def migrate_database():
-    # Database path
-    db_path = os.path.join(os.path.dirname(__file__), "pdf_annotations.db")
+    # Database path (apps/api/pdf_annotations.db)
+    db_path = os.path.join(os.path.dirname(__file__), "../..", "pdf_annotations.db")
 
     if not os.path.exists(db_path):
         print(f"❌ Database not found at: {db_path}")
