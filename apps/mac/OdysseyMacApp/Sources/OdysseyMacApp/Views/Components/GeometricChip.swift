@@ -24,8 +24,8 @@ struct GeometricChip: View {
         self.palette = palette
         self.isSelected = isSelected
         self.onTap = onTap
-        // Assign random color on initialization for this chip
-        _hoverColor = State(initialValue: XKCDColors.randomVibrant())
+        // Assign deterministic color based on card ID for consistency with preview
+        _hoverColor = State(initialValue: XKCDColors.vibrantColor(seed: card.id.uuidString))
     }
 
     var body: some View {

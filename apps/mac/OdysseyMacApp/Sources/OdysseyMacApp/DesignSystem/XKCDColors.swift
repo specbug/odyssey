@@ -943,4 +943,17 @@ struct XKCDColors {
         let theme = random()
         return theme.background
     }
+
+    /// Get a deterministic vibrant color based on a seed string
+    static func vibrantColor(seed: String) -> Color {
+        // Create a simple hash from the seed string
+        var hash = 0
+        for char in seed.unicodeScalars {
+            hash = (hash &* 31 &+ Int(char.value)) & 0x7FFFFFFF
+        }
+
+        // Use hash to index into the themes array
+        let index = abs(hash) % all.count
+        return all[index].background
+    }
 }
