@@ -163,7 +163,7 @@ struct StudyView: View {
             appState.isInStudySession = true
         } label: {
             HStack(spacing: OdysseySpacing.sm.value) {
-                Text(cardsCompletedToday > 0 ? "Keep Learning" : "Learn")
+                Text(cardsCompletedToday > 0 ? "KEEP LEARNING" : "LEARN")
                     .font(.system(size: 18, weight: .semibold))
                 Image(systemName: "arrow.right")
                     .font(.system(size: 16, weight: .semibold))
@@ -176,16 +176,12 @@ struct StudyView: View {
     }
 
     private var emptyStateMessage: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 36))
-                .foregroundStyle(Color.green.opacity(0.8))
-
+        VStack(spacing: 0) {
             Text("All caught up!")
                 .font(.system(size: 18, weight: .semibold))
                 .foregroundStyle(OdysseyColor.ink)
 
-            Text("You have no cards due right now")
+            Text("Nothing's due for review.")
                 .font(.system(size: 14))
                 .foregroundStyle(OdysseyColor.mutedText)
         }
