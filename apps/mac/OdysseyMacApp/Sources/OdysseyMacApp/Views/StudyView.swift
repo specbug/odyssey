@@ -302,7 +302,7 @@ struct OrganicNetworkView: View {
                     t: adjustedProgress
                 )
 
-                let pulseSize: CGFloat = 3.5 * avgScale  // Scale pulse size with depth
+                let pulseSize: CGFloat = 2.975 * avgScale  // Scale pulse size with depth (15% smaller)
                 let pulseOpacity = (1.0 - abs(adjustedProgress - 0.5) * 2) * avgOpacity  // Apply depth opacity
 
                 // Outer electric glow (using pathway's XKCD color with depth)
