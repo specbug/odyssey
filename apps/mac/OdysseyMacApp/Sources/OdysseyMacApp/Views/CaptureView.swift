@@ -32,15 +32,20 @@ struct CaptureView: View {
     let initialCard: CardSummary?
     let onCardUpdated: ((CardSummary) -> Void)?
 
+    // Preview background color (for BrowseView preview mode)
+    let previewBackgroundColor: Color?
+
     // Initializer
     init(
         initialCard: CardSummary? = nil,
         onCardUpdated: ((CardSummary) -> Void)? = nil,
-        startsInPreviewMode: Bool = false
+        startsInPreviewMode: Bool = false,
+        previewBackgroundColor: Color? = nil
     ) {
         self.initialCard = initialCard
         self.onCardUpdated = onCardUpdated
         self._isPreviewMode = State(initialValue: startsInPreviewMode)
+        self.previewBackgroundColor = previewBackgroundColor
     }
 
     enum Field: Hashable {
@@ -52,6 +57,32 @@ struct CaptureView: View {
         initialCard != nil
     }
 
+    // Computed property to check if vibrant background is active
+    private var hasVibrantBackground: Bool {
+        previewBackgroundColor != nil
+    }
+
+    // Computed property to determine if background is light (needs dark text)
+    private var isLightBackground: Bool {
+        guard let bgColor = previewBackgroundColor else { return false }
+
+        // Extract RGB components from the color
+        guard let components = NSColor(bgColor).usingColorSpace(.deviceRGB) else {
+            return false
+        }
+
+        let red = components.redComponent
+        let green = components.greenComponent
+        let blue = components.blueComponent
+
+        // Calculate relative luminance using the WCAG formula
+        // https://www.w3.org/TR/WCAG20/#relativeluminancedef
+        let luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue
+
+        // If luminance is above 0.5, it's a light background (needs dark text)
+        return luminance > 0.5
+    }
+
     private var canSave: Bool {
         !primaryText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
@@ -59,31 +90,55 @@ struct CaptureView: View {
     // MARK: - Color Palette (Odyssey Neon)
 
     private var primaryAccent: Color {
-        Color(hex: "#ff4d06") // Odyssey orange accent
+        if hasVibrantBackground {
+            // Use darker accent on light backgrounds, lighter on dark backgrounds
+            return isLightBackground ? Color(hex: "#d64000") : Color(hex: "#ff6b33")
+        }
+        return Color(hex: "#ff4d06") // Odyssey orange accent
     }
 
     private var latexPink: Color {
-        Color(hex: "#ff5252") // Pink/red for LaTeX
+        if hasVibrantBackground {
+            // Adjust latex/cloze colors for contrast
+            return isLightBackground ? Color(hex: "#cc0000") : Color(hex: "#ff6b6b")
+        }
+        return Color(hex: "#ff5252") // Pink/red for LaTeX
     }
 
     private var clozeBlue: Color {
-        Color(red: 114.0 / 255.0, green: 174.0 / 255.0, blue: 248.0 / 255.0) // #72AEF8 solid
+        if hasVibrantBackground {
+            // Adjust cloze blue for contrast
+            return isLightBackground ? Color(hex: "#0066cc") : Color(hex: "#72AEF8")
+        }
+        return Color(red: 114.0 / 255.0, green: 174.0 / 255.0, blue: 248.0 / 255.0) // #72AEF8 solid
     }
 
     private var ink: Color {
-        Color.black.opacity(0.8)
+        if hasVibrantBackground {
+            return isLightBackground ? Color.black.opacity(0.85) : Color.white.opacity(0.95)
+        }
+        return Color.black.opacity(0.8)
     }
 
     private var mutedText: Color {
-        Color.black.opacity(0.4)
+        if hasVibrantBackground {
+            return isLightBackground ? Color.black.opacity(0.45) : Color.white.opacity(0.6)
+        }
+        return Color.black.opacity(0.4)
     }
 
     private var subtleBorder: Color {
-        Color.black.opacity(0.08)
+        if hasVibrantBackground {
+            return isLightBackground ? Color.black.opacity(0.12) : Color.white.opacity(0.15)
+        }
+        return Color.black.opacity(0.08)
     }
 
     private var surfaceBackground: Color {
-        OdysseyColor.surface
+        if hasVibrantBackground {
+            return isLightBackground ? Color.white.opacity(0.4) : Color.white.opacity(0.08)
+        }
+        return OdysseyColor.surface
     }
 
     private var shadowColor: Color {
@@ -96,9 +151,15 @@ struct CaptureView: View {
 
     var body: some View {
         ZStack {
-            // Match BrowseView background
-            OdysseyColor.canvas
-                .ignoresSafeArea()
+            // Background: vibrant color in preview mode (if provided), otherwise canvas
+            if let bgColor = previewBackgroundColor {
+                bgColor
+                    .opacity(0.85)
+                    .ignoresSafeArea()
+            } else {
+                OdysseyColor.canvas
+                    .ignoresSafeArea()
+            }
 
             ScrollView {
                 VStack(spacing: 0) {
@@ -113,33 +174,55 @@ struct CaptureView: View {
                             ZStack(alignment: .topLeading) {
                                 // Geometric offset border (shadow)
                                 Rectangle()
-                                    .stroke(Color.black.opacity(0.6), lineWidth: 1.5)
+                                    .stroke(
+                                        hasVibrantBackground && isLightBackground
+                                            ? Color.white.opacity(0.7)
+                                            : Color.black.opacity(0.6),
+                                        lineWidth: 1.5
+                                    )
                                     .frame(width: 32, height: 32)
                                     .offset(x: 3, y: 3)
 
                                 // Main button
                                 ZStack {
-                                    // Black background
+                                    // Background (inverted for contrast)
                                     Rectangle()
-                                        .fill(Color.black.opacity(0.9))
+                                        .fill(
+                                            hasVibrantBackground && isLightBackground
+                                                ? Color.white.opacity(0.95)
+                                                : Color.black.opacity(0.9)
+                                        )
 
                                     // Icon
                                     if isPreviewMode {
                                         // Edit icon
                                         Image(systemName: "pencil.line")
                                             .font(.system(size: 13, weight: .medium))
-                                            .foregroundStyle(Color.white)
+                                            .foregroundStyle(
+                                                hasVibrantBackground && isLightBackground
+                                                    ? Color.black
+                                                    : Color.white
+                                            )
                                     } else {
                                         // Preview icon
                                         Image(systemName: "eyes")
                                             .font(.system(size: 13, weight: .medium))
-                                            .foregroundStyle(Color.white)
+                                            .foregroundStyle(
+                                                hasVibrantBackground && isLightBackground
+                                                    ? Color.black
+                                                    : Color.white
+                                            )
                                     }
                                 }
                                 .frame(width: 32, height: 32)
                                 .overlay(
                                     Rectangle()
-                                        .stroke(Color.black.opacity(0.9), lineWidth: 1.5)
+                                        .stroke(
+                                            hasVibrantBackground && isLightBackground
+                                                ? Color.white.opacity(0.95)
+                                                : Color.black.opacity(0.9),
+                                            lineWidth: 1.5
+                                        )
                                 )
                             }
                         }
@@ -156,7 +239,8 @@ struct CaptureView: View {
                                 InlineImageRenderer(
                                     text: primaryText,
                                     imageStore: imageStore,
-                                    clozeColor: "rgba(114, 174, 248, 1.0)"
+                                    clozeColor: "rgba(114, 174, 248, 1.0)",
+                                    textColor: ink
                                 )
                                 .frame(maxWidth: .infinity, alignment: .topLeading)
                             } else {
@@ -207,7 +291,8 @@ struct CaptureView: View {
                                 InlineImageRenderer(
                                     text: secondaryText,
                                     imageStore: imageStore,
-                                    clozeColor: "rgba(114, 174, 248, 1.0)"
+                                    clozeColor: "rgba(114, 174, 248, 1.0)",
+                                    textColor: ink
                                 )
                                 .frame(maxWidth: .infinity, alignment: .topLeading)
                             } else {
@@ -688,6 +773,7 @@ private struct InlineImageRenderer: View {
     let text: String
     let imageStore: [String: NSImage]
     let clozeColor: String
+    let textColor: Color
 
     var body: some View {
         let segments = parseAndMergeContent()
@@ -713,7 +799,7 @@ private struct InlineImageRenderer: View {
                     TextSegmentView(
                         text: content,
                         clozeColor: clozeColor,
-                        textColor: Color.black.opacity(0.8)
+                        textColor: textColor
                     )
                 case .image(let uuid):
                     if let image = imageStore[uuid] {
