@@ -1,8 +1,8 @@
 # Odyssey
 
-I built Odyssey because reading is mostly passive. A month later, most of what I'd read was gone.
+A PDF reader with spaced repetition built in.
 
-It's a PDF reader where highlighting is the act of remembering. I mark up a passage, wrap part of it in a cloze deletion, and it enters a review queue scheduled by FSRS. When a card comes up, I'm taken back to the page it came from. Reviews stay tethered to their source, not stranded as context-free flashcards in a separate app.
+Highlights in a PDF become FSRS-scheduled review cards. Cloze deletions turn passages into fill-in-the-blank flashcards. Each review links back to the page the card came from, keeping cards in context rather than stranded in a separate app.
 
 Available as a web app and a native macOS app.
 
