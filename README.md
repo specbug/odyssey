@@ -1,45 +1,22 @@
 # Odyssey
 
-Odyssey is an intelligent PDF annotation and spaced repetition learning system that helps you retain knowledge from documents through active recall and scientifically-optimized review scheduling.
+I built Odyssey because reading is mostly passive. A month later, most of what I'd read was gone.
 
-## Features
+It's a PDF reader where highlighting is the act of remembering. I mark up a passage, wrap part of it in a cloze deletion, and it enters a review queue scheduled by FSRS. When a card comes up, I'm taken back to the page it came from. Reviews stay tethered to their source, not stranded as context-free flashcards in a separate app.
 
-- **PDF Annotation**: Highlight and annotate PDF documents with an intuitive interface
-- **Spaced Repetition**: FSRS-powered review scheduling for optimal knowledge retention
-- **Cloze Deletions**: Create fill-in-the-blank flashcards directly from highlighted text
-- **Timeline View**: Visual timeline of your learning progress and review history
-- **Smart Deduplication**: Automatic detection and handling of duplicate files
+Available as a web app and a native macOS app.
 
-## Local Setup
-
-### Prerequisites
-
-- Node.js 16+ and npm
-- Python 3.11+
-- Git
-
-### Running Locally
-
-**1. Start Backend API:**
+## Run it
 
 ```bash
-cd apps/api
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-python run.py
+cp .env.example .env
+podman compose up -d --build
 ```
 
-**2. Start Frontend:**
+Web UI at `http://localhost:3000`, API at `http://localhost:8000`. For the native Mac app, `swift run` inside `apps/mac/OdysseyMacApp/`.
 
-```bash
-cd apps/webapp
-npm install
-npm start
-```
-
-The frontend will open at `http://localhost:3000` and the backend will run at `http://localhost:8000`.
+Local development without containers: see `apps/api/README.md` and `apps/webapp/README.md`.
 
 ## Credits
 
-This project is inspired by the work of [Andy Matuschak](https://andymatuschak.org/) on [Orbit](https://github.com/andymatuschak/orbit).
+Inspired by [Andy Matuschak](https://andymatuschak.org/)'s [Orbit](https://github.com/andymatuschak/orbit).
