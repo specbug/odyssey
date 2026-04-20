@@ -5,9 +5,11 @@
     <key>Label</key>
     <string>in.sixeleven.odyssey</string>
 
+    <!-- Points at an installed copy outside ~/Documents so launchd isn't blocked by macOS TCC.
+         Source of truth is scripts/start.sh; re-copy to ~/.local/bin/odyssey-start on change. -->
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/rishitv/Documents/odyssey/scripts/start.sh</string>
+        <string>/Users/rishitv/.local/bin/odyssey-start</string>
     </array>
 
     <!-- Run at every login -->
