@@ -41,14 +41,19 @@ Three families, three roles. Mixing them is the voice of the app.
 
 | Family | When | Examples |
 |---|---|---|
-| **R Sans** (`--sans`) | All prose, UI controls, buttons, form elements | Hero headlines, body copy, button labels, search input, note prompts |
+| **R Sans** (`--sans`) | All prose, UI controls, buttons, form elements, **all note authoring and preview surfaces** | Hero headlines, body copy, button labels, search input, drawer textareas, sticky note bodies, NotesScreen rows |
 | **R Mono** (`--mono`) | Metadata, numerics, labels, dates, intervals | `p. 18 / 301`, `MORNING — TUE APR 21`, `INTERVAL — 9d · STABILITY 12d`, tag chips `#quantum`, `⌘⏎` hint |
-| **Editorial Serif** (`--serif`) | Card bodies, reveal answers, quote blocks, empty-state italics | Review prompt + answer, sticky-note excerpt, "An empty voyage." |
+| **Editorial Serif** (`--serif`) | **The review ritual only**, plus occasional empty-state italics | Review prompt + answer (the card moment), "An empty voyage.", "No notes yet." |
 
-Rule of thumb: **ask "is this structure, or is this reading?"** Structural
-text (headlines, labels, controls) is sans. Numerical / taxonomic text is
-mono. Anything you're meant to *inhabit* — a passage, a question you're
-trying to answer, an empty-state murmur — is serif.
+Rule of thumb: **serif is reserved for the review ritual.** Authoring and
+preview — drawer textareas, sticky notes in the PDF rail, the rows in
+NotesScreen — are all sans, because the user's own voice comes in through
+sans and the preview should echo that voice, not swap fonts on them.
+Serif arrives only when a note *becomes* a card under review; that font
+swap is the "ritual" cue that you're reading, not writing.
+
+Numerical / taxonomic text (anything counted, dated, or labeled) is mono.
+Everything else structural is sans.
 
 Utility classes for the mono role: `.mono` (11.5px) and `.mono-sm` (10.5px,
 uppercase, letter-spaced). Both in `src/styles/base.css`.

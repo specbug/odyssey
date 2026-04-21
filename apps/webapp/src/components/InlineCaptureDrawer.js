@@ -14,13 +14,15 @@ import apiService from '../api';
 //   onCancel  - () => void
 //   onDelete  - () => void  (optional; shown in edit mode only)
 //   variant   - 'rail' | 'modal'  (layout wrapper style)
-const drawerTextarea = (minH, serif = false) => ({
+// All textareas use R Sans — authoring is structural UI, not a reading
+// surface. Serif is reserved for the review ritual.
+const drawerTextarea = (minH) => ({
   width: '100%',
   minHeight: minH,
   border: '1px solid var(--rule)',
   background: 'var(--paper-2)',
   padding: 10,
-  fontFamily: serif ? 'var(--serif)' : 'var(--sans)',
+  fontFamily: 'var(--sans)',
   fontSize: 13.5,
   lineHeight: 1.5,
   color: 'var(--ink)',
@@ -187,7 +189,7 @@ export default function InlineCaptureDrawer({
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               onPaste={onPaste(setAnswer)}
-              style={drawerTextarea(72, true)}
+              style={drawerTextarea(72)}
             />
           </>
         )}
@@ -200,7 +202,7 @@ export default function InlineCaptureDrawer({
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onPaste={onPaste(setPrompt)}
-              style={drawerTextarea(140, true)}
+              style={drawerTextarea(140)}
             />
           </>
         )}
