@@ -2,6 +2,15 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* Form controls inherit body type by default — browsers give buttons/inputs
+   their own UA font stack, which leaks system-ui into the UI and breaks our
+   R Sans / R Mono discipline on any <button> that forgets to set font-family. */
+button, input, textarea, select {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
 html, body {
   height: 100%;
   background: var(--paper);

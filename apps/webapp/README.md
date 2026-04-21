@@ -25,11 +25,12 @@ See the instructions in `apps/api/README.md`.
 
 ```bash
 cd apps/webapp
-npm install
-npm start
+bun install
+bun run start
 ```
 
-The app will open automatically at `http://localhost:3000`.
+The app will open automatically at `http://localhost:3000`. The production
+build is `bun run build`; tests run via `bun run test`.
 
 ## Credits
 

@@ -286,19 +286,21 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
 
   const doc = useMemo(() => (fileMetadata ? toLibraryDoc(fileMetadata) : null), [fileMetadata]);
 
-  // Load the file blob + metadata
+  // Load the file blob + metadata. Fetch metadata first so we can pass the
+  // file_hash as a cache-buster on the blob download — SQLite rowids get
+  // recycled after a delete, and the browser would otherwise serve the
+  // previous upload's cached bytes for the same /files/{id}/download URL.
   useEffect(() => {
     let alive = true;
     (async () => {
       try {
-        const [meta, blob] = await Promise.all([
-          apiService.getFile(docId),
-          apiService.downloadFile(docId),
-        ]);
+        const meta = await apiService.getFile(docId);
         if (!alive) return;
         setFileMetadata(meta);
-        setFileBlob(blob);
         if (meta?.zoom_level) setScale(meta.zoom_level);
+        const blob = await apiService.downloadFile(docId, meta?.file_hash);
+        if (!alive) return;
+        setFileBlob(blob);
       } catch (e) {
         if (alive) setError(e.message || String(e));
       }
@@ -753,6 +755,35 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
               aria-label="Next page"
             >
               <Ic.Right/>
+            </button>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'var(--paper)', border: '1px solid var(--rule)', padding: '3px 4px', borderRadius: 'var(--rad)' }}>
+            <button
+              className="btn ghost xs"
+              onClick={() => setScale((s) => Math.max(0.5, Math.round((s - 0.1) * 100) / 100))}
+              disabled={scale <= 0.5}
+              aria-label="Zoom out"
+              style={{ padding: '4px 8px' }}
+            >
+              −
+            </button>
+            <button
+              className="btn ghost xs"
+              onClick={() => setScale(1.2)}
+              title="Reset zoom"
+              aria-label="Reset zoom"
+              style={{ padding: '4px 10px', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-2)', minWidth: 48, textAlign: 'center', justifyContent: 'center' }}
+            >
+              {Math.round(scale * 100)}%
+            </button>
+            <button
+              className="btn ghost xs"
+              onClick={() => setScale((s) => Math.min(3.0, Math.round((s + 0.1) * 100) / 100))}
+              disabled={scale >= 3.0}
+              aria-label="Zoom in"
+              style={{ padding: '4px 8px' }}
+            >
+              +
             </button>
           </div>
           <div className="mono-sm" style={{ background: 'var(--paper)', border: '1px solid var(--rule)', padding: '9px 12px', borderRadius: 'var(--rad)', color: 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 8 }}>

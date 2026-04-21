@@ -10,9 +10,9 @@ pdfjs.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL || ''}/pdf.worke
 
 // Extract design metadata (author + excerpt) from a freshly uploaded PDF.
 // Best-effort — encrypted or unusual PDFs fall back to null fields.
-async function extractPdfMetadata(fileId) {
+async function extractPdfMetadata(fileId, hash) {
   try {
-    const url = apiService.fileDownloadUrl(fileId);
+    const url = apiService.fileDownloadUrl(fileId, hash);
     const loadingTask = pdfjs.getDocument(url);
     const pdf = await loadingTask.promise;
     let author = null;
@@ -68,7 +68,7 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
       const res = await apiService.uploadFile(file);
       const data = res?.file_data;
       if (data?.id) {
-        const { author, excerpt, totalPages } = await extractPdfMetadata(data.id);
+        const { author, excerpt, totalPages } = await extractPdfMetadata(data.id, data.file_hash);
         const color_hue = hashToHue(data.file_hash);
         try {
           await apiService.updateFileMetadata(data.id, { author, color_hue, excerpt });

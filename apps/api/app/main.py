@@ -419,14 +419,13 @@ async def download_file(file_id: int, request: Request, db: Session = Depends(ge
     if if_none_match == etag:
         return JSONResponse(status_code=304, content=None)
 
-    # Create response with aggressive caching headers
+    # Cache the bytes, but let the browser revalidate via ETag — file_id is
+    # reusable after a delete, so `immutable` would serve stale PDFs when SQLite
+    # hands the same id to a different upload.
     headers = {
-        "Cache-Control": "public, max-age=31536000, immutable",  # 1 year cache
+        "Cache-Control": "public, max-age=3600, must-revalidate",
         "ETag": etag,
         "Last-Modified": datetime.fromtimestamp(file_mtime).strftime(
-            "%a, %d %b %Y %H:%M:%S GMT"
-        ),
-        "Expires": (datetime.now() + timedelta(days=365)).strftime(
             "%a, %d %b %Y %H:%M:%S GMT"
         ),
         "Content-Encoding": "gzip" if file.file_path.endswith(".gz") else None,

@@ -141,7 +141,20 @@ export default function HomeScreen({ onNav, onOpenDoc, onStartReview }) {
                 : 'Nothing in flight — open a document to begin.'}
             </div>
           ) : (
-            <div className="enter-stagger" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, background: 'var(--rule)', border: '1px solid var(--rule)' }}>
+            <div
+              className="enter-stagger"
+              style={{
+                display: 'grid',
+                // Match columns to what we actually have so empty grid cells
+                // don't show the rule backdrop as a gray slab.
+                gridTemplateColumns: `repeat(${Math.min(3, reading.length)}, minmax(0, 1fr))`,
+                gap: 1,
+                // Backdrop creates the 1px column dividers via gap — only useful
+                // when there's more than one card to separate.
+                background: reading.length > 1 ? 'var(--rule)' : 'transparent',
+                border: '1px solid var(--rule)',
+              }}
+            >
               {reading.map((doc) => (
                 <button
                   key={doc.id}

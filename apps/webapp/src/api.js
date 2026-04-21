@@ -43,14 +43,19 @@ class ApiService {
     return asJson(await fetch(`${this.baseUrl}/files/${fileId}`));
   }
 
-  async downloadFile(fileId) {
-    const res = await fetch(`${this.baseUrl}/files/${fileId}/download`);
+  async downloadFile(fileId, hash = null) {
+    const res = await fetch(this.fileDownloadUrl(fileId, hash));
     if (!res.ok) throw new Error(`Download failed: ${res.status}`);
     return res.blob();
   }
 
-  fileDownloadUrl(fileId) {
-    return `${this.baseUrl}/files/${fileId}/download`;
+  // Append the file hash as `?v=<hash>` when known — file_id is a SQLite rowid
+  // that SQLite reuses after a delete, so the URL by itself is not a stable
+  // cache key. Including the hash guarantees the browser treats two different
+  // underlying PDFs (sharing the same reused id) as distinct URLs.
+  fileDownloadUrl(fileId, hash = null) {
+    const base = `${this.baseUrl}/files/${fileId}/download`;
+    return hash ? `${base}?v=${encodeURIComponent(hash)}` : base;
   }
 
   async deleteFile(fileId) {
