@@ -334,7 +334,11 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
   const [dueCount, setDueCount] = useState(0);
   const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [chromeVisible, setChromeVisible] = useState(true);
+  // Chrome is always visible. Earlier iterations tried scroll-based hiding +
+  // idle auto-hide; both felt like the viewer was refreshing. A persistent
+  // 64px strip is cheaper than the cognitive cost of a toolbar that vanishes
+  // mid-read.
+  const chromeVisible = true;
 
   const listRef = useRef(null);
   const viewerRef = useRef(null);
@@ -675,12 +679,9 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
     }, 80);
   }, [targetNoteId, notes, handleHighlightClick, onConsumedTarget]);
 
-  // Scroll handling. Chrome visibility is a pure function of scroll position
-  // (with a wide hysteresis band so small wiggles near the boundary don't
-  // flip-flop opacity): visible while near the top, hidden once scrolled in.
+  // Scroll handling. Chrome is always visible now; this handler only tracks
+  // the current page index and debounces a read-position save.
   const handleListScroll = useCallback(({ scrollOffset }) => {
-    if (scrollOffset < 60) setChromeVisible(true);
-    else if (scrollOffset > 160) setChromeVisible(false);
     lastScrollY.current = scrollOffset;
 
     // current page from pageHeights accumulation
