@@ -9,14 +9,16 @@ export default function StickyNote({ note, onOpen, active = false, style }) {
   const clozeMode = note.type === 'cloze' ? 'inline' : 'none';
 
   // Active state — shown when the user clicks the linked highlight on the PDF.
-  // Stronger border, richer backdrop, a slight lift, and a saturated left rule.
+  // Dramatic: saturated backdrop, full-accent 2px ring, pronounced left rule,
+  // larger lift, and a glow. Has to read from across the page.
   const activeStyles = active
     ? {
-        background: 'color-mix(in oklab, var(--accent) 22%, var(--paper))',
-        border: '1px solid color-mix(in oklab, var(--accent) 55%, var(--rule))',
-        borderLeft: '3px solid var(--accent)',
-        boxShadow: '0 10px 28px -12px color-mix(in oklab, var(--accent) 60%, transparent), 0 0 0 1px color-mix(in oklab, var(--accent) 30%, transparent)',
-        transform: 'translateX(-4px)',
+        background: 'color-mix(in oklab, var(--accent) 35%, var(--paper))',
+        border: '2px solid var(--accent)',
+        borderLeft: '6px solid var(--accent)',
+        boxShadow:
+          '0 0 0 4px color-mix(in oklab, var(--accent) 35%, transparent), 0 18px 44px -12px color-mix(in oklab, var(--accent) 80%, transparent)',
+        transform: 'translateX(-10px) scale(1.02)',
       }
     : {};
 
