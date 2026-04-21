@@ -24,9 +24,14 @@ class PDFFile(Base):
     file_size = Column(Integer)
     file_path = Column(String)
     mime_type = Column(String)
-    zoom_level = Column(Float, default=1.2)  # User's preferred zoom level for this file
-    last_read_position = Column(Integer, default=0)  # Last read page index (0-based)
-    total_pages = Column(Integer, nullable=True)  # Total number of pages in PDF
+    zoom_level = Column(Float, default=1.2)
+    last_read_position = Column(Integer, default=0)
+    total_pages = Column(Integer, nullable=True)
+    # Design metadata — filled by the webapp after upload via pdfjs.getMetadata
+    # and a first-page text scrape. All nullable; display layer falls back.
+    author = Column(String, nullable=True)
+    color_hue = Column(Integer, nullable=True)  # 0-360; derived from file_hash if null
+    excerpt = Column(Text, nullable=True)       # ~200-char opening passage
     upload_date = Column(DateTime(timezone=True), server_default=func.now())
     last_accessed = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -88,16 +93,16 @@ class Image(Base):
 class StudyCard(Base):
     """A card that can be studied using FSRS spaced repetition.
 
-    For basic cards: 1:1 relationship with an annotation.
-    For cloze cards: Multiple cards per annotation (one per cloze index).
-    When an annotation is deleted, its study cards are automatically deleted (CASCADE).
+    Exactly one StudyCard per Annotation. For cloze annotations, the full prompt
+    (containing one or more [[word]] marks) is graded in a single reveal/rating pass.
+    When an annotation is deleted, its study card is automatically deleted (CASCADE).
 
     Uses FSRS (Free Spaced Repetition Scheduler) algorithm for optimal scheduling.
     """
 
     __tablename__ = "study_cards"
     __table_args__ = (
-        UniqueConstraint('annotation_id', 'cloze_index', name='uq_annotation_cloze'),
+        UniqueConstraint('annotation_id', name='uq_study_card_annotation'),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -107,7 +112,6 @@ class StudyCard(Base):
         nullable=False,
         index=True,
     )
-    cloze_index = Column(Integer, nullable=True, default=None)  # For cloze deletions (c1, c2, etc.)
 
     # FSRS Algorithm fields
     difficulty = Column(Float, default=0.0)  # FSRS difficulty parameter (0-10)

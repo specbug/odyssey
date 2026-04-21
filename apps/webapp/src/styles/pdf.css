@@ -1,0 +1,56 @@
+/* PdfScreen layout. Each react-window row renders one page on the left
+   and its sticky-note rail on the right — the rail reads as continuous
+   because pages stack, but each note lives inside its page's virtualized cell. */
+
+.pdf-screen .react-pdf__Page {
+  position: relative !important;
+  margin: 0 !important;
+  background: var(--paper) !important;
+  box-shadow: 0 0 0 1px var(--rule), 0 30px 80px -40px rgba(0,0,0,0.12) !important;
+}
+
+.pdf-screen .react-pdf__Page__canvas {
+  display: block !important;
+  margin: 0 auto !important;
+}
+
+.pdf-screen .react-pdf__Page__textContent {
+  color: transparent !important;
+  user-select: text;
+}
+
+.page-and-notes-container {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 24px;
+  padding: 0 24px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.page-wrapper {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.notes-column {
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 16px;
+  min-width: 0;
+}
+
+/* On narrow viewports, hide the rail to protect reading. */
+@media (max-width: 1024px) {
+  .notes-column { display: none; }
+}
+
+/* Selection caret on the text layer should still feel live */
+.pdf-screen .react-pdf__Page__textContent ::selection {
+  background: color-mix(in oklab, var(--accent) 35%, transparent);
+  color: inherit;
+}
