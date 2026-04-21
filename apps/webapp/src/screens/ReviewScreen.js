@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import apiService from '../api';
 import { toQueueCard } from '../data/adapters';
-import { renderClozeReveal, extractAnswers, hasCloze } from '../utils/cloze';
+import { extractAnswers, hasCloze } from '../utils/cloze';
+import { renderRich } from '../utils/render';
 import Starburst from '../components/Starburst';
 import { Ic } from '../components/Icons';
 
@@ -218,9 +219,10 @@ export default function ReviewScreen({ fileId, onExit }) {
                   minHeight: 140,
                 }}
               >
-                {card?.type === 'cloze' || hasCloze(card?.prompt || '')
-                  ? renderClozeReveal(card.prompt, revealed)
-                  : <span dangerouslySetInnerHTML={{ __html: card?.prompt || '' }}/>}
+                {renderRich(card?.prompt || '', {
+                  cloze: (card?.type === 'cloze' || hasCloze(card?.prompt || '')) ? 'reveal' : 'none',
+                  revealed,
+                })}
               </div>
 
               <div style={{
@@ -239,8 +241,9 @@ export default function ReviewScreen({ fileId, onExit }) {
                 ) : (
                   <div
                     style={{ fontFamily: 'var(--serif)', fontSize: 17, lineHeight: 1.65, color: 'var(--ink-2)' }}
-                    dangerouslySetInnerHTML={{ __html: card?.answer || '' }}
-                  />
+                  >
+                    {renderRich(card?.answer || '')}
+                  </div>
                 )}
 
                 <div style={{ marginTop: 28, display: 'flex', gap: 0, border: '1px solid var(--rule)' }}>

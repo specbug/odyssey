@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import apiService from '../api';
 import { toNote } from '../data/adapters';
-import { renderClozeInline } from '../utils/cloze';
+import { renderRich } from '../utils/render';
 import Starburst from '../components/Starburst';
 import InlineCaptureDrawer from '../components/InlineCaptureDrawer';
 import { Ic } from '../components/Icons';
@@ -341,8 +341,9 @@ function NoteRow({ note, onEdit, onDelete, onOpen, menuOpen, onMenuToggle }) {
               borderLeft: '1px solid var(--ink-4)',
               paddingLeft: 20,
             }}
-            dangerouslySetInnerHTML={{ __html: renderClozeInline(note.prompt || note.excerpt) }}
-          />
+          >
+            {renderRich(note.prompt || note.excerpt, { cloze: 'inline' })}
+          </blockquote>
         ) : note.type === 'recall' ? (
           <>
             <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 6, letterSpacing: '0.08em' }}>Q.</div>
@@ -356,8 +357,9 @@ function NoteRow({ note, onEdit, onDelete, onOpen, menuOpen, onMenuToggle }) {
                 borderLeft: '1px solid var(--ink-4)',
                 paddingLeft: 20,
               }}
-              dangerouslySetInnerHTML={{ __html: note.prompt || note.excerpt }}
-            />
+            >
+              {renderRich(note.prompt || note.excerpt)}
+            </div>
             {note.answer && (
               <>
                 <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 6, letterSpacing: '0.08em' }}>A.</div>
@@ -370,8 +372,9 @@ function NoteRow({ note, onEdit, onDelete, onOpen, menuOpen, onMenuToggle }) {
                     paddingLeft: 20,
                     borderLeft: '1px solid var(--rule)',
                   }}
-                  dangerouslySetInnerHTML={{ __html: note.answer }}
-                />
+                >
+                  {renderRich(note.answer)}
+                </div>
               </>
             )}
           </>
@@ -385,8 +388,9 @@ function NoteRow({ note, onEdit, onDelete, onOpen, menuOpen, onMenuToggle }) {
               borderLeft: '1px solid var(--ink-4)',
               paddingLeft: 20,
             }}
-            dangerouslySetInnerHTML={{ __html: note.prompt || note.excerpt }}
-          />
+          >
+            {renderRich(note.prompt || note.excerpt)}
+          </blockquote>
         )}
 
         {note.tags && note.tags.length > 0 && (

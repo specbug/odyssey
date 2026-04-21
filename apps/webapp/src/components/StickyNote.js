@@ -1,16 +1,12 @@
-import React, { useMemo } from 'react';
-import { renderClozeInline } from '../utils/cloze';
+import React from 'react';
+import { renderRich } from '../utils/render';
 
 // Collapsed sticky-note marker shown in the right rail next to a highlight.
-// Preview is rendered as HTML (via renderClozeInline for cloze) so the answer
-// is visible but subtly underlined — the reader can see what's tested without
-// hiding the knowledge.
+// Body + answer render through renderRich so inline/block math, inline/fenced
+// code, image markers, and cloze pills all display (and not as raw text).
 export default function StickyNote({ note, onOpen, style }) {
-  const previewHTML = useMemo(() => {
-    if (note.type === 'cloze') return renderClozeInline(note.prompt || note.excerpt || '');
-    const esc = (s = '') => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-    return esc(note.prompt || note.excerpt || '');
-  }, [note.prompt, note.excerpt, note.type]);
+  const bodyText = note.prompt || note.excerpt || '';
+  const clozeMode = note.type === 'cloze' ? 'inline' : 'none';
 
   return (
     <button
@@ -60,12 +56,13 @@ export default function StickyNote({ note, onOpen, style }) {
           color: 'var(--ink)',
           fontFamily: 'var(--serif)',
           display: '-webkit-box',
-          WebkitLineClamp: 3,
+          WebkitLineClamp: 4,
           WebkitBoxOrient: 'vertical',
           overflow: 'hidden',
         }}
-        dangerouslySetInnerHTML={{ __html: previewHTML }}
-      />
+      >
+        {renderRich(bodyText, { cloze: clozeMode })}
+      </div>
       {note.answer && (
         <div
           style={{
@@ -76,12 +73,12 @@ export default function StickyNote({ note, onOpen, style }) {
             color: 'var(--ink-3)',
             fontFamily: 'var(--serif)',
             display: '-webkit-box',
-            WebkitLineClamp: 2,
+            WebkitLineClamp: 3,
             WebkitBoxOrient: 'vertical',
             overflow: 'hidden',
           }}
         >
-          {note.answer.replace(/<[^>]+>/g, '')}
+          {renderRich(note.answer)}
         </div>
       )}
     </button>
