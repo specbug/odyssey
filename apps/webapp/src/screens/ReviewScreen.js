@@ -335,7 +335,7 @@ function DoneView({ answered, queue, onExit }) {
           Session complete.
         </h1>
         <p style={{ color: 'var(--ink-2)', fontSize: 16, lineHeight: 1.55, marginBottom: 36 }}>
-          {total} prompt{total === 1 ? '' : 's'} revisited. Each one will return — some in days, others in months.
+          {total} prompt{total === 1 ? '' : 's'} revisited.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, border: '1px solid var(--rule)', marginBottom: 36, textAlign: 'left' }}>
           {Object.entries(counts).map(([k, v], i) => (
