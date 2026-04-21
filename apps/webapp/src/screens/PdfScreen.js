@@ -30,109 +30,18 @@ function hashString(str) {
   return h.toString(16);
 }
 
-function getTextNodes(el) {
-  const out = [];
-  const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
-  let n;
-  while ((n = walker.nextNode())) if (n.textContent.trim()) out.push(n);
-  return out;
-}
-
-function findTextBounds(pageEl, text, startIndex) {
-  try {
-    const pageRect = pageEl.getBoundingClientRect();
-    const nodes = getTextNodes(pageEl);
-    let idx = 0, sN = null, sO = 0, eN = null, eO = 0;
-    for (const node of nodes) {
-      const len = (node.textContent || '').length;
-      if (idx + len > startIndex && !sN) { sN = node; sO = startIndex - idx; }
-      if (idx + len >= startIndex + text.length && !eN) {
-        eN = node; eO = startIndex + text.length - idx;
-        break;
-      }
-      idx += len;
-    }
-    if (!sN || !eN) return null;
-    const range = document.createRange();
-    range.setStart(sN, sO);
-    range.setEnd(eN, eO);
-    const rects = Array.from(range.getClientRects());
-    const pixelRects = rects.map((r) => ({
-      top: r.top - pageRect.top,
-      left: r.left - pageRect.left,
-      width: r.width,
-      height: r.height,
-    }));
-    const normalizedRects = rects.map((r) => ({
-      x: (r.left - pageRect.left) / pageRect.width,
-      y: (r.top - pageRect.top) / pageRect.height,
-      width: r.width / pageRect.width,
-      height: r.height / pageRect.height,
-    }));
-    return { rects: pixelRects, normalizedRects };
-  } catch {
-    return null;
-  }
-}
-
-async function findTextAnchorMatch(pageIndex, anchor) {
-  await new Promise((r) => setTimeout(r, 40));
-  const pages = document.querySelectorAll('.react-pdf__Page');
-  const pageEl = pages[pageIndex];
-  if (!pageEl) return null;
-  const pageText = pageEl.textContent || '';
-  const { selected_text, prefix = '', suffix = '' } = anchor;
-  const tries = [
-    prefix + selected_text + suffix,
-    selected_text + suffix,
-    prefix + selected_text,
-    selected_text,
-  ];
-  for (const t of tries) {
-    if (!t) continue;
-    const i = pageText.indexOf(t);
-    if (i >= 0) {
-      const start = t.startsWith(prefix) && prefix ? i + prefix.length : i;
-      return findTextBounds(pageEl, selected_text, start);
-    }
-  }
-  return null;
-}
-
-function convertNormalizedToPixel(pageIndex, normalizedRects) {
-  const pages = document.querySelectorAll('.react-pdf__Page');
-  const pageEl = pages[pageIndex];
-  if (!pageEl) return null;
-  const pageRect = pageEl.getBoundingClientRect();
-  const pixelRects = normalizedRects.map((n) => ({
-    top: n.y * pageRect.height,
-    left: n.x * pageRect.width,
-    width: n.width * pageRect.width,
-    height: n.height * pageRect.height,
-  }));
-  return { rects: pixelRects, normalizedRects };
-}
-
-async function resolveAnnotationLocation(ann) {
+// Parse an annotation's serialized position_data once; the result is handed to
+// PageRenderer which resolves to actual pixel rects lazily at render time.
+function parsePositionData(ann) {
   let pd;
   try { pd = JSON.parse(ann.position_data); }
   catch { pd = { pixel_rects: ann.position_data }; }
-
-  if (pd?.text_anchor?.selected_text) {
-    const m = await findTextAnchorMatch(ann.page_index, pd.text_anchor);
-    if (m) return { ...m, textAnchor: pd.text_anchor, method: 'text_anchor' };
-  }
-  if (Array.isArray(pd?.normalized_rects) && pd.normalized_rects.length) {
-    const m = convertNormalizedToPixel(ann.page_index, pd.normalized_rects);
-    if (m) return { ...m, textAnchor: pd.text_anchor || null, method: 'normalized' };
-  }
-  if (Array.isArray(pd?.pixel_rects)) {
-    return { rects: pd.pixel_rects, normalizedRects: pd.normalized_rects || [], textAnchor: pd.text_anchor || null, method: 'pixel_legacy' };
-  }
-  if (Array.isArray(pd)) {
-    return { rects: pd, normalizedRects: [], textAnchor: null, method: 'legacy_array' };
-  }
-  return { rects: [], normalizedRects: [], textAnchor: null, method: 'failed' };
+  if (Array.isArray(pd)) pd = { pixel_rects: pd };
+  return {
+    normalizedRects: Array.isArray(pd?.normalized_rects) ? pd.normalized_rects : [],
+    textAnchor: pd?.text_anchor || null,
+    pixelRectsFallback: Array.isArray(pd?.pixel_rects) ? pd.pixel_rects : [],
+  };
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -145,61 +54,114 @@ const PageRenderer = memo(function PageRenderer({
   activeHighlightId, drawerState,
   onPageRenderSuccess, onHighlightClick, onOpenNote, noteRefs,
 }) {
-  // Sort notes by their highlight's first rect top, so they flow down the rail.
+  // Highlights for this specific page, with a helper to get the top-of-first-
+  // rect as a fraction of page height (used below to anchor stickies).
+  const pageHighlights = useMemo(
+    () => highlights.filter((h) => h.pageIndex === index),
+    [highlights, index]
+  );
+
+  // Sort notes by their highlight's first rect top (normalized 0..1) so they
+  // flow down the rail in the same order as the highlights on the page.
   const sortedNotes = useMemo(() => {
-    return [...pageNotes].sort((a, b) => {
-      const ha = highlights.find((h) => h.id === a.id);
-      const hb = highlights.find((h) => h.id === b.id);
-      return (ha?.rects?.[0]?.top || 0) - (hb?.rects?.[0]?.top || 0);
+    const topOf = (id) => {
+      const hl = pageHighlights.find((h) => h.id === id);
+      return hl?.normalizedRects?.[0]?.y ?? 0;
+    };
+    return [...pageNotes].sort((a, b) => topOf(a.id) - topOf(b.id));
+  }, [pageNotes, pageHighlights]);
+
+  // Anchor each sticky next to its highlight's vertical position. Positions
+  // are computed in pixels from the mounted page's measured height, and
+  // stacked so overlapping highlights don't produce overlapping stickies.
+  const noteElRefs = React.useRef({});
+  const pageWrapperRef = React.useRef(null);
+  const [notePositions, setNotePositions] = React.useState({});
+  // Bumped whenever react-pdf paints this page so the layout effect below
+  // re-reads the page's measured height. Without this, the first layout pass
+  // runs against a 0-height page (canvas hasn't drawn yet) and stickies pin
+  // to the column's top.
+  const [renderTick, setRenderTick] = React.useState(0);
+
+  const handleLocalPageRender = useCallback((page) => {
+    setRenderTick((t) => t + 1);
+    onPageRenderSuccess?.(page);
+  }, [onPageRenderSuccess]);
+
+  React.useLayoutEffect(() => {
+    const pageEl = pageWrapperRef.current?.querySelector('.react-pdf__Page');
+    if (!pageEl) return;
+    const pageHeight = pageEl.getBoundingClientRect().height;
+    if (pageHeight < 10) return; // page hasn't rendered its canvas yet
+    const positions = {};
+    let lastBottom = 0;
+    sortedNotes.forEach((note) => {
+      const hl = pageHighlights.find((h) => h.id === note.id);
+      const topFrac = hl?.normalizedRects?.[0]?.y;
+      if (topFrac == null) return;
+      const el = noteElRefs.current[note.id];
+      const noteHeight = el?.offsetHeight || 80;
+      const desired = Math.max(0, topFrac * pageHeight);
+      const top = Math.max(desired, lastBottom + 10);
+      positions[note.id] = top;
+      lastBottom = top + noteHeight;
     });
-  }, [pageNotes, highlights]);
+    setNotePositions((prev) => {
+      const keys = Object.keys(positions);
+      if (keys.length === Object.keys(prev).length && keys.every((k) => Math.abs((prev[k] ?? -1) - positions[k]) < 0.5)) {
+        return prev;
+      }
+      return positions;
+    });
+  }, [sortedNotes, pageHighlights, scale, renderTick]);
 
   const drawerHere = drawerState && drawerState.pageIndex === index;
 
   return (
     <div style={style} className="page-and-notes-container">
-      <div className="page-wrapper">
+      <div className="page-wrapper" ref={pageWrapperRef}>
         <MemoizedPage
           pageNumber={index + 1}
           scale={scale}
           renderAnnotationLayer
           renderTextLayer
-          onRenderSuccess={onPageRenderSuccess}
+          onRenderSuccess={handleLocalPageRender}
           customTextRenderer={(text) => text.str.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
         >
-          {highlights
-            .filter((h) => h.pageIndex === index)
-            .map((h) => (
-              <React.Fragment key={h.id}>
-                {(h.rects || []).map((rect, i) => {
-                  const isActive = h.id === activeHighlightId;
-                  const hasNote = !!h.noteBackendId;
-                  return (
-                    <div
-                      key={i}
-                      onClick={(e) => { e.stopPropagation(); onHighlightClick(h.id); }}
-                      data-annotation-id={h.id}
-                      style={{
-                        position: 'absolute',
-                        top: `${rect.top}px`,
-                        left: `${rect.left}px`,
-                        width: `${rect.width}px`,
-                        height: `${rect.height}px`,
-                        cursor: 'pointer',
-                        background: isActive
-                          ? 'color-mix(in oklab, var(--accent) 45%, transparent)'
-                          : hasNote
-                            ? 'color-mix(in oklab, var(--accent) 28%, transparent)'
-                            : 'color-mix(in oklab, var(--accent) 18%, transparent)',
-                        boxShadow: hasNote ? 'inset 0 -2px 0 color-mix(in oklab, var(--accent) 60%, transparent)' : 'none',
-                        transition: 'background 240ms, box-shadow 240ms',
-                        mixBlendMode: 'multiply',
-                      }}
-                    />
-                  );
-                })}
-              </React.Fragment>
-            ))}
+          {pageHighlights.map((h) => (
+            <React.Fragment key={h.id}>
+              {(h.normalizedRects || []).map((rect, i) => {
+                const isActive = h.id === activeHighlightId;
+                const hasNote = !!h.noteBackendId;
+                // Percentage positioning against .react-pdf__Page (which is
+                // position:relative). Survives zoom and virtualization — no
+                // per-mount re-measurement required.
+                return (
+                  <div
+                    key={i}
+                    onClick={(e) => { e.stopPropagation(); onHighlightClick(h.id); }}
+                    data-annotation-id={h.id}
+                    style={{
+                      position: 'absolute',
+                      top: `${rect.y * 100}%`,
+                      left: `${rect.x * 100}%`,
+                      width: `${rect.width * 100}%`,
+                      height: `${rect.height * 100}%`,
+                      cursor: 'pointer',
+                      background: isActive
+                        ? 'color-mix(in oklab, var(--accent) 45%, transparent)'
+                        : hasNote
+                          ? 'color-mix(in oklab, var(--accent) 28%, transparent)'
+                          : 'color-mix(in oklab, var(--accent) 18%, transparent)',
+                      boxShadow: hasNote ? 'inset 0 -2px 0 color-mix(in oklab, var(--accent) 60%, transparent)' : 'none',
+                      transition: 'background 240ms, box-shadow 240ms',
+                      mixBlendMode: 'multiply',
+                    }}
+                  />
+                );
+              })}
+            </React.Fragment>
+          ))}
           {pendingHighlight && pendingHighlight.pageIndex === index &&
             pendingHighlight.rects.map((rect, i) => (
               <div
@@ -221,9 +183,10 @@ const PageRenderer = memo(function PageRenderer({
       <div className="notes-column">
         {sortedNotes.map((note) => {
           const openedInDrawer = drawerHere && drawerState.kind === 'edit' && drawerState.noteId === note.id;
+          const top = notePositions[note.id];
           if (openedInDrawer) {
-            // Leave a placeholder — the drawer itself is rendered at PdfScreen
-            // top level so react-window's row remounts don't tear it down.
+            // Drawer is rendered at PdfScreen top level via DrawerFloater —
+            // keep a placeholder in the normal flow only for measurement.
             return (
               <div key={`ph-${note.id}`} data-drawer-placeholder={note.id} style={{ minHeight: 1 }} />
             );
@@ -231,10 +194,24 @@ const PageRenderer = memo(function PageRenderer({
           return (
             <div
               key={note.id}
-              ref={(el) => { noteRefs.current[note.id] = el; }}
+              ref={(el) => {
+                noteElRefs.current[note.id] = el;
+                noteRefs.current[note.id] = el;
+              }}
+              style={{
+                position: 'absolute',
+                top: top != null ? `${top}px` : undefined,
+                left: 0,
+                right: 0,
+                // Until positions are computed on the first layout pass,
+                // don't render at (0,0) — let the fade cover the flash.
+                opacity: top != null ? 1 : 0,
+                transition: 'top 200ms cubic-bezier(.2,.7,.2,1), opacity 160ms',
+              }}
             >
               <StickyNote
                 note={note}
+                active={note.id === activeHighlightId}
                 onOpen={() => onOpenNote(note)}
               />
             </div>
@@ -399,10 +376,11 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
     }, 50);
   }, [docId, fileMetadata]);
 
-  // Load annotations once the doc is rendered. `scale` is intentionally NOT a
-  // dep — the annotations themselves don't depend on zoom; only their pixel
-  // coordinates do, and those get re-resolved via the text-anchor fallback
-  // chain at render time.
+  // Load annotations once the doc + metadata are ready. We store raw parsed
+  // position data on each highlight; PageRenderer resolves to actual pixel
+  // rects lazily using the currently-mounted page's dimensions. That way
+  // resolution is correct regardless of which pages react-window has in DOM
+  // at load time, and stays correct through zoom changes.
   useEffect(() => {
     if (!numPages || !docId) return;
     let alive = true;
@@ -410,21 +388,17 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
       try {
         const anns = await apiService.getAnnotations(docId);
         if (!alive) return;
-        const resolved = await Promise.all(anns.map(async (a) => {
-          const loc = await resolveAnnotationLocation(a);
-          return { ann: a, loc };
-        }));
-        if (!alive) return;
         const hs = [];
         const ns = [];
-        for (const { ann, loc } of resolved) {
+        for (const ann of anns) {
           const localId = ann.annotation_id || `ann_${ann.id}`;
+          const pd = parsePositionData(ann);
           hs.push({
             id: localId,
             pageIndex: ann.page_index,
-            rects: loc.rects || [],
-            normalizedRects: loc.normalizedRects || [],
-            textAnchor: loc.textAnchor,
+            normalizedRects: pd.normalizedRects,
+            textAnchor: pd.textAnchor,
+            pixelRectsFallback: pd.pixelRectsFallback,
             noteBackendId: ann.id,
           });
           ns.push({
@@ -545,10 +519,13 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
   // Save drawer → create or update annotation
   const handleSaveDrawer = useCallback(async (draft) => {
     if (!drawer) return;
+    const existing = drawer.kind === 'edit'
+      ? highlights.find((h) => h.id === drawer.highlightId)
+      : null;
     const enriched = {
-      pixel_rects: drawer.kind === 'new' ? drawer.rects : highlights.find((h) => h.id === drawer.highlightId)?.rects || [],
-      normalized_rects: drawer.kind === 'new' ? drawer.normalizedRects : highlights.find((h) => h.id === drawer.highlightId)?.normalizedRects || [],
-      text_anchor: drawer.kind === 'new' ? drawer.textAnchor : (highlights.find((h) => h.id === drawer.highlightId)?.textAnchor || null),
+      pixel_rects: drawer.kind === 'new' ? drawer.rects : (existing?.pixelRectsFallback || []),
+      normalized_rects: drawer.kind === 'new' ? drawer.normalizedRects : (existing?.normalizedRects || []),
+      text_anchor: drawer.kind === 'new' ? drawer.textAnchor : (existing?.textAnchor || null),
       metadata: {
         page_text_hash: (drawer.kind === 'new' ? drawer.textAnchor?.page_text_hash : null) || '',
         selection_timestamp: new Date().toISOString(),
@@ -578,9 +555,9 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
         setHighlights((hs) => [...hs, {
           id: localId,
           pageIndex: drawer.pageIndex,
-          rects: drawer.rects,
           normalizedRects: drawer.normalizedRects,
           textAnchor: drawer.textAnchor,
+          pixelRectsFallback: drawer.rects,
           noteBackendId: created.id,
         }]);
         setNotes((ns) => [...ns, {
@@ -640,15 +617,20 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
     setActiveHighlightId(null);
   }, []);
 
+  // Click the highlight on the PDF: emphasize the linked sticky (activeHighlightId
+  // toggles its "active" state). No drawer — user clicks the sticky to edit.
   const handleHighlightClick = useCallback((id) => {
-    const note = notes.find((n) => n.id === id);
-    if (!note) return;
-    setActiveHighlightId(id);
+    setActiveHighlightId((prev) => (prev === id ? null : id));
+  }, []);
+
+  // Click the sticky: open the capture drawer in edit mode.
+  const handleOpenNote = useCallback((note) => {
+    setActiveHighlightId(note.id);
     setDrawer({
       kind: 'edit',
       pageIndex: note.pageIndex,
-      noteId: id,
-      highlightId: id,
+      noteId: note.id,
+      highlightId: note.id,
       initial: {
         type: note.type,
         prompt: note.prompt,
@@ -656,11 +638,7 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
         tags: note.tags,
       },
     });
-  }, [notes]);
-
-  const handleOpenNote = useCallback((note) => {
-    handleHighlightClick(note.id);
-  }, [handleHighlightClick]);
+  }, []);
 
   // Target-note deep link from NotesScreen
   useEffect(() => {
@@ -674,10 +652,11 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
       if (listRef.current && note.pageIndex != null) {
         listRef.current.scrollToItem(note.pageIndex, 'start');
       }
-      handleHighlightClick(note.id);
+      // Deep-link from NotesScreen opens the note for edit.
+      handleOpenNote(note);
       onConsumedTarget?.();
     }, 80);
-  }, [targetNoteId, notes, handleHighlightClick, onConsumedTarget]);
+  }, [targetNoteId, notes, handleOpenNote, onConsumedTarget]);
 
   // Scroll handling. Chrome is always visible now; this handler only tracks
   // the current page index and debounces a read-position save.

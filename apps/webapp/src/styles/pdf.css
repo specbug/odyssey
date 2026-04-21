@@ -35,12 +35,13 @@
   flex: 0 0 auto;
 }
 
+/* Notes column is a positioned ancestor so each sticky can absolute-position
+   itself next to its highlight's vertical position on the page. align-self
+   stretches the column to the row height (determined by the PDF page). */
 .notes-column {
   flex: 0 0 320px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-top: 16px;
+  position: relative;
+  align-self: stretch;
   min-width: 0;
 }
 

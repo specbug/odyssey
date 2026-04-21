@@ -4,13 +4,26 @@ import { renderRich } from '../utils/render';
 // Collapsed sticky-note marker shown in the right rail next to a highlight.
 // Body + answer render through renderRich so inline/block math, inline/fenced
 // code, image markers, and cloze pills all display (and not as raw text).
-export default function StickyNote({ note, onOpen, style }) {
+export default function StickyNote({ note, onOpen, active = false, style }) {
   const bodyText = note.prompt || note.excerpt || '';
   const clozeMode = note.type === 'cloze' ? 'inline' : 'none';
+
+  // Active state — shown when the user clicks the linked highlight on the PDF.
+  // Stronger border, richer backdrop, a slight lift, and a saturated left rule.
+  const activeStyles = active
+    ? {
+        background: 'color-mix(in oklab, var(--accent) 22%, var(--paper))',
+        border: '1px solid color-mix(in oklab, var(--accent) 55%, var(--rule))',
+        borderLeft: '3px solid var(--accent)',
+        boxShadow: '0 10px 28px -12px color-mix(in oklab, var(--accent) 60%, transparent), 0 0 0 1px color-mix(in oklab, var(--accent) 30%, transparent)',
+        transform: 'translateX(-4px)',
+      }
+    : {};
 
   return (
     <button
       onClick={onOpen}
+      data-active={active || undefined}
       style={{
         background: 'color-mix(in oklab, var(--accent) 10%, var(--paper))',
         border: '1px solid color-mix(in oklab, var(--accent) 30%, var(--rule))',
@@ -20,17 +33,20 @@ export default function StickyNote({ note, onOpen, style }) {
         cursor: 'pointer',
         fontFamily: 'var(--sans)',
         borderRadius: 'var(--rad)',
-        transition: 'transform 220ms cubic-bezier(.2,.7,.2,1), box-shadow 220ms',
+        transition: 'transform 260ms cubic-bezier(.2,.7,.2,1), box-shadow 260ms, background 260ms, border-color 260ms',
         boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
         width: '100%',
         display: 'block',
+        ...activeStyles,
         ...style,
       }}
       onMouseEnter={(e) => {
+        if (active) return;
         e.currentTarget.style.transform = 'translateX(-4px)';
         e.currentTarget.style.boxShadow = '0 6px 20px -8px rgba(0,0,0,0.12)';
       }}
       onMouseLeave={(e) => {
+        if (active) return;
         e.currentTarget.style.transform = 'translateX(0)';
         e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.03)';
       }}
