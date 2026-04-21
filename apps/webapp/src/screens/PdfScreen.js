@@ -850,6 +850,12 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
               itemSize={getPageHeight}
               width={'100%'}
               onScroll={handleListScroll}
+              // Keep a generous band of pages pre-rendered above and below
+              // the viewport. Normal scroll velocity stays inside this band,
+              // so the user never watches a page paint — it's already there.
+              // Costs ~5x the memory vs overscan=1 but for PDFs at this scale
+              // that's ≈50MB, well within budget.
+              overscanCount={5}
             >
               {({ index, style }) => (
                 <PageRenderer
