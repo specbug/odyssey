@@ -142,8 +142,8 @@ async function resolveAnnotationLocation(ann) {
 const PageRenderer = memo(function PageRenderer({
   index, style, scale,
   highlights, pendingHighlight, pageNotes,
-  activeHighlightId, drawerState, docHue,
-  onPageRenderSuccess, onHighlightClick, onOpenNote, onCancelDrawer, onSaveDrawer, onDeleteDrawer, noteRefs,
+  activeHighlightId, drawerState,
+  onPageRenderSuccess, onHighlightClick, onOpenNote, noteRefs,
 }) {
   // Sort notes by their highlight's first rect top, so they flow down the rail.
   const sortedNotes = useMemo(() => {
@@ -155,7 +155,6 @@ const PageRenderer = memo(function PageRenderer({
   }, [pageNotes, highlights]);
 
   const drawerHere = drawerState && drawerState.pageIndex === index;
-  const newHighlightHere = drawerHere && drawerState.kind === 'new';
 
   return (
     <div style={style} className="page-and-notes-container">
@@ -222,7 +221,13 @@ const PageRenderer = memo(function PageRenderer({
       <div className="notes-column">
         {sortedNotes.map((note) => {
           const openedInDrawer = drawerHere && drawerState.kind === 'edit' && drawerState.noteId === note.id;
-          if (openedInDrawer) return null;
+          if (openedInDrawer) {
+            // Leave a placeholder — the drawer itself is rendered at PdfScreen
+            // top level so react-window's row remounts don't tear it down.
+            return (
+              <div key={`ph-${note.id}`} data-drawer-placeholder={note.id} style={{ minHeight: 1 }} />
+            );
+          }
           return (
             <div
               key={note.id}
@@ -235,26 +240,76 @@ const PageRenderer = memo(function PageRenderer({
             </div>
           );
         })}
-        {drawerHere && (
-          <InlineCaptureDrawer
-            variant="rail"
-            title={drawerState.kind === 'edit' ? 'EDITING NOTE' : 'NEW NOTE'}
-            initial={drawerState.kind === 'edit' ? drawerState.initial : null}
-            seedText={drawerState.kind === 'new' ? drawerState.seedText : ''}
-            onSave={onSaveDrawer}
-            onCancel={onCancelDrawer}
-            onDelete={drawerState.kind === 'edit' ? onDeleteDrawer : undefined}
-          />
-        )}
-        {newHighlightHere && (
-          <div className="mono-sm" style={{ color: 'var(--ink-4)', padding: '4px 2px' }}>
-            DocHue: {docHue ?? '—'}
-          </div>
-        )}
       </div>
     </div>
   );
 });
+
+// ──────────────────────────────────────────────────────────────────
+// DrawerFloater
+// Positions its child absolute-fixed on screen, tracking the target page's
+// current viewport rect. Rendering the drawer here (instead of inside
+// PageRenderer) keeps it mounted across react-window row recycling — so typed
+// text persists through annotation reloads, page-height measurements, and
+// index reshuffles.
+// ──────────────────────────────────────────────────────────────────
+
+function DrawerFloater({ drawer, children }) {
+  // Always render children once `drawer` is set — hide via visibility/opacity
+  // when the anchor page isn't in the DOM, so the drawer's typed state
+  // survives the user scrolling the anchor page off-screen.
+  const [anchor, setAnchor] = React.useState(null);
+
+  React.useEffect(() => {
+    if (!drawer) { setAnchor(null); return; }
+    let raf = 0;
+    const measure = () => {
+      // react-pdf uses 1-indexed data-page-number; our pageIndex is 0-indexed.
+      const pageEl = document.querySelector(
+        `.react-pdf__Page[data-page-number="${drawer.pageIndex + 1}"]`
+      );
+      if (!pageEl) { setAnchor(null); return; }
+      const r = pageEl.getBoundingClientRect();
+      const top = Math.max(80, Math.min(window.innerHeight - 320, r.top + 16));
+      setAnchor({ top, left: r.right + 24, visible: true });
+    };
+    const schedule = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(measure);
+    };
+    measure();
+    const scroller = document.querySelector('.pdf-screen .scroll');
+    scroller?.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    // Page heights re-measure after render — poll briefly so zoom/render
+    // reflow doesn't strand the drawer.
+    const interval = setInterval(measure, 400);
+    return () => {
+      scroller?.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      clearInterval(interval);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [drawer]);
+
+  const offscreen = !anchor;
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        top: anchor?.top ?? 100,
+        left: anchor?.left ?? -9999,
+        width: 320,
+        zIndex: 25,
+        opacity: offscreen ? 0 : 1,
+        pointerEvents: offscreen ? 'none' : 'auto',
+        transition: 'opacity 200ms ease',
+      }}
+    >
+      {children}
+    </div>
+  );
+}
 
 // ──────────────────────────────────────────────────────────────────
 // PdfScreen
@@ -335,7 +390,10 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
     }, 50);
   }, [docId, fileMetadata]);
 
-  // Load annotations once the doc is rendered
+  // Load annotations once the doc is rendered. `scale` is intentionally NOT a
+  // dep — the annotations themselves don't depend on zoom; only their pixel
+  // coordinates do, and those get re-resolved via the text-anchor fallback
+  // chain at render time.
   useEffect(() => {
     if (!numPages || !docId) return;
     let alive = true;
@@ -379,7 +437,7 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
       }
     })();
     return () => { alive = false; };
-  }, [numPages, docId, scale]);
+  }, [numPages, docId]);
 
   // Save scale (debounced)
   useEffect(() => {
@@ -824,13 +882,9 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
                   pageNotes={notesByPage.get(index) || []}
                   activeHighlightId={activeHighlightId}
                   drawerState={drawer}
-                  docHue={doc?.hue}
                   onPageRenderSuccess={onPageRenderSuccess}
                   onHighlightClick={handleHighlightClick}
                   onOpenNote={handleOpenNote}
-                  onCancelDrawer={handleCancelDrawer}
-                  onSaveDrawer={handleSaveDrawer}
-                  onDeleteDrawer={handleDeleteDrawer}
                   noteRefs={noteRefs}
                 />
               )}
@@ -838,6 +892,23 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
           )}
         </Document>
       </div>
+
+      {/* Capture drawer — rendered at screen level so react-window row
+          remounts don't tear its state down (it used to live inside
+          PageRenderer and lose typed text every time the list re-measured). */}
+      {drawer && (
+        <DrawerFloater drawer={drawer}>
+          <InlineCaptureDrawer
+            variant="rail"
+            title={drawer.kind === 'edit' ? 'EDITING NOTE' : 'NEW NOTE'}
+            initial={drawer.kind === 'edit' ? drawer.initial : null}
+            seedText={drawer.kind === 'new' ? (drawer.seedText || '') : ''}
+            onSave={handleSaveDrawer}
+            onCancel={handleCancelDrawer}
+            onDelete={drawer.kind === 'edit' ? handleDeleteDrawer : undefined}
+          />
+        </DrawerFloater>
+      )}
 
       {/* Selection bubble */}
       {pendingHighlight && pendingHighlight.bubble && (
