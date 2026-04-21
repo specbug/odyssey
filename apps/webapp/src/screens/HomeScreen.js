@@ -135,7 +135,7 @@ export default function HomeScreen({ onNav, onOpenDoc, onStartReview }) {
             </button>
           </div>
           {reading.length === 0 ? (
-            <div style={{ padding: 24, border: '1px solid var(--rule)', color: 'var(--ink-3)', fontFamily: 'var(--serif)', fontStyle: 'italic', textAlign: 'center' }}>
+            <div style={{ padding: 24, border: '1px solid var(--rule)', color: 'var(--ink-3)', fontStyle: 'italic', textAlign: 'center' }}>
               {files.length === 0
                 ? 'No documents yet. Start your library.'
                 : 'Nothing in flight — open a document to begin.'}

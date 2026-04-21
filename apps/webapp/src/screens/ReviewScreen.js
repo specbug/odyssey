@@ -150,7 +150,7 @@ export default function ReviewScreen({ fileId, onExit }) {
               color="var(--ink-3)"
             />
           </div>
-          <h1 style={{ fontFamily: 'var(--serif)', fontSize: 32, fontWeight: 400, letterSpacing: '-0.02em', marginBottom: 12 }}>
+          <h1 style={{ fontFamily: 'var(--sans)', fontSize: 32, fontWeight: 400, letterSpacing: '-0.02em', marginBottom: 12 }}>
             Nothing due right now.
           </h1>
           <p style={{ color: 'var(--ink-2)', marginBottom: 28 }}>
@@ -210,7 +210,7 @@ export default function ReviewScreen({ fileId, onExit }) {
 
               <div
                 style={{
-                  fontFamily: 'var(--serif)',
+                  fontFamily: 'var(--sans)',
                   fontSize: 26,
                   lineHeight: 1.45,
                   color: 'var(--ink)',
@@ -240,7 +240,7 @@ export default function ReviewScreen({ fileId, onExit }) {
                   </div>
                 ) : (
                   <div
-                    style={{ fontFamily: 'var(--serif)', fontSize: 17, lineHeight: 1.65, color: 'var(--ink-2)' }}
+                    style={{ fontFamily: 'var(--sans)', fontSize: 17, lineHeight: 1.65, color: 'var(--ink-2)' }}
                   >
                     {renderRich(card?.answer || '')}
                   </div>
@@ -331,7 +331,7 @@ function DoneView({ answered, queue, onExit }) {
             className="sb-glow"
           />
         </div>
-        <h1 style={{ fontFamily: 'var(--serif)', fontSize: 36, fontWeight: 400, letterSpacing: '-0.02em', marginBottom: 14 }}>
+        <h1 style={{ fontFamily: 'var(--sans)', fontSize: 36, fontWeight: 400, letterSpacing: '-0.02em', marginBottom: 14 }}>
           Session complete.
         </h1>
         <p style={{ color: 'var(--ink-2)', fontSize: 16, lineHeight: 1.55, marginBottom: 36 }}>

@@ -137,7 +137,7 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
             <h1 style={{ fontSize: 36, fontWeight: 400, letterSpacing: '-0.03em', marginBottom: 16 }}>
               An empty voyage.
             </h1>
-            <p style={{ color: 'var(--ink-3)', marginBottom: 24, fontFamily: 'var(--serif)', fontStyle: 'italic' }}>
+            <p style={{ color: 'var(--ink-3)', marginBottom: 24, fontStyle: 'italic' }}>
               Add a document to begin.
             </p>
             <button className="btn primary" onClick={() => inputRef.current?.click()} disabled={uploading}>

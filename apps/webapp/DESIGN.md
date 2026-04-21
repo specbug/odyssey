@@ -28,7 +28,7 @@ elsewhere — reach for a var.
 --accent  / accent-soft / accent-deep  — driven by --accent-h
 --grid  8px    (4 also works; 12 for display)
 --rad   0px    (rams is sharp; leave radius at 0 unless there's a reason)
---sans  'R Sans'  --mono  'R Mono'  --serif  'Editorial Serif' fallback chain
+--sans  'R Sans'   --mono  'R Mono'
 ```
 
 `--accent-h` is a runtime variable. `src/hooks/useTimeHue.js` sets it from
@@ -37,23 +37,23 @@ hues for accent — always derive from the var.
 
 ## 2. Typography
 
-Three families, three roles. Mixing them is the voice of the app.
+Two families, two roles. Mixing them is the voice of the app.
 
 | Family | When | Examples |
 |---|---|---|
-| **R Sans** (`--sans`) | All prose, UI controls, buttons, form elements, **all note authoring and preview surfaces** | Hero headlines, body copy, button labels, search input, drawer textareas, sticky note bodies, NotesScreen rows |
+| **R Sans** (`--sans`) | All prose, UI controls, buttons, form elements, note bodies, review prompts + answers | Hero headlines, body copy, button labels, search input, drawer textareas, sticky note bodies, NotesScreen rows, review card prompt + answer |
 | **R Mono** (`--mono`) | Metadata, numerics, labels, dates, intervals | `p. 18 / 301`, `MORNING — TUE APR 21`, `INTERVAL — 9d · STABILITY 12d`, tag chips `#quantum`, `⌘⏎` hint |
-| **Editorial Serif** (`--serif`) | **The review ritual only**, plus occasional empty-state italics | Review prompt + answer (the card moment), "An empty voyage.", "No notes yet." |
 
-Rule of thumb: **serif is reserved for the review ritual.** Authoring and
-preview — drawer textareas, sticky notes in the PDF rail, the rows in
-NotesScreen — are all sans, because the user's own voice comes in through
-sans and the preview should echo that voice, not swap fonts on them.
-Serif arrives only when a note *becomes* a card under review; that font
-swap is the "ritual" cue that you're reading, not writing.
+Rule of thumb: **mono marks what's scanned; sans carries what's read.**
+Anything counted, dated, or labeled — page numbers, intervals, session
+state, tag chips, keyboard hints — is mono so the eye parses it without
+reading it. Everything else, including note content and the review card
+itself, is sans.
 
-Numerical / taxonomic text (anything counted, dated, or labeled) is mono.
-Everything else structural is sans.
+No serif. The review's "reading ritual" is signaled by size + weight +
+paper treatment (centered card, soft top-to-bottom reveal, tick-rotating
+starburst), not by a font swap. Font swaps are noise when the voice of
+the author and the voice of the reviewer are the same person.
 
 Utility classes for the mono role: `.mono` (11.5px) and `.mono-sm` (10.5px,
 uppercase, letter-spaced). Both in `src/styles/base.css`.

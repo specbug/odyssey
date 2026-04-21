@@ -30,12 +30,6 @@
   font-style: normal;
   font-display: swap;
 }
-@font-face {
-  font-family: 'Editorial Serif';
-  src: local('Iowan Old Style'), local('Charter'), local('Georgia');
-  font-display: swap;
-}
-
 :root {
   /* Rams palette — monochrome paper + graphite ink */
   --paper:   oklch(96% 0 0);
@@ -58,10 +52,10 @@
   --grid: 8px;
   --rad: 0px;
 
-  /* Fonts */
-  --sans:  'R Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, sans-serif;
-  --mono:  'R Mono', ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
-  --serif: 'Editorial Serif', 'Iowan Old Style', 'Charter', Georgia, serif;
+  /* Fonts — two families only. Serif was dropped: review uses size + weight
+     + paper treatment to signal the "reading moment" instead of a font swap. */
+  --sans: 'R Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, sans-serif;
+  --mono: 'R Mono', ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
 }
 
 /* Density — mapped from the design's tweaks panel so the grid can breathe later */

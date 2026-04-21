@@ -205,7 +205,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview }) {
         </header>
 
         {filtered.length === 0 ? (
-          <div style={{ padding: '64px 24px', color: 'var(--ink-3)', textAlign: 'center', fontFamily: 'var(--serif)', fontStyle: 'italic' }}>
+          <div style={{ padding: '64px 24px', color: 'var(--ink-3)', textAlign: 'center', fontStyle: 'italic' }}>
             {notes.length === 0
               ? "No notes yet. Start reading and mark a passage."
               : <>Nothing here for <em>{String(filter)}</em>. <button className="btn ghost xs" onClick={() => setFilter('all')}>reset filter</button></>}
