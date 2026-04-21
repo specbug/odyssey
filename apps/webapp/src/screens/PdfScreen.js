@@ -148,6 +148,10 @@ const PageRenderer = memo(function PageRenderer({
                       width: `${rect.width * 100}%`,
                       height: `${rect.height * 100}%`,
                       cursor: 'pointer',
+                      // pdf.js stamps z-index: 2 on its .textLayer, which puts
+                      // our click target under the text spans. Sit explicitly
+                      // above so real mouse clicks reach the handler.
+                      zIndex: 3,
                       background: isActive
                         ? 'color-mix(in oklab, var(--accent) 45%, transparent)'
                         : hasNote
