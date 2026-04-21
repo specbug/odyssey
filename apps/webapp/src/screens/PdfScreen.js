@@ -268,10 +268,16 @@ function DrawerFloater({ drawer, children }) {
       const pageEl = document.querySelector(
         `.react-pdf__Page[data-page-number="${drawer.pageIndex + 1}"]`
       );
-      if (!pageEl) { setAnchor(null); return; }
+      if (!pageEl) { setAnchor((prev) => (prev == null ? prev : null)); return; }
       const r = pageEl.getBoundingClientRect();
       const top = Math.max(80, Math.min(window.innerHeight - 320, r.top + 16));
-      setAnchor({ top, left: r.right + 24, visible: true });
+      const left = r.right + 24;
+      // Skip setState if nothing meaningful changed — the 400ms interval
+      // would otherwise thrash a re-render twice a second for no reason.
+      setAnchor((prev) => {
+        if (prev && Math.abs(prev.top - top) < 0.5 && Math.abs(prev.left - left) < 0.5) return prev;
+        return { top, left };
+      });
     };
     const schedule = () => {
       if (raf) cancelAnimationFrame(raf);
@@ -336,7 +342,6 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
   const noteRefs = useRef({});
   const lastScrollY = useRef(0);
   const savePosTimer = useRef(null);
-  const chromeTimerRef = useRef(null);
   const consumedTargetRef = useRef(false);
 
   const doc = useMemo(() => (fileMetadata ? toLibraryDoc(fileMetadata) : null), [fileMetadata]);
@@ -451,13 +456,21 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
   // Page height estimate + react-window itemSize
   const getPageHeight = useCallback((i) => pageHeights.current[i] || 1188 * scale, [scale]);
 
-  // When a page finishes rendering, update its height & re-measure the list
+  // When a page finishes rendering, cache its measured height and re-measure
+  // the list from that index onward — but only if the height actually changed.
+  //
+  // Bug this fixes: the old code read `page._pageIndex`, a private field that
+  // is undefined in current react-pdf. `resetAfterIndex(undefined)` rebuilt
+  // the entire offset cache on every page render success, which caused a
+  // continuous layout churn every time a page re-rendered.
   const onPageRenderSuccess = useCallback((page) => {
-    const idx = page._pageIndex;
-    const h = page.height + 24;
+    const pageNumber = page?.pageNumber;
+    if (!pageNumber) return;
+    const idx = pageNumber - 1;
+    const h = Math.round(page.height) + 24;
     if (pageHeights.current[idx] !== h) {
       pageHeights.current[idx] = h;
-      listRef.current?.resetAfterIndex(idx);
+      listRef.current?.resetAfterIndex(idx, false);
     }
   }, []);
 
@@ -662,12 +675,12 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
     }, 80);
   }, [targetNoteId, notes, handleHighlightClick, onConsumedTarget]);
 
-  // Scroll / chrome handling
+  // Scroll handling. Chrome visibility is a pure function of scroll position
+  // (with a wide hysteresis band so small wiggles near the boundary don't
+  // flip-flop opacity): visible while near the top, hidden once scrolled in.
   const handleListScroll = useCallback(({ scrollOffset }) => {
-    const threshold = 50;
-    if (scrollOffset < threshold) setChromeVisible(true);
-    else if (scrollOffset > lastScrollY.current + 8) setChromeVisible(false);
-    else if (scrollOffset < lastScrollY.current - 8) setChromeVisible(true);
+    if (scrollOffset < 60) setChromeVisible(true);
+    else if (scrollOffset > 160) setChromeVisible(false);
     lastScrollY.current = scrollOffset;
 
     // current page from pageHeights accumulation
@@ -687,24 +700,10 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
     }, 750);
   }, [numPages, getPageHeight, currentPage, fileMetadata?.id]);
 
-  // Chrome wake on mousemove/key/touch (in addition to scroll)
-  useEffect(() => {
-    const wake = () => {
-      setChromeVisible(true);
-      if (chromeTimerRef.current) clearTimeout(chromeTimerRef.current);
-      chromeTimerRef.current = setTimeout(() => setChromeVisible(false), 2600);
-    };
-    wake();
-    window.addEventListener('mousemove', wake);
-    window.addEventListener('keydown', wake);
-    window.addEventListener('touchstart', wake);
-    return () => {
-      window.removeEventListener('mousemove', wake);
-      window.removeEventListener('keydown', wake);
-      window.removeEventListener('touchstart', wake);
-      if (chromeTimerRef.current) clearTimeout(chromeTimerRef.current);
-    };
-  }, []);
+  // Chrome visibility is driven purely by scroll position (see handleListScroll).
+  // Originally it also auto-hid on idle and woke on every mousemove / keypress
+  // / touchstart — the continuous opacity cycle that caused made the whole
+  // viewer feel like it was refreshing constantly.
 
   // Keyboard: arrows, Esc, zoom
   useEffect(() => {
