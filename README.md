@@ -1,19 +1,24 @@
 # Odyssey
 
-A PDF reader with spaced repetition built in. Highlights become FSRS-scheduled review cards that link back to the page they came from.
+Odyssey is a PDF reader with spaced repetition built in. Annotations become FSRS-scheduled review cards.
 
-My learning workflow used to be scattered across three apps: PDFs in Preview, notes in Notion, flashcards in Anki. Cards would sit in a deck three months later with no memory of the paper they came from. Odyssey puts it in one place — you annotate inside the PDF, the annotation *is* the card, and reviews jump you back to the source whenever a prompt feels abstract.
+Reading and remembering usually live in separate apps: PDFs in Preview, notes in Notion, flashcards in Anki. Odyssey is one place for all three.
 
-## What you get out of it
+![Reading and annotating in Odyssey](docs/screenshots/pdf.png)
 
-- **One step from reading to reviewing.** Select text, type a note, done. No deck management, no separate card-writing session later.
-- **Cloze in plain text.** Wrap any word in `[[double brackets]]` to turn it into a fill-in-the-blank. Multiple blanks on one card reveal and grade together.
-- **Rich notes.** Paste images or diagrams straight into a note and they show up in the review prompt. Math renders as LaTeX.
-- **Context survives.** Every review links back to the source page, so cards never end up orphaned from the paper they came from.
-- **FSRS, not SM-2.** Modern scheduler — typically fewer reviews for the same retention than Anki.
-- **Local-first.** PDFs, annotations, and review history live on your machine. No account, no sync.
+## Features
 
-Web app and native macOS app share the same local backend, so you can read on one and review on the other.
+- Annotations are cards. No separate authoring step.
+- Cloze deletions with `[[double brackets]]`. Multiple blanks on one card reveal and grade together.
+- Images, diagrams, and LaTeX render inline in card bodies.
+- FSRS scheduling instead of SM-2. Fewer reviews for the same retention than Anki.
+- Local-first. PDFs, annotations, and review history stay on the machine. No account, no sync.
+
+Available as a web app or a native macOS app. Both talk to the same local server.
+
+![Notes index — cloze, LaTeX, diagram, and recall side by side](docs/screenshots/notes.png)
+
+![Review session — cloze hidden until space is pressed](docs/screenshots/review.png)
 
 ## Run it
 
