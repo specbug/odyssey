@@ -1,4 +1,4 @@
-from pydantic import BaseModel, computed_field, Field, validator
+from pydantic import BaseModel, computed_field, Field
 from datetime import datetime
 from typing import Optional, List
 
@@ -21,9 +21,13 @@ class PDFFileResponse(PDFFileBase):
     zoom_level: float = 1.2
     last_read_position: int = 0
     total_pages: Optional[int] = None
+    author: Optional[str] = None
+    color_hue: Optional[int] = None
+    excerpt: Optional[str] = None
     upload_date: datetime
     last_accessed: datetime
     annotation_count: Optional[int] = 0
+    due_count: Optional[int] = 0
 
     @computed_field
     @property
@@ -35,6 +39,13 @@ class PDFFileResponse(PDFFileBase):
 
     class Config:
         from_attributes = True
+
+
+class PDFFileMetadataUpdate(BaseModel):
+    """Partial update of user-visible metadata (author, hue, excerpt)."""
+    author: Optional[str] = None
+    color_hue: Optional[int] = Field(default=None, ge=0, le=360)
+    excerpt: Optional[str] = None
 
 
 class AnnotationBase(BaseModel):
@@ -68,6 +79,17 @@ class AnnotationResponse(AnnotationBase):
     file_id: Optional[int] = None  # Optional for standalone notes
     created_date: datetime
     updated_date: datetime
+    # Denormalized file metadata so NotesScreen doesn't need a second fetch.
+    file_title: Optional[str] = None
+    file_color_hue: Optional[int] = None
+
+    @computed_field
+    @property
+    def tags(self) -> List[str]:
+        """Comma-separated tag string split into a list. Empty if no tag."""
+        if not self.tag:
+            return []
+        return [t.strip() for t in self.tag.split(",") if t.strip()]
 
     class Config:
         from_attributes = True
@@ -128,7 +150,7 @@ class ImageUploadResponse(BaseModel):
 
 
 class StudyCardBase(BaseModel):
-    annotation_id: int
+    annotation_id: Optional[int] = None
     difficulty: float = 0.0
     stability: float = 0.0
     state: str = "New"
@@ -153,7 +175,6 @@ class StudyCardUpdate(BaseModel):
 class StudyCardResponse(StudyCardBase):
     id: int
     annotation_id: Optional[int] = None  # Allow None for cards without annotations
-    cloze_index: Optional[int] = None  # For cloze deletion cards (c1, c2, etc.)
     difficulty: float = 0.0
     stability: float = 0.0
     elapsed_days: int = 0
@@ -165,6 +186,9 @@ class StudyCardResponse(StudyCardBase):
     created_date: datetime
     due: Optional[datetime] = None
     annotation: Optional[AnnotationResponse] = None
+    # Scheduled-days preview for the 4 FSRS buttons [Again, Hard, Good, Easy].
+    # Empty list if the service layer didn't compute it (e.g. single-card fetch).
+    next_intervals: List[int] = Field(default_factory=list)
 
     # Backward compatibility property
     @property
@@ -312,3 +336,27 @@ class TimelineResponse(BaseModel):
     success: bool = True
     timeline: CardTimeline
     message: Optional[str] = None
+
+
+# Dashboard statistics for HomeScreen's Memory section.
+class DashboardStats(BaseModel):
+    retention_14d: float = Field(
+        0.0,
+        description="Fraction of reviews in the last 14 days with rating >= 2 (Hard, Good, or Easy).",
+    )
+    stability_avg_days: float = Field(
+        0.0,
+        description="Average FSRS stability across Review-state cards, in days.",
+    )
+    sessions_quarter: int = Field(
+        0,
+        description="Count of completed ReviewSessions in the last 90 days.",
+    )
+    streak_days: int = Field(
+        0,
+        description="Consecutive calendar days with >=1 review, counting back from today with a 1-day grace.",
+    )
+    cards_in_log: int = Field(
+        0,
+        description="Total number of StudyCards across all annotations.",
+    )

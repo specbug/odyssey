@@ -22,6 +22,19 @@ python run.py
 
 The API will be available at `http://localhost:8000`. You can find the API documentation at `http://localhost:8000/docs`.
 
+## Schema Reset (redesign)
+
+The redesign dropped `StudyCard.cloze_index` (one card per annotation) and switched
+cloze syntax from `{{c1::x}}` to `[[x]]`. Before running the first time against
+an existing database, delete the old SQLite file:
+
+```bash
+rm apps/api/pdf_annotations.db
+```
+
+The app recreates the schema on startup. If you rely on a different
+`DATABASE_URL`, adjust accordingly.
+
 ## Credits
 
 This project is inspired by the work of [Andy Matuschak](https://andymatuschak.org/) on [Orbit](https://github.com/andymatuschak/orbit).

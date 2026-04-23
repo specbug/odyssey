@@ -1,0 +1,64 @@
+/* PdfScreen layout. Each react-window row renders one page on the left
+   and its sticky-note rail on the right — the rail reads as continuous
+   because pages stack, but each note lives inside its page's virtualized cell. */
+
+.pdf-screen .react-pdf__Page {
+  position: relative !important;
+  margin: 0 !important;
+  /* A paper-2 placeholder so pages that haven't painted yet read as "paper
+     settling into place", not a hard white rectangle popping into view. */
+  background: var(--paper-2) !important;
+  box-shadow: 0 0 0 1px var(--rule), 0 30px 80px -40px rgba(0,0,0,0.12) !important;
+}
+
+.pdf-screen .react-pdf__Page__canvas {
+  display: block !important;
+  margin: 0 auto !important;
+  /* No fade-in. Overscan (10 pages each side in PdfScreen) now means the
+     canvas is painted well before it enters the viewport; a 320ms opacity
+     ramp on top of an already-painted canvas just reads as "the page is
+     refreshing." Letting the canvas simply be visible when it's painted is
+     what makes this feel like a book, not a UI. */
+}
+
+.pdf-screen .react-pdf__Page__textContent {
+  color: transparent !important;
+  user-select: text;
+}
+
+.page-and-notes-container {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 24px;
+  padding: 0 24px 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.page-wrapper {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+/* Notes column is a positioned ancestor so each sticky can absolute-position
+   itself next to its highlight's vertical position on the page. align-self
+   stretches the column to the row height (determined by the PDF page). */
+.notes-column {
+  flex: 0 0 320px;
+  position: relative;
+  align-self: stretch;
+  min-width: 0;
+}
+
+/* On narrow viewports, hide the rail to protect reading. */
+@media (max-width: 1024px) {
+  .notes-column { display: none; }
+}
+
+/* Selection caret on the text layer should still feel live */
+.pdf-screen .react-pdf__Page__textContent ::selection {
+  background: color-mix(in oklab, var(--accent) 35%, transparent);
+  color: inherit;
+}

@@ -227,39 +227,31 @@ class SpacedRepetitionService:
         }
 
     @staticmethod
-    def create_study_card(db: Session, annotation_id: int, cloze_index: Optional[int] = None) -> StudyCard:
+    def create_study_card(db: Session, annotation_id: int) -> StudyCard:
         """Create a new study card from an annotation using FSRS.
 
-        For basic cards: cloze_index should be None (one card per annotation).
-        For cloze cards: cloze_index should be set (multiple cards per annotation, one per cloze).
-        If a study card already exists for this annotation+cloze_index, returns the existing one.
+        Exactly one StudyCard per Annotation. Multi-blank cloze prompts (annotations
+        containing multiple [[word]] marks) are graded as a single card; all blanks
+        reveal together in the review UI.
         """
-        # Validate that annotation exists
         annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
         if not annotation:
             raise ValueError(f"Annotation with ID {annotation_id} not found")
 
-        # Check if study card already exists for this annotation + cloze_index combination
-        query = db.query(StudyCard).filter(StudyCard.annotation_id == annotation_id)
-        if cloze_index is not None:
-            query = query.filter(StudyCard.cloze_index == cloze_index)
-        else:
-            query = query.filter(StudyCard.cloze_index.is_(None))
-
-        existing_card = query.first()
-
+        existing_card = (
+            db.query(StudyCard)
+            .filter(StudyCard.annotation_id == annotation_id)
+            .first()
+        )
         if existing_card:
             return existing_card
 
-        # Create new FSRS card (starts in New state)
         fsrs_card = Card()
         now = datetime.utcnow()
 
-        # Create new study card with FSRS initialization
         try:
             study_card = StudyCard(
                 annotation_id=annotation_id,
-                cloze_index=cloze_index,
                 difficulty=fsrs_card.difficulty,
                 stability=fsrs_card.stability,
                 elapsed_days=fsrs_card.elapsed_days,
@@ -268,33 +260,43 @@ class SpacedRepetitionService:
                 lapses=fsrs_card.lapses,
                 state=fsrs_card.state.name,
                 last_review=None,
-                due=now,  # New cards are available immediately
+                due=now,
             )
 
             db.add(study_card)
             db.commit()
             db.refresh(study_card)
-
             return study_card
 
         except Exception as e:
             db.rollback()
-            # Check if it's a constraint violation (another card was created concurrently)
-            query = db.query(StudyCard).filter(StudyCard.annotation_id == annotation_id)
-            if cloze_index is not None:
-                query = query.filter(StudyCard.cloze_index == cloze_index)
-            else:
-                query = query.filter(StudyCard.cloze_index.is_(None))
-
-            existing_card = query.first()
+            # Another card may have been created concurrently (unique constraint).
+            existing_card = (
+                db.query(StudyCard)
+                .filter(StudyCard.annotation_id == annotation_id)
+                .first()
+            )
             if existing_card:
                 return existing_card
-            else:
-                raise ValueError(
-                    f"Failed to create study card for annotation {annotation_id}"
-                    + (f" (cloze {cloze_index})" if cloze_index is not None else "")
-                    + f": {str(e)}"
-                )
+            raise ValueError(
+                f"Failed to create study card for annotation {annotation_id}: {str(e)}"
+            )
+
+    @staticmethod
+    def compute_next_intervals(card: StudyCard) -> List[int]:
+        """Return scheduled_days preview for [Again, Hard, Good, Easy] without persisting.
+
+        Used by DueCardsResponse to feed the FSRS timeline under each review button.
+        """
+        fsrs_card = SpacedRepetitionService._study_card_to_fsrs_card(card)
+        now = datetime.utcnow()
+        scheduling_info = SpacedRepetitionService.scheduler.repeat(fsrs_card, now)
+        return [
+            scheduling_info[Rating.Again].card.scheduled_days,
+            scheduling_info[Rating.Hard].card.scheduled_days,
+            scheduling_info[Rating.Good].card.scheduled_days,
+            scheduling_info[Rating.Easy].card.scheduled_days,
+        ]
 
     @staticmethod
     def get_due_cards(db: Session, limit: int = 50, file_id: Optional[int] = None) -> Dict[str, List[StudyCard]]:
@@ -653,4 +655,90 @@ class SpacedRepetitionService:
             "learning_cards": learning_cards,
             "review_cards": review_cards,
             "due_today": due_today,
+        }
+
+    @staticmethod
+    def get_dashboard_stats(db: Session) -> Dict:
+        """Aggregate stats for HomeScreen's Memory tiles.
+
+        retention_14d:    fraction of reviews in the last 14 days with rating >= 2.
+                          0.0 if no reviews.
+        stability_avg:    mean FSRS stability (days) across Review-state cards.
+                          0.0 if no cards in Review state.
+        sessions_quarter: count of completed ReviewSessions (session_end IS NOT NULL)
+                          started in the last 90 days.
+        streak_days:      consecutive calendar days ending today with >=1 review.
+                          1-day grace: if today has no reviews but yesterday does,
+                          the streak is not considered broken yet — we count back
+                          from yesterday. If both today and yesterday are empty,
+                          streak = 0.
+        cards_in_log:     total StudyCard count.
+        """
+        now = datetime.utcnow()
+        today = now.date()
+        fourteen_days_ago = now - timedelta(days=14)
+        ninety_days_ago = now - timedelta(days=90)
+
+        # retention_14d
+        recent_reviews = (
+            db.query(CardReview)
+            .filter(CardReview.review_date >= fourteen_days_ago)
+            .all()
+        )
+        if recent_reviews:
+            retained = sum(1 for r in recent_reviews if (r.rating or 0) >= 2)
+            retention_14d = retained / len(recent_reviews)
+        else:
+            retention_14d = 0.0
+
+        # stability_avg_days
+        review_state_cards = (
+            db.query(StudyCard).filter(StudyCard.state == "Review").all()
+        )
+        if review_state_cards:
+            stability_avg = sum(c.stability for c in review_state_cards) / len(
+                review_state_cards
+            )
+        else:
+            stability_avg = 0.0
+
+        # sessions_quarter
+        sessions_quarter = (
+            db.query(ReviewSession)
+            .filter(
+                ReviewSession.session_start >= ninety_days_ago,
+                ReviewSession.session_end.isnot(None),
+            )
+            .count()
+        )
+
+        # streak_days — collect distinct review days, then count consecutive.
+        all_reviews = (
+            db.query(CardReview.review_date)
+            .order_by(CardReview.review_date.desc())
+            .all()
+        )
+        review_days = {r[0].date() for r in all_reviews if r[0] is not None}
+
+        streak_days = 0
+        if today in review_days:
+            cursor = today
+        elif (today - timedelta(days=1)) in review_days:
+            # 1-day grace — start counting from yesterday
+            cursor = today - timedelta(days=1)
+        else:
+            cursor = None
+
+        while cursor is not None and cursor in review_days:
+            streak_days += 1
+            cursor = cursor - timedelta(days=1)
+
+        cards_in_log = db.query(StudyCard).count()
+
+        return {
+            "retention_14d": retention_14d,
+            "stability_avg_days": stability_avg,
+            "sessions_quarter": sessions_quarter,
+            "streak_days": streak_days,
+            "cards_in_log": cards_in_log,
         }

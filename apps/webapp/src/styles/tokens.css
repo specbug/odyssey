@@ -1,0 +1,65 @@
+/* Odyssey design tokens — rams variant (monochrome, precise, industrial).
+   The palette lives in oklch so the warm-bone paper stays calibrated across displays.
+   --accent-h is driven by useTimeHue at runtime. */
+
+@font-face {
+  font-family: 'R Sans';
+  src: url('../fonts/RSans-Variable.woff2') format('woff2-variations');
+  font-weight: 100 1000;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'R Sans';
+  src: url('../fonts/RSans-Italic-Variable.woff2') format('woff2-variations');
+  font-weight: 100 1000;
+  font-style: italic;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'R Mono';
+  src: url('../fonts/RMono-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'R Mono';
+  src: url('../fonts/RMono-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+:root {
+  /* Rams palette — monochrome paper + graphite ink */
+  --paper:   oklch(96% 0 0);
+  --paper-2: oklch(92% 0 0);
+  --paper-3: oklch(88% 0 0);
+  --rule:    oklch(82% 0 0);
+  --rule-2:  oklch(72% 0 0);
+  --ink:     oklch(14% 0 0);
+  --ink-2:   oklch(30% 0 0);
+  --ink-3:   oklch(48% 0 0);
+  --ink-4:   oklch(64% 0 0);
+
+  /* Accent — emerges in review + active highlights. Hue comes from useTimeHue. */
+  --accent-h: 28;
+  --accent:      oklch(55% 0.22 var(--accent-h));
+  --accent-soft: oklch(90% 0.04 var(--accent-h));
+  --accent-deep: oklch(38% 0.18 var(--accent-h));
+
+  /* Rhythm */
+  --grid: 8px;
+  --rad: 0px;
+
+  /* Fonts — two families only. Serif was dropped: review uses size + weight
+     + paper treatment to signal the "reading moment" instead of a font swap. */
+  --sans: 'R Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Helvetica, sans-serif;
+  --mono: 'R Mono', ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+}
+
+/* Density — mapped from the design's tweaks panel so the grid can breathe later */
+:root[data-density="3"] { --grid: 7px; }
+:root[data-density="4"] { --grid: 8px; }
+:root[data-density="5"] { --grid: 10px; }
+:root[data-density="6"] { --grid: 12px; }

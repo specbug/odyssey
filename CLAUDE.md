@@ -36,21 +36,28 @@ Key backend modules:
 
 ### Frontend (apps/webapp)
 
-React-based SPA with:
+React 19 SPA built with Create React App. Rams-variant redesign — quiet,
+typographic, warm-bone. **Read `apps/webapp/DESIGN.md` before making any
+visual change** — it's the contract for fonts, accent usage, layout rhythm,
+and motion.
 
-- **PDF Rendering**: react-pdf with virtualized page rendering (react-window)
-- **Annotation UI**: Highlight creation, cloze deletion support
-- **LaTeX Rendering**: KaTeX integration for math expressions
-- **Review Modal**: Spaced repetition review interface with FSRS timeline visualization
-- **Color Coding**: Dynamic highlight colors based on review performance
+Capabilities:
+- **PDF rendering**: react-pdf + react-window, per-page sticky-note rail
+- **Annotation**: selection → "Add note" bubble → inline capture drawer (cloze / recall / note)
+- **Cloze syntax**: `[[word]]` only; one `StudyCard` per annotation; multi-blank prompts reveal and grade together
+- **Review**: centered prompt, SPACE to reveal, 1–4 to grade, starburst tick progress
+- **LaTeX + images**: KaTeX via `utils/render.js`; images via `[image:UUID]` markers + `/images/*`
+- **Routing**: state-based, persisted in `localStorage` keys `odyssey:route` / `odyssey:docId`
 
-Main components in `apps/webapp/src/`:
-- `App.js`: Main PDF viewer and annotation interface
-- `HomePage.js`: File management and home screen
-- `ReviewModal.js`: Spaced repetition review UI
-- `api.js`: Backend API client
-- `clozeUtils.js`: Cloze deletion parsing/rendering utilities
-- `colorUtils.js`: Color generation for highlights based on FSRS state
+Layout (`src/`):
+- `App.js` — shell + routing
+- `screens/{Home,Library,Notes,Pdf,Review}Screen.js`
+- `components/{Icons,Starburst,DocGlyph,Metric,Rail,StickyNote,InlineCaptureDrawer}.js`
+- `hooks/useTimeHue.js` — sets `--accent-h` from hour of day
+- `utils/{cloze,hue,format,render}.js`
+- `data/adapters.js` — API shape → design shape
+- `styles/{tokens,base,pdf}.css` — CSS vars + global rules
+- `fonts/` — R Sans / R Mono (bundled via webpack)
 
 ### Native Mac App (apps/mac)
 
@@ -91,16 +98,19 @@ python run.py
 ```bash
 # Setup & Run
 cd apps/webapp
-npm install
-npm start
-# Opens at http://localhost:3000
+bun install
+bun run start
+# Opens at http://localhost:3000/odyssey (note: /odyssey basepath from package.json homepage)
 
 # Build for production
-npm run build
+bun run build
 
 # Run tests
-npm test
+bun run test
 ```
+
+Use bun, not npm — the Dockerfile and README are both on bun, and the
+project's lockfile is `bun.lock`.
 
 ### Native Mac App
 
@@ -132,12 +142,18 @@ All FSRS logic is centralized in `apps/api/app/spaced_repetition.py` via the `Sp
 
 ### Cloze Deletions
 
-The system supports multiple cloze deletion formats:
-- `{{c1::text}}` - Standard Anki-style cloze
-- `[text]` - Bracket-style cloze (converted to c1)
-- Multiple cloze indices per card (c1, c2, c3, etc.)
+Current syntax is **`[[word]]` only** — the old Anki `{{c1::...}}` has been
+retired. One `StudyCard` per annotation. A prompt with multiple `[[x]]` marks
+reveals and grades all blanks together in a single FSRS pass.
 
-Each cloze index creates a separate StudyCard linked to the same Annotation.
+Parsing / rendering helpers live in `apps/webapp/src/utils/cloze.js`:
+- `hasCloze(text)` — detects any `[[...]]`
+- `extractAnswers(text)` — returns each answer in order
+- `renderClozeInline(text)` — HTML string, pill-shaped blanks with answer visible (used in StickyNote / NotesScreen previews)
+- `renderClozeReveal(text, revealed)` — JSX for ReviewScreen, blanks hidden until `revealed`
+
+Backend side of this is `app/spaced_repetition.py:create_study_card` — one
+call per annotation, no `cloze_index` parameter.
 
 ### Image Storage
 
@@ -156,13 +172,17 @@ PDF files are deduplicated using Blake3 hashing:
 ### Database Schema
 
 Key relationships:
-- `PDFFile` 1→many `Annotation` (nullable file_id for standalone notes)
-- `Annotation` 1→many `StudyCard` (one per cloze index)
+- `PDFFile` 1→many `Annotation` (nullable `file_id` for standalone notes)
+- `Annotation` 1→1 `StudyCard` (unique on `annotation_id`; multi-`[[x]]` prompts share the one card)
 - `StudyCard` 1→many `CardReview`
 - `ReviewSession` 1→many `CardReview`
 - `Annotation` 1→many `Image` (via `[image:UUID]` references)
 
-CASCADE deletion: Deleting annotation deletes all associated study cards and reviews.
+CASCADE deletion: deleting annotation deletes its study card and reviews.
+
+`PDFFile` carries design-layer metadata — `author`, `color_hue` (0–360),
+`excerpt` — populated on upload by `LibraryScreen` via pdfjs. All nullable
+so an upload never fails if extraction does.
 
 ## API Communication
 
@@ -175,9 +195,12 @@ All API endpoints are documented in OpenAPI format at `/docs` when the backend i
 
 ## Testing
 
-- Backend: No test suite currently (TODO)
-- Web frontend: Jest/React Testing Library (`npm test`)
-- Mac app: XCTest (`swift test`)
+- Backend: no test suite yet (TODO). Smoke-test via `curl` against
+  `/health`, `/stats/dashboard`, `/annotations`, `/files` after any schema
+  or endpoint change.
+- Web frontend: Jest / RTL via `bun run test`. No tests currently under
+  `src/` — the old `App.test.js` was removed with the redesign.
+- Mac app: XCTest (`swift test`).
 
 ## Environment Variables
 
@@ -189,6 +212,32 @@ Backend (apps/api):
 - `MAX_FILE_SIZE`: Max PDF file size in bytes (default: 50MB)
 - `MAX_IMAGE_SIZE`: Max image file size in bytes (default: 10MB)
 
+## Design Discipline (webapp)
+
+The webapp follows a strict visual contract. **The full guide is
+`apps/webapp/DESIGN.md` — read it before changing anything the user can see.**
+
+One-paragraph summary so you don't reach for bad defaults:
+
+> Quiet paper, rare accent, information-dense glyphs — reading as ritual.
+> R Sans for UI + prose, R Mono for metadata / numerics / dates, Editorial
+> Serif for card bodies + empty-state italics. Accent color only appears in
+> review + active highlights + sticky-note left borders — everything else is
+> grayscale. Hue shifts by time of day via `--accent-h`. Motion is
+> `cubic-bezier(.2,.7,.2,1)` at 160–520ms depending on scale. 8px grid, 0
+> radius, 1px dividers. Cloze syntax is `[[word]]`.
+
+Quick pitfall list for future sessions:
+- Bare `<button>` leaks the browser's UA font — global `font-family: inherit`
+  in `src/styles/base.css` handles this; don't override it.
+- SQLite reuses rowids after a delete; never mark `/files/{id}/download`
+  as `Cache-Control: immutable`. The frontend also cache-busts with
+  `?v=<file_hash>`.
+- The sticky-note rail is **per-page** (inside react-window's
+  `PageRenderer`) — don't try to lift it outside the virtualizer.
+- Preserve the text-anchor → normalized_rects → pixel_rects fallback chain
+  in `resolveAnnotationLocation`. Each method has subtle callers.
+
 ## Current Feature Branch
 
-Branch: `feature/native-mac-app` - Development of native macOS application.
+Branch: `redesign-rams` — full webapp redesign (PR open).

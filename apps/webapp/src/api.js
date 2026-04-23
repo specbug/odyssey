@@ -1,416 +1,219 @@
-// Use different API base URLs for development vs production
-const API_BASE_URL = process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:8000' 
-    : `${process.env.PUBLIC_URL}/api`;
+// ApiService — a thin fetch wrapper around the FastAPI backend.
+// Each method throws on non-2xx so callers can try/catch per call.
+//
+// Base URL rules:
+//   - dev: http://localhost:8000 (CRA dev server + uvicorn on :8000)
+//   - prod: /api (served by nginx + FastAPI behind it)
+// PUBLIC_URL is injected by CRA at build time.
 
-class ApiService {
-    constructor() {
-        this.baseUrl = API_BASE_URL;
-    }
+const API_BASE_URL =
+  process.env.NODE_ENV === 'development'
+    ? 'http://localhost:8000'
+    : `${process.env.PUBLIC_URL || ''}/api`;
 
-    async uploadFile(file) {
-        const formData = new FormData();
-        formData.append('file', file);
-
-        try {
-            const response = await fetch(`${this.baseUrl}/upload`, {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Upload failed');
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Upload error:', error);
-            throw error;
-        }
-    }
-
-    async getFiles() {
-        try {
-            const response = await fetch(`${this.baseUrl}/files`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch files');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Get files error:', error);
-            throw error;
-        }
-    }
-
-    async getFile(fileId) {
-        try {
-            const response = await fetch(`${this.baseUrl}/files/${fileId}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch file');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Get file error:', error);
-            throw error;
-        }
-    }
-
-    async downloadFile(fileId) {
-        try {
-            const response = await fetch(`${this.baseUrl}/files/${fileId}/download`);
-            if (!response.ok) {
-                throw new Error('Failed to download file');
-            }
-            return response.blob();
-        } catch (error) {
-            console.error('Download error:', error);
-            throw error;
-        }
-    }
-
-
-
-    async deleteFile(fileId) {
-        try {
-            const response = await fetch(`${this.baseUrl}/files/${fileId}`, {
-                method: 'DELETE',
-            });
-            if (!response.ok) {
-                throw new Error('Failed to delete file');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Delete file error:', error);
-            throw error;
-        }
-    }
-
-    async updateFileZoom(fileId, zoomLevel) {
-        try {
-            const response = await fetch(`${this.baseUrl}/files/${fileId}/zoom`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ zoom_level: zoomLevel }),
-            });
-            if (!response.ok) {
-                throw new Error('Failed to update zoom level');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Update zoom error:', error);
-            throw error;
-        }
-    }
-
-    async updateReadPosition(fileId, position) {
-        try {
-            const response = await fetch(`${this.baseUrl}/files/${fileId}/position`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ last_read_position: position }),
-            });
-            if (!response.ok) {
-                throw new Error('Failed to update read position');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Update read position error:', error);
-            throw error;
-        }
-    }
-
-    async updateTotalPages(fileId, totalPages) {
-        try {
-            const response = await fetch(`${this.baseUrl}/files/${fileId}/pages`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ total_pages: totalPages }),
-            });
-            if (!response.ok) {
-                throw new Error('Failed to update total pages');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Update total pages error:', error);
-            throw error;
-        }
-    }
-
-    async createAnnotation(fileId, annotation) {
-        try {
-            const response = await fetch(`${this.baseUrl}/files/${fileId}/annotations`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(annotation),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to create annotation');
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Create annotation error:', error);
-            throw error;
-        }
-    }
-
-    async getAnnotations(fileId) {
-        try {
-            const response = await fetch(`${this.baseUrl}/files/${fileId}/annotations`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch annotations');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Get annotations error:', error);
-            throw error;
-        }
-    }
-
-    async updateAnnotation(annotationId, annotationData) {
-        try {
-            const response = await fetch(`${this.baseUrl}/annotations/${annotationId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(annotationData),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to update annotation');
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Update annotation error:', error);
-            throw error;
-        }
-    }
-
-    async deleteAnnotation(annotationId) {
-        try {
-            const response = await fetch(`${this.baseUrl}/annotations/${annotationId}`, {
-                method: 'DELETE',
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to delete annotation');
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Delete annotation error:', error);
-            throw error;
-        }
-    }
-
-    async healthCheck() {
-        try {
-            const response = await fetch(`${this.baseUrl}/health`);
-            if (!response.ok) {
-                throw new Error('Health check failed');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Health check error:', error);
-            throw error;
-        }
-    }
-
-    // Spaced Repetition API Methods
-
-    async createStudyCard(annotationId, clozeIndex = null) {
-        try {
-            let url = `${this.baseUrl}/study-cards?annotation_id=${annotationId}`;
-            if (clozeIndex !== null) {
-                url += `&cloze_index=${clozeIndex}`;
-            }
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to create study card');
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Create study card error:', error);
-            throw error;
-        }
-    }
-
-    async getDueCards(fileId = null, limit = 50) {
-        try {
-            let url = `${this.baseUrl}/study-cards/due?limit=${limit}`;
-            if (fileId) {
-                url += `&file_id=${fileId}`;
-            }
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error('Failed to fetch due cards');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Get due cards error:', error);
-            throw error;
-        }
-    }
-
-    async getStudyCards(skip = 0, limit = 100) {
-        try {
-            const response = await fetch(`${this.baseUrl}/study-cards?skip=${skip}&limit=${limit}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch study cards');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Get study cards error:', error);
-            throw error;
-        }
-    }
-
-    async getStudyCard(cardId) {
-        try {
-            const response = await fetch(`${this.baseUrl}/study-cards/${cardId}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch study card');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Get study card error:', error);
-            throw error;
-        }
-    }
-
-    async reviewCard(cardId, reviewData) {
-        try {
-            const response = await fetch(`${this.baseUrl}/study-cards/${cardId}/review`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(reviewData),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to review card');
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Review card error:', error);
-            throw error;
-        }
-    }
-
-    async getReviewOptions(cardId) {
-        try {
-            const response = await fetch(`${this.baseUrl}/study-cards/${cardId}/options`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch review options');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Get review options error:', error);
-            throw error;
-        }
-    }
-
-    async getCardTimeline(cardId) {
-        try {
-            const response = await fetch(`${this.baseUrl}/study-cards/${cardId}/timeline`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch card timeline');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Get card timeline error:', error);
-            throw error;
-        }
-    }
-
-    async getCardProgression(cardId, steps = 4) {
-        try {
-            const response = await fetch(`${this.baseUrl}/study-cards/${cardId}/progression?steps=${steps}`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch card progression');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Get card progression error:', error);
-            throw error;
-        }
-    }
-
-    async createReviewSession(sessionData = {}) {
-        try {
-            const response = await fetch(`${this.baseUrl}/review-sessions`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(sessionData),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to create review session');
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('Create review session error:', error);
-            throw error;
-        }
-    }
-
-    async endReviewSession(sessionId) {
-        try {
-            const response = await fetch(`${this.baseUrl}/review-sessions/${sessionId}/end`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to end review session');
-            }
-
-            return await response.json();
-        } catch (error) {
-            console.error('End review session error:', error);
-            throw error;
-        }
-    }
-
-    async getStudyStats() {
-        try {
-            const response = await fetch(`${this.baseUrl}/study-stats`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch study stats');
-            }
-            return await response.json();
-        } catch (error) {
-            console.error('Get study stats error:', error);
-            throw error;
-        }
-    }
+async function asJson(res) {
+  if (!res.ok) {
+    let detail = '';
+    try { detail = (await res.json())?.detail || res.statusText; }
+    catch { detail = res.statusText; }
+    const err = new Error(`${res.status} ${detail}`);
+    err.status = res.status;
+    throw err;
+  }
+  return res.json();
 }
 
-export default new ApiService(); 
+class ApiService {
+  constructor() {
+    this.baseUrl = API_BASE_URL;
+  }
+
+  // ─── Files ────────────────────────────────────────────────────────────
+  async uploadFile(file) {
+    const fd = new FormData();
+    fd.append('file', file);
+    return asJson(await fetch(`${this.baseUrl}/upload`, { method: 'POST', body: fd }));
+  }
+
+  async getFiles() {
+    return asJson(await fetch(`${this.baseUrl}/files`));
+  }
+
+  async getFile(fileId) {
+    return asJson(await fetch(`${this.baseUrl}/files/${fileId}`));
+  }
+
+  async downloadFile(fileId, hash = null) {
+    const res = await fetch(this.fileDownloadUrl(fileId, hash));
+    if (!res.ok) throw new Error(`Download failed: ${res.status}`);
+    return res.blob();
+  }
+
+  // Append the file hash as `?v=<hash>` when known — file_id is a SQLite rowid
+  // that SQLite reuses after a delete, so the URL by itself is not a stable
+  // cache key. Including the hash guarantees the browser treats two different
+  // underlying PDFs (sharing the same reused id) as distinct URLs.
+  fileDownloadUrl(fileId, hash = null) {
+    const base = `${this.baseUrl}/files/${fileId}/download`;
+    return hash ? `${base}?v=${encodeURIComponent(hash)}` : base;
+  }
+
+  async deleteFile(fileId) {
+    return asJson(await fetch(`${this.baseUrl}/files/${fileId}`, { method: 'DELETE' }));
+  }
+
+  async updateFileZoom(fileId, zoomLevel) {
+    return asJson(await fetch(`${this.baseUrl}/files/${fileId}/zoom`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ zoom_level: zoomLevel }),
+    }));
+  }
+
+  async updateReadPosition(fileId, position) {
+    return asJson(await fetch(`${this.baseUrl}/files/${fileId}/position`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ last_read_position: position }),
+    }));
+  }
+
+  async updateTotalPages(fileId, totalPages) {
+    return asJson(await fetch(`${this.baseUrl}/files/${fileId}/pages`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ total_pages: totalPages }),
+    }));
+  }
+
+  async updateFileMetadata(fileId, { author, color_hue, excerpt }) {
+    const body = {};
+    if (author !== undefined) body.author = author;
+    if (color_hue !== undefined) body.color_hue = color_hue;
+    if (excerpt !== undefined) body.excerpt = excerpt;
+    return asJson(await fetch(`${this.baseUrl}/files/${fileId}/metadata`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }));
+  }
+
+  // ─── Annotations ─────────────────────────────────────────────────────
+  async createAnnotation(fileId, annotation) {
+    return asJson(await fetch(`${this.baseUrl}/files/${fileId}/annotations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(annotation),
+    }));
+  }
+
+  async createStandaloneAnnotation(annotation) {
+    return asJson(await fetch(`${this.baseUrl}/annotations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(annotation),
+    }));
+  }
+
+  async getAnnotations(fileId) {
+    return asJson(await fetch(`${this.baseUrl}/files/${fileId}/annotations`));
+  }
+
+  async getAllAnnotations({ source, tag } = {}) {
+    const params = new URLSearchParams();
+    if (source != null) params.set('source', String(source));
+    if (tag) params.set('tag', tag);
+    const qs = params.toString();
+    return asJson(await fetch(`${this.baseUrl}/annotations${qs ? `?${qs}` : ''}`));
+  }
+
+  async updateAnnotation(annotationId, annotationData) {
+    return asJson(await fetch(`${this.baseUrl}/annotations/${annotationId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(annotationData),
+    }));
+  }
+
+  async deleteAnnotation(annotationId) {
+    return asJson(await fetch(`${this.baseUrl}/annotations/${annotationId}`, {
+      method: 'DELETE',
+    }));
+  }
+
+  // ─── Images ──────────────────────────────────────────────────────────
+  async uploadImage(blob) {
+    const fd = new FormData();
+    fd.append('file', blob);
+    return asJson(await fetch(`${this.baseUrl}/images/upload`, { method: 'POST', body: fd }));
+  }
+
+  imageUrl(uuid) {
+    return `${this.baseUrl}/images/${uuid}`;
+  }
+
+  // ─── Study cards & review ────────────────────────────────────────────
+  async createStudyCard(annotationId) {
+    return asJson(await fetch(
+      `${this.baseUrl}/study-cards?annotation_id=${annotationId}`,
+      { method: 'POST', headers: { 'Content-Type': 'application/json' } }
+    ));
+  }
+
+  async getDueCards(fileId = null, limit = 50) {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (fileId != null) params.set('file_id', String(fileId));
+    return asJson(await fetch(`${this.baseUrl}/study-cards/due?${params.toString()}`));
+  }
+
+  async getStudyCard(cardId) {
+    return asJson(await fetch(`${this.baseUrl}/study-cards/${cardId}`));
+  }
+
+  async reviewCard(cardId, { rating, time_taken, session_id } = {}) {
+    return asJson(await fetch(`${this.baseUrl}/study-cards/${cardId}/review`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ card_id: cardId, rating, time_taken, session_id }),
+    }));
+  }
+
+  async getCardTimeline(cardId) {
+    return asJson(await fetch(`${this.baseUrl}/study-cards/${cardId}/timeline`));
+  }
+
+  async getCardProgression(cardId, steps = 4) {
+    return asJson(await fetch(`${this.baseUrl}/study-cards/${cardId}/progression?steps=${steps}`));
+  }
+
+  async startSession(userId = null) {
+    return asJson(await fetch(`${this.baseUrl}/review-sessions`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(userId ? { user_id: userId } : {}),
+    }));
+  }
+
+  async endSession(sessionId) {
+    return asJson(await fetch(`${this.baseUrl}/review-sessions/${sessionId}/end`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+    }));
+  }
+
+  // ─── Stats ───────────────────────────────────────────────────────────
+  async getDashboardStats() {
+    return asJson(await fetch(`${this.baseUrl}/stats/dashboard`));
+  }
+
+  async getStudyStats() {
+    return asJson(await fetch(`${this.baseUrl}/study-stats`));
+  }
+
+  async healthCheck() {
+    return asJson(await fetch(`${this.baseUrl}/health`));
+  }
+}
+
+const apiService = new ApiService();
+export default apiService;

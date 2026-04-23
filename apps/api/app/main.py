@@ -15,6 +15,7 @@ from .database import SessionLocal, engine, get_db
 from .models import Base, PDFFile, Annotation, StudyCard, CardReview, ReviewSession, Image
 from .schemas import (
     PDFFileResponse,
+    PDFFileMetadataUpdate,
     AnnotationCreate,
     AnnotationUpdate,
     AnnotationResponse,
@@ -38,6 +39,7 @@ from .schemas import (
     TimelineResponse,
     CardTimeline,
     TimelinePoint,
+    DashboardStats,
 )
 from .spaced_repetition import SpacedRepetitionService
 from .utils import (
@@ -283,18 +285,26 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
 
 @app.get("/files", response_model=List[PDFFileResponse])
 async def list_files(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
-    """List all uploaded PDF files with annotation counts."""
-    files = db.query(PDFFile).offset(skip).limit(limit).all()
+    """List all uploaded PDF files with annotation + due counts.
 
-    # Add annotation count to each file
+    due_count is computed per file via the FK from StudyCard → Annotation.
+    """
+    now = datetime.utcnow()
+    files = db.query(PDFFile).order_by(PDFFile.last_accessed.desc()).offset(skip).limit(limit).all()
+
     files_with_counts = []
     for file in files:
-        file_dict = PDFFileResponse.from_orm(file).dict()
-        annotation_count = (
+        resp = PDFFileResponse.from_orm(file)
+        resp.annotation_count = (
             db.query(Annotation).filter(Annotation.file_id == file.id).count()
         )
-        file_dict["annotation_count"] = annotation_count
-        files_with_counts.append(file_dict)
+        resp.due_count = (
+            db.query(StudyCard)
+            .join(Annotation, StudyCard.annotation_id == Annotation.id)
+            .filter(Annotation.file_id == file.id, StudyCard.due <= now)
+            .count()
+        )
+        files_with_counts.append(resp)
 
     return files_with_counts
 
@@ -364,6 +374,31 @@ async def update_total_pages(
     return file
 
 
+@app.patch("/files/{file_id}/metadata", response_model=PDFFileResponse)
+async def update_file_metadata(
+    file_id: int, meta: PDFFileMetadataUpdate, db: Session = Depends(get_db)
+):
+    """Partial update of user-visible metadata (author, color_hue, excerpt).
+
+    Called by the webapp after upload, once pdfjs has extracted PDF metadata
+    and a first-page excerpt. All fields are optional; only provided ones are set.
+    """
+    file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
+    if not file:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    if meta.author is not None:
+        file.author = meta.author
+    if meta.color_hue is not None:
+        file.color_hue = meta.color_hue
+    if meta.excerpt is not None:
+        file.excerpt = meta.excerpt
+
+    db.commit()
+    db.refresh(file)
+    return file
+
+
 @app.get("/files/{file_id}/download")
 async def download_file(file_id: int, request: Request, db: Session = Depends(get_db)):
     """Download file by ID with optimized caching."""
@@ -384,14 +419,13 @@ async def download_file(file_id: int, request: Request, db: Session = Depends(ge
     if if_none_match == etag:
         return JSONResponse(status_code=304, content=None)
 
-    # Create response with aggressive caching headers
+    # Cache the bytes, but let the browser revalidate via ETag — file_id is
+    # reusable after a delete, so `immutable` would serve stale PDFs when SQLite
+    # hands the same id to a different upload.
     headers = {
-        "Cache-Control": "public, max-age=31536000, immutable",  # 1 year cache
+        "Cache-Control": "public, max-age=3600, must-revalidate",
         "ETag": etag,
         "Last-Modified": datetime.fromtimestamp(file_mtime).strftime(
-            "%a, %d %b %Y %H:%M:%S GMT"
-        ),
-        "Expires": (datetime.now() + timedelta(days=365)).strftime(
             "%a, %d %b %Y %H:%M:%S GMT"
         ),
         "Content-Encoding": "gzip" if file.file_path.endswith(".gz") else None,
@@ -592,6 +626,54 @@ async def create_standalone_annotation(
         )
 
 
+@app.get("/annotations", response_model=List[AnnotationResponse])
+async def list_all_annotations(
+    skip: int = 0,
+    limit: int = 500,
+    tag: Optional[str] = None,
+    source: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
+    """List every annotation — file-linked and standalone — for the NotesScreen browser.
+
+    Denormalizes file_title + file_color_hue onto each row so the UI doesn't need
+    a second per-source fetch. `tag` filter matches if the comma-joined tag string
+    contains the token. `source` filter takes a file_id (pass nothing to include
+    standalone notes too).
+    """
+    query = db.query(Annotation)
+    if source is not None:
+        query = query.filter(Annotation.file_id == source)
+    if tag:
+        # Simple substring match against the comma-joined tag column.
+        query = query.filter(Annotation.tag.ilike(f"%{tag}%"))
+
+    rows = (
+        query.order_by(Annotation.updated_date.desc()).offset(skip).limit(limit).all()
+    )
+
+    # Batch-load the small set of referenced files so we can denormalize.
+    file_ids = {r.file_id for r in rows if r.file_id is not None}
+    files_by_id = {}
+    if file_ids:
+        files_by_id = {
+            f.id: f
+            for f in db.query(PDFFile).filter(PDFFile.id.in_(file_ids)).all()
+        }
+
+    out: List[AnnotationResponse] = []
+    for row in rows:
+        resp = AnnotationResponse.from_orm(row)
+        if row.file_id is not None:
+            f = files_by_id.get(row.file_id)
+            if f is not None:
+                from .utils import strip_file_extension
+                resp.file_title = strip_file_extension(f.original_filename)
+                resp.file_color_hue = f.color_hue
+        out.append(resp)
+    return out
+
+
 @app.post("/files/{file_id}/annotations", response_model=AnnotationResponse)
 async def create_annotation(
     file_id: int, annotation: AnnotationCreate, db: Session = Depends(get_db)
@@ -790,20 +872,32 @@ async def delete_all_annotations(file_id: int, db: Session = Depends(get_db)):
 
 
 @app.post("/study-cards", response_model=StudyCardResponse)
-async def create_study_card(annotation_id: int, cloze_index: Optional[int] = None, db: Session = Depends(get_db)):
-    """Create a study card from an annotation. For cloze cards, specify cloze_index (1, 2, etc.)."""
+async def create_study_card(annotation_id: int, db: Session = Depends(get_db)):
+    """Create a study card from an annotation. One card per annotation — multi-blank
+    cloze prompts are graded as a single card with all blanks revealing together."""
     try:
-        # Check if annotation exists
         annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
         if not annotation:
             raise HTTPException(status_code=404, detail="Annotation not found")
 
-        study_card = SpacedRepetitionService.create_study_card(db, annotation_id, cloze_index)
+        study_card = SpacedRepetitionService.create_study_card(db, annotation_id)
         return study_card
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error creating study card: {str(e)}"
         )
+
+
+def _card_with_intervals(card: StudyCard) -> StudyCardResponse:
+    """Serialize a StudyCard ORM row to StudyCardResponse, computing next_intervals
+    so the review UI can render the 4-button FSRS preview without a second call."""
+    response = StudyCardResponse.from_orm(card)
+    try:
+        response.next_intervals = SpacedRepetitionService.compute_next_intervals(card)
+    except Exception:
+        # Non-fatal — the review UI can still function with an empty preview.
+        response.next_intervals = []
+    return response
 
 
 @app.get("/study-cards/due", response_model=DueCardsResponse)
@@ -812,18 +906,12 @@ async def get_due_cards(limit: int = 50, file_id: Optional[int] = None, db: Sess
     try:
         cards_data = SpacedRepetitionService.get_due_cards(db, limit, file_id)
 
-        # Convert StudyCard objects to StudyCardResponse objects
-        due_cards_response = [
-            StudyCardResponse.from_orm(card) for card in cards_data["due_cards"]
-        ]
-        new_cards_response = [
-            StudyCardResponse.from_orm(card) for card in cards_data["new_cards"]
-        ]
+        due_cards_response = [_card_with_intervals(c) for c in cards_data["due_cards"]]
+        new_cards_response = [_card_with_intervals(c) for c in cards_data["new_cards"]]
         learning_cards_response = [
-            StudyCardResponse.from_orm(card) for card in cards_data["learning_cards"]
+            _card_with_intervals(c) for c in cards_data["learning_cards"]
         ]
 
-        # Get counts for cards scheduled and reviewed today
         total_scheduled_today = SpacedRepetitionService.get_cards_scheduled_for_today(db, file_id)
         reviewed_today = SpacedRepetitionService.get_cards_reviewed_today(db, file_id)
 
@@ -1064,6 +1152,18 @@ async def get_study_stats(db: Session = Depends(get_db)):
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error getting study stats: {str(e)}"
+        )
+
+
+@app.get("/stats/dashboard", response_model=DashboardStats)
+async def get_dashboard_stats(db: Session = Depends(get_db)):
+    """HomeScreen Memory tiles — retention, stability, sessions, streak, cards."""
+    try:
+        stats = SpacedRepetitionService.get_dashboard_stats(db)
+        return DashboardStats(**stats)
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error getting dashboard stats: {str(e)}"
         )
 
 
