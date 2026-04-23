@@ -151,6 +151,7 @@ class ImageUploadResponse(BaseModel):
 
 class StudyCardBase(BaseModel):
     annotation_id: Optional[int] = None
+    cloze_index: int = 0  # 0 for non-cloze; position of the target [[word]] otherwise.
     difficulty: float = 0.0
     stability: float = 0.0
     state: str = "New"

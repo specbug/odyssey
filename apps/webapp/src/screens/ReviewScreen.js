@@ -258,6 +258,7 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
                 {renderRich(card?.prompt || '', {
                   cloze: (card?.type === 'cloze' || hasCloze(card?.prompt || '')) ? 'reveal' : 'none',
                   revealed,
+                  activeIndex: card?.clozeIndex ?? 0,
                 })}
               </div>
 
@@ -272,7 +273,7 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
               }}>
                 {card?.type === 'cloze' || hasCloze(card?.prompt || '') ? (
                   <div className="mono" style={{ color: 'var(--accent-deep)', fontSize: 14 }}>
-                    — {extractAnswers(card?.prompt || '').join(' · ') || '—'}
+                    — {extractAnswers(card?.prompt || '')[card?.clozeIndex ?? 0] || '—'}
                   </div>
                 ) : (
                   <div

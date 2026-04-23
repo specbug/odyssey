@@ -106,10 +106,14 @@ function renderMath(value, kind, key) {
   }
 }
 
-function renderCloze(value, key, cloze, revealed) {
+// `isActive` is used during review: only the active blank is hidden until
+// revealed — the other blanks are shown with their answers so the grader can
+// focus on a single cloze at a time. (Each blank is its own StudyCard.)
+function renderCloze(value, key, cloze, revealed, isActive) {
   const word = value.slice(2, -2);
   if (cloze === 'reveal') {
-    return revealed ? (
+    const showAnswer = isActive ? revealed : true;
+    return showAnswer ? (
       <span key={key} style={{
         background: 'color-mix(in oklab, var(--accent) 18%, transparent)',
         padding: '0 6px',
@@ -148,13 +152,17 @@ function renderCloze(value, key, cloze, revealed) {
 /**
  * Render note content to React nodes.
  * @param {string} text
- * @param {{cloze?: 'none' | 'inline' | 'reveal', revealed?: boolean}} opts
+ * @param {{cloze?: 'none' | 'inline' | 'reveal', revealed?: boolean, activeIndex?: number}} opts
+ *   activeIndex picks which [[word]] blank is the target when cloze === 'reveal'.
+ *   Blanks before/after it are shown with their answer, so each cloze is
+ *   reviewed in isolation.
  */
 export function renderRich(text, opts = {}) {
   if (!text) return null;
-  const { cloze = 'none', revealed = false } = opts;
+  const { cloze = 'none', revealed = false, activeIndex = 0 } = opts;
   const tokens = tokenize(text);
   const nodes = [];
+  let clozeCounter = 0;
   tokens.forEach((t, i) => {
     const key = `r-${i}`;
     switch (t.type) {
@@ -178,9 +186,12 @@ export function renderRich(text, opts = {}) {
       case 'math_inline_paren':
         nodes.push(renderMath(t.value, t.type, key));
         return;
-      case 'cloze':
-        nodes.push(renderCloze(t.value, key, cloze, revealed));
+      case 'cloze': {
+        const isActive = clozeCounter === activeIndex;
+        clozeCounter += 1;
+        nodes.push(renderCloze(t.value, key, cloze, revealed, isActive));
         return;
+      }
       case 'image': {
         const uuid = t.value.slice(7, -1);
         nodes.push(

@@ -226,61 +226,84 @@ class SpacedRepetitionService:
             "generated_at": current_time,
         }
 
-    @staticmethod
-    def create_study_card(db: Session, annotation_id: int) -> StudyCard:
-        """Create a new study card from an annotation using FSRS.
+    # Matches the webapp's CLOZE_RE in apps/webapp/src/utils/cloze.js.
+    _CLOZE_RE = __import__("re").compile(r"\[\[([^\]]+)\]\]")
 
-        Exactly one StudyCard per Annotation. Multi-blank cloze prompts (annotations
-        containing multiple [[word]] marks) are graded as a single card; all blanks
-        reveal together in the review UI.
+    @staticmethod
+    def _cloze_count(annotation: Annotation) -> int:
+        """Number of cards an annotation should produce — one per [[word]] blank,
+        or 1 for non-cloze annotations."""
+        text = annotation.question or ""
+        return max(1, len(SpacedRepetitionService._CLOZE_RE.findall(text)))
+
+    @staticmethod
+    def create_study_card(db: Session, annotation_id: int) -> List[StudyCard]:
+        """Ensure one StudyCard exists per cloze blank on the annotation.
+
+        - Non-cloze annotation → one card at cloze_index=0.
+        - Annotation with N `[[word]]` marks → N cards at cloze_index=0..N-1.
+
+        Idempotent: calling again reuses existing cards and fills any missing
+        indices (e.g. after editing the annotation to add another blank).
         """
         annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
         if not annotation:
             raise ValueError(f"Annotation with ID {annotation_id} not found")
 
-        existing_card = (
+        target_count = SpacedRepetitionService._cloze_count(annotation)
+        existing = (
             db.query(StudyCard)
             .filter(StudyCard.annotation_id == annotation_id)
-            .first()
+            .all()
         )
-        if existing_card:
-            return existing_card
+        by_index = {c.cloze_index: c for c in existing}
 
-        fsrs_card = Card()
         now = datetime.utcnow()
+        created = False
+        for idx in range(target_count):
+            if idx in by_index:
+                continue
+            fsrs_card = Card()
+            try:
+                card = StudyCard(
+                    annotation_id=annotation_id,
+                    cloze_index=idx,
+                    difficulty=fsrs_card.difficulty,
+                    stability=fsrs_card.stability,
+                    elapsed_days=fsrs_card.elapsed_days,
+                    scheduled_days=fsrs_card.scheduled_days,
+                    reps=fsrs_card.reps,
+                    lapses=fsrs_card.lapses,
+                    state=fsrs_card.state.name,
+                    last_review=None,
+                    due=now,
+                )
+                db.add(card)
+                db.flush()
+                by_index[idx] = card
+                created = True
+            except Exception:
+                # Concurrent insert hit the (annotation_id, cloze_index) unique
+                # index — back off and pick up the other writer's row.
+                db.rollback()
+                race = (
+                    db.query(StudyCard)
+                    .filter(
+                        StudyCard.annotation_id == annotation_id,
+                        StudyCard.cloze_index == idx,
+                    )
+                    .first()
+                )
+                if race is None:
+                    raise
+                by_index[idx] = race
 
-        try:
-            study_card = StudyCard(
-                annotation_id=annotation_id,
-                difficulty=fsrs_card.difficulty,
-                stability=fsrs_card.stability,
-                elapsed_days=fsrs_card.elapsed_days,
-                scheduled_days=fsrs_card.scheduled_days,
-                reps=fsrs_card.reps,
-                lapses=fsrs_card.lapses,
-                state=fsrs_card.state.name,
-                last_review=None,
-                due=now,
-            )
-
-            db.add(study_card)
+        if created:
             db.commit()
-            db.refresh(study_card)
-            return study_card
+            for card in by_index.values():
+                db.refresh(card)
 
-        except Exception as e:
-            db.rollback()
-            # Another card may have been created concurrently (unique constraint).
-            existing_card = (
-                db.query(StudyCard)
-                .filter(StudyCard.annotation_id == annotation_id)
-                .first()
-            )
-            if existing_card:
-                return existing_card
-            raise ValueError(
-                f"Failed to create study card for annotation {annotation_id}: {str(e)}"
-            )
+        return [by_index[i] for i in range(target_count)]
 
     @staticmethod
     def compute_next_intervals(card: StudyCard) -> List[int]:

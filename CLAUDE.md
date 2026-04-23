@@ -44,7 +44,7 @@ and motion.
 Capabilities:
 - **PDF rendering**: react-pdf + react-window, per-page sticky-note rail
 - **Annotation**: selection → "Add note" bubble → inline capture drawer (cloze / recall / note)
-- **Cloze syntax**: `[[word]]` only; one `StudyCard` per annotation; multi-blank prompts reveal and grade together
+- **Cloze syntax**: `[[word]]` only; one `StudyCard` **per blank** — an annotation with N blanks produces N cards, each graded independently with the other blanks visible
 - **Review**: centered prompt, SPACE to reveal, 1–4 to grade, starburst tick progress
 - **LaTeX + images**: KaTeX via `utils/render.js`; images via `[image:UUID]` markers + `/images/*`
 - **Routing**: state-based, persisted in `localStorage` keys `odyssey:route` / `odyssey:docId`
@@ -143,17 +143,22 @@ All FSRS logic is centralized in `apps/api/app/spaced_repetition.py` via the `Sp
 ### Cloze Deletions
 
 Current syntax is **`[[word]]` only** — the old Anki `{{c1::...}}` has been
-retired. One `StudyCard` per annotation. A prompt with multiple `[[x]]` marks
-reveals and grades all blanks together in a single FSRS pass.
+retired. An annotation with N `[[x]]` marks produces N `StudyCard`s
+(`cloze_index = 0..N-1`), each on its own FSRS track. At review, only the
+target blank is hidden; the other blanks render with their answers visible,
+so the grader focuses on one cloze at a time.
 
 Parsing / rendering helpers live in `apps/webapp/src/utils/cloze.js`:
 - `hasCloze(text)` — detects any `[[...]]`
 - `extractAnswers(text)` — returns each answer in order
 - `renderClozeInline(text)` — HTML string, pill-shaped blanks with answer visible (used in StickyNote / NotesScreen previews)
-- `renderClozeReveal(text, revealed)` — JSX for ReviewScreen, blanks hidden until `revealed`
+- `renderClozeReveal(text, revealed)` — JSX variant; note ReviewScreen instead
+  uses `utils/render.js:renderRich(text, { cloze: 'reveal', revealed, activeIndex })`
+  so only the blank at `activeIndex` hides.
 
-Backend side of this is `app/spaced_repetition.py:create_study_card` — one
-call per annotation, no `cloze_index` parameter.
+Backend side is `app/spaced_repetition.py:create_study_card` — idempotent;
+returns a list of cards, one per blank. Topping up after an edit that adds a
+new `[[x]]` is safe to call again.
 
 ### Image Storage
 
@@ -173,7 +178,7 @@ PDF files are deduplicated using Blake3 hashing:
 
 Key relationships:
 - `PDFFile` 1→many `Annotation` (nullable `file_id` for standalone notes)
-- `Annotation` 1→1 `StudyCard` (unique on `annotation_id`; multi-`[[x]]` prompts share the one card)
+- `Annotation` 1→many `StudyCard` (one card per blank; unique on `(annotation_id, cloze_index)`)
 - `StudyCard` 1→many `CardReview`
 - `ReviewSession` 1→many `CardReview`
 - `Annotation` 1→many `Image` (via `[image:UUID]` references)

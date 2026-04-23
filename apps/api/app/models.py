@@ -93,16 +93,16 @@ class Image(Base):
 class StudyCard(Base):
     """A card that can be studied using FSRS spaced repetition.
 
-    Exactly one StudyCard per Annotation. For cloze annotations, the full prompt
-    (containing one or more [[word]] marks) is graded in a single reveal/rating pass.
-    When an annotation is deleted, its study card is automatically deleted (CASCADE).
-
-    Uses FSRS (Free Spaced Repetition Scheduler) algorithm for optimal scheduling.
+    One StudyCard per cloze blank: an annotation containing N `[[word]]` marks
+    produces N cards (cloze_index = 0..N-1). Non-cloze annotations get exactly
+    one card with cloze_index = 0. At review, the target blank is hidden and
+    the other blanks are shown, so each cloze is graded on its own FSRS track.
+    CASCADE on delete — removing the annotation removes all of its cards.
     """
 
     __tablename__ = "study_cards"
     __table_args__ = (
-        UniqueConstraint('annotation_id', name='uq_study_card_annotation'),
+        UniqueConstraint('annotation_id', 'cloze_index', name='uq_study_card_annotation_cloze'),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -112,6 +112,9 @@ class StudyCard(Base):
         nullable=False,
         index=True,
     )
+    # 0-indexed position of the [[word]] this card targets within the annotation.
+    # Always 0 for non-cloze annotations.
+    cloze_index = Column(Integer, nullable=False, default=0)
 
     # FSRS Algorithm fields
     difficulty = Column(Float, default=0.0)  # FSRS difficulty parameter (0-10)
