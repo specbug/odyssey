@@ -184,3 +184,23 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [contentedita
   outline: 2px solid color-mix(in oklab, var(--accent) 50%, transparent);
   outline-offset: 2px;
 }
+
+/* Review → Open source one-shot pulse on the landing highlight. Outline is
+   used instead of box-shadow because the highlight rect has
+   `mix-blend-mode: multiply` — shadows would render muddy through it, but
+   outline ignores the blend context. Animation curve + duration follow the
+   "ceremonial" slot in DESIGN.md §5. */
+@keyframes odyssey-focus-pulse {
+  0%   { outline-width: 0px; outline-color: color-mix(in oklab, var(--accent) 80%, transparent); }
+  40%  { outline-width: 4px; outline-color: color-mix(in oklab, var(--accent) 55%, transparent); }
+  100% { outline-width: 0px; outline-color: color-mix(in oklab, var(--accent) 0%,  transparent); }
+}
+.highlight-focus-pulse {
+  outline-style: solid;
+  outline-offset: 2px;
+  outline-width: 0;
+  animation: odyssey-focus-pulse 520ms cubic-bezier(.2,.7,.2,1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .highlight-focus-pulse { animation: none; outline: none; }
+}

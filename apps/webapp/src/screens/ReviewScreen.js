@@ -7,8 +7,9 @@ import Starburst from '../components/Starburst';
 import { Ic } from '../components/Icons';
 
 // The ritual. Centered prompt, starburst progress on the left, reveal on SPACE,
-// grade 1–4. Cloze prompts reveal all [[x]] blanks together.
-export default function ReviewScreen({ fileId, onExit }) {
+// grade 1–4. Cloze prompts reveal all [[x]] blanks together. `O` jumps to the
+// source passage in the PDF (when the card is anchored to one).
+export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [queue, setQueue] = useState([]);
@@ -55,6 +56,27 @@ export default function ReviewScreen({ fileId, onExit }) {
   const card = queue[idx];
   const done = total === 0 || (idx >= total - 1 && answered[total - 1] != null);
 
+  // A card can jump to its source only when it has both a file and a page —
+  // standalone notes have neither. The raw annotation sits on `card.raw` via
+  // the adapter (see data/adapters.js:toQueueCard).
+  const annPageIndex = card?.raw?.annotation?.page_index;
+  const canJump = card != null
+    && card.source != null
+    && annPageIndex != null
+    && typeof onJumpToSource === 'function';
+
+  // Jump to the source PDF page + briefly pulse the landing highlight. Ends
+  // the review session explicitly (idempotent via endedRef) so the backend
+  // doesn't leave an open session behind when the ReviewScreen unmounts.
+  const handleJump = useCallback(() => {
+    if (!canJump || leaving) return;
+    if (sessionId && !endedRef.current) {
+      endedRef.current = true;
+      apiService.endSession(sessionId).catch(() => {});
+    }
+    onJumpToSource(card.source, card.annotationId);
+  }, [canJump, leaving, sessionId, onJumpToSource, card]);
+
   // End session once on DoneView
   useEffect(() => {
     if (done && sessionId && !endedRef.current) {
@@ -91,6 +113,20 @@ export default function ReviewScreen({ fileId, onExit }) {
   // Keyboard
   useEffect(() => {
     const onKey = (e) => {
+      // Respect form controls if any ever mount on this screen — today there
+      // are none, but keep the guard so new surfaces don't steal typed keys.
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+      // `O` → jump to source (pre-reveal OR post-reveal, for power users).
+      // `e.code` fallback guards against non-US keyboard layouts where the
+      // lowercase/uppercase `O` produced by `e.key` can vary.
+      if (e.key === 'o' || e.key === 'O' || e.code === 'KeyO') {
+        if (canJump) {
+          e.preventDefault();
+          handleJump();
+        }
+        return;
+      }
       if (e.code === 'Space') {
         e.preventDefault();
         if (!revealed) setRevealed(true);
@@ -106,7 +142,7 @@ export default function ReviewScreen({ fileId, onExit }) {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [revealed, grade, onExit]);
+  }, [revealed, grade, onExit, canJump, handleJump]);
 
   // Progress starburst prompts
   const progressPrompts = useMemo(() => queue.map((c, i) => ({
@@ -275,6 +311,21 @@ export default function ReviewScreen({ fileId, onExit }) {
                     </button>
                   ))}
                 </div>
+
+                {canJump && (
+                  <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      className="btn ghost xs"
+                      onClick={handleJump}
+                      style={{ color: 'var(--ink-3)' }}
+                      aria-label={`Open source PDF at page ${annPageIndex + 1}`}
+                    >
+                      <span className="mono-sm">Open source · p.{annPageIndex + 1}</span>
+                      <Ic.Right/>
+                      <span className="mono-sm" style={{ color: 'var(--ink-4)', marginLeft: 8 }}>O</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {!revealed && (

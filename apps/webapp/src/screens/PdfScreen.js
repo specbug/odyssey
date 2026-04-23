@@ -1,6 +1,5 @@
 import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import { VariableSizeList as List } from 'react-window';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'katex/dist/katex.min.css';
@@ -14,7 +13,29 @@ import { Ic } from '../components/Icons';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL || ''}/pdf.worker.min.mjs`;
 
+// US Letter height at 72pt/in = 11 × 72 = 792pt. Used as the placeholder-
+// height fallback only during the microtask between Document load and
+// pdf.js returning page 1's real viewport. PDFs may actually be A4 (842pt)
+// or something else — the goal isn't pixel-accuracy for this window, just
+// "close enough to a real page so a single frame of wrong layout doesn't
+// shove the scroller around visibly."
+const DEFAULT_PAGE_HEIGHT_PT = 792;
+// 24px inter-page gap — matches padding-bottom on .page-and-notes-container.
+const PAGE_GAP_PX = 24;
+
 const MemoizedPage = memo(Page);
+
+// Stable callback for react-pdf's text-layer renderer. Kept at module scope so
+// the reference doesn't change across PageRenderer renders — an inline arrow
+// here would invalidate MemoizedPage's props on every scroll tick, which was
+// causing react-pdf to re-mount canvases during scroll and the fade-in to
+// replay (visible as a continuous "refresh" feel while scrolling).
+const escapeTextLayer = (text) => text.str.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+// Shared empty array for PageRenderer's `pageNotes` prop when a page has no
+// notes. Using a constant reference means pages without notes never see a
+// prop-reference change just because the parent re-rendered.
+const EMPTY_NOTES = Object.freeze([]);
 
 // ──────────────────────────────────────────────────────────────────
 // Text-anchor + normalized-coords fallback chain
@@ -44,15 +65,56 @@ function parsePositionData(ann) {
   };
 }
 
+// Resolve a highlight's rects in normalized page coordinates (0..1). Prefers
+// server-stored normalized_rects; falls back to dividing legacy pixel_rects
+// by the mounted page's measured size. Returns [] when neither format
+// produces a usable rect so the sticky-rail gracefully treats the highlight
+// as "not yet placed" rather than snapping to (0,0).
+//
+// `pageSize` is an optional pre-computed `{ width, height }` — callers that
+// loop over multiple highlights on the same page should pass it in so we
+// measure the page exactly once per render pass.
+//
+// Accepts both legacy `{top,left,width,height}` and modern `{x,y,width,height}`.
+// Malformed rects (missing or non-finite size) are skipped per-rect.
+function resolveRectsFromPage(h, pageElOrSize) {
+  if (h.normalizedRects?.length) return h.normalizedRects;
+  if (!h.pixelRectsFallback?.length || !pageElOrSize) return [];
+  let width, height;
+  if (typeof pageElOrSize.getBoundingClientRect === 'function') {
+    const r = pageElOrSize.getBoundingClientRect();
+    width = r.width; height = r.height;
+  } else {
+    width = pageElOrSize.width; height = pageElOrSize.height;
+  }
+  if (!Number.isFinite(width) || !Number.isFinite(height) || width < 10 || height < 10) return [];
+  const out = [];
+  for (const r of h.pixelRectsFallback) {
+    const left = Number.isFinite(r?.left) ? r.left : (Number.isFinite(r?.x) ? r.x : null);
+    const top = Number.isFinite(r?.top) ? r.top : (Number.isFinite(r?.y) ? r.y : null);
+    const w = Number.isFinite(r?.width) ? r.width : null;
+    const hh = Number.isFinite(r?.height) ? r.height : null;
+    if (left == null || top == null || w == null || hh == null) continue;
+    if (w <= 0 || hh <= 0) continue;
+    out.push({
+      x: left / width,
+      y: top / height,
+      width: w / width,
+      height: hh / height,
+    });
+  }
+  return out;
+}
+
 // ──────────────────────────────────────────────────────────────────
 // PageRenderer — one page + its right-column sticky notes
 // ──────────────────────────────────────────────────────────────────
 
 const PageRenderer = memo(function PageRenderer({
-  index, style, scale,
+  index, scale,
   highlights, pendingHighlight, pageNotes,
-  activeHighlightId, drawerState,
-  onPageRenderSuccess, onHighlightClick, onOpenNote, noteRefs,
+  activeHighlightId, focusPulseId, drawerState,
+  onPageRenderSuccess, onHighlightClick, onOpenNote, onPulseEnd, noteRefs,
 }) {
   // Highlights for this specific page, with a helper to get the top-of-first-
   // rect as a fraction of page height (used below to anchor stickies).
@@ -61,19 +123,9 @@ const PageRenderer = memo(function PageRenderer({
     [highlights, index]
   );
 
-  // Sort notes by their highlight's first rect top (normalized 0..1) so they
-  // flow down the rail in the same order as the highlights on the page.
-  const sortedNotes = useMemo(() => {
-    const topOf = (id) => {
-      const hl = pageHighlights.find((h) => h.id === id);
-      return hl?.normalizedRects?.[0]?.y ?? 0;
-    };
-    return [...pageNotes].sort((a, b) => topOf(a.id) - topOf(b.id));
-  }, [pageNotes, pageHighlights]);
-
-  // Anchor each sticky next to its highlight's vertical position. Positions
-  // are computed in pixels from the mounted page's measured height, and
-  // stacked so overlapping highlights don't produce overlapping stickies.
+  // Refs / state need to exist before `sortedNotes` reads them via
+  // resolveRectsFromPage (which consults the mounted `<Page>` element to
+  // normalize legacy pixel_rects).
   const noteElRefs = React.useRef({});
   const pageWrapperRef = React.useRef(null);
   const [notePositions, setNotePositions] = React.useState({});
@@ -82,6 +134,36 @@ const PageRenderer = memo(function PageRenderer({
   // runs against a 0-height page (canvas hasn't drawn yet) and stickies pin
   // to the column's top.
   const [renderTick, setRenderTick] = React.useState(0);
+
+  // Sort notes by their highlight's first rect top (normalized 0..1) so they
+  // flow down the rail in the same order as the highlights on the page.
+  // For modern highlights we skip the DOM read entirely — `normalizedRects[0].y`
+  // is already a page-relative fraction. Only legacy pixel_rects-only
+  // highlights need a `getBoundingClientRect` read, and those are rare. The
+  // `renderTick` dep keeps the sort fresh for legacy pages once the canvas
+  // paints; for modern pages the memo is effectively deps-[pageNotes,
+  // pageHighlights] and won't re-run on scroll.
+  const sortedNotes = useMemo(() => {
+    let pageSize = null;
+    const topOf = (id) => {
+      const hl = pageHighlights.find((h) => h.id === id);
+      if (!hl) return 0;
+      if (hl.normalizedRects?.length) return hl.normalizedRects[0]?.y ?? 0;
+      // Lazy page-size read — only for legacy highlights.
+      if (pageSize === null) {
+        const pageEl = pageWrapperRef.current?.querySelector('.react-pdf__Page');
+        if (pageEl) {
+          const { width, height } = pageEl.getBoundingClientRect();
+          pageSize = { width, height };
+        } else {
+          pageSize = { width: 0, height: 0 };
+        }
+      }
+      return resolveRectsFromPage(hl, pageSize)[0]?.y ?? 0;
+    };
+    return [...pageNotes].sort((a, b) => topOf(a.id) - topOf(b.id));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageNotes, pageHighlights, renderTick]);
 
   const handleLocalPageRender = useCallback((page) => {
     setRenderTick((t) => t + 1);
@@ -97,7 +179,8 @@ const PageRenderer = memo(function PageRenderer({
     let lastBottom = 0;
     sortedNotes.forEach((note) => {
       const hl = pageHighlights.find((h) => h.id === note.id);
-      const topFrac = hl?.normalizedRects?.[0]?.y;
+      if (!hl) return;
+      const topFrac = resolveRectsFromPage(hl, pageEl)[0]?.y;
       if (topFrac == null) return;
       const el = noteElRefs.current[note.id];
       const noteHeight = el?.offsetHeight || 80;
@@ -118,70 +201,125 @@ const PageRenderer = memo(function PageRenderer({
   const drawerHere = drawerState && drawerState.pageIndex === index;
 
   return (
-    <div style={style} className="page-and-notes-container">
+    // Normal block flow. No virtualizer, no absolute positioning — the stack
+    // of pages is just a long document. This means `margin: 0 auto` on the
+    // inner container centers naturally. `data-page-row` lets the scroll
+    // handler + restore path find this row by index via DOM query.
+    <div data-page-row={index}>
+      <div className="page-and-notes-container">
       <div className="page-wrapper" ref={pageWrapperRef}>
+        {/* Page is rendered with *no children*. Putting overlays as children
+            caused Page to re-render on every scroll tick (react-window hands
+            PageRenderer a fresh `style` object per tick → PageRenderer
+            re-renders → inline JSX children are fresh refs → memo(Page) skip
+            fails → Page re-renders and its text-layer rebuilds → visible as
+            a flicker on scroll). Making Page childless keeps its memo intact
+            so scrolling touches nothing inside it. */}
         <MemoizedPage
           pageNumber={index + 1}
           scale={scale}
           renderAnnotationLayer
           renderTextLayer
           onRenderSuccess={handleLocalPageRender}
-          customTextRenderer={(text) => text.str.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
-        >
-          {pageHighlights.map((h) => (
-            <React.Fragment key={h.id}>
-              {(h.normalizedRects || []).map((rect, i) => {
-                const isActive = h.id === activeHighlightId;
-                const hasNote = !!h.noteBackendId;
-                // Percentage positioning against .react-pdf__Page (which is
-                // position:relative). Survives zoom and virtualization — no
-                // per-mount re-measurement required.
-                return (
-                  <div
-                    key={i}
-                    onClick={(e) => { e.stopPropagation(); onHighlightClick(h.id); }}
-                    data-annotation-id={h.id}
-                    style={{
-                      position: 'absolute',
-                      top: `${rect.y * 100}%`,
-                      left: `${rect.x * 100}%`,
-                      width: `${rect.width * 100}%`,
-                      height: `${rect.height * 100}%`,
-                      cursor: 'pointer',
-                      // pdf.js stamps z-index: 2 on its .textLayer, which puts
-                      // our click target under the text spans. Sit explicitly
-                      // above so real mouse clicks reach the handler.
-                      zIndex: 3,
-                      background: isActive
-                        ? 'color-mix(in oklab, var(--accent) 45%, transparent)'
-                        : hasNote
-                          ? 'color-mix(in oklab, var(--accent) 28%, transparent)'
-                          : 'color-mix(in oklab, var(--accent) 18%, transparent)',
-                      boxShadow: hasNote ? 'inset 0 -2px 0 color-mix(in oklab, var(--accent) 60%, transparent)' : 'none',
-                      transition: 'background 240ms, box-shadow 240ms',
-                      mixBlendMode: 'multiply',
-                    }}
-                  />
-                );
-              })}
-            </React.Fragment>
-          ))}
-          {pendingHighlight && pendingHighlight.pageIndex === index &&
-            pendingHighlight.rects.map((rect, i) => (
-              <div
-                key={i}
-                style={{
-                  position: 'absolute',
-                  top: `${rect.top}px`,
-                  left: `${rect.left}px`,
-                  width: `${rect.width}px`,
-                  height: `${rect.height}px`,
-                  background: 'color-mix(in oklab, var(--accent) 35%, transparent)',
-                  mixBlendMode: 'multiply',
-                }}
-              />
-            ))}
-        </MemoizedPage>
+          customTextRenderer={escapeTextLayer}
+        />
+
+        {/* Highlight overlay — sibling of Page. page-wrapper has
+            `position: relative` (see styles/pdf.css) and is sized by its
+            content (the Page), so percentage positioning here resolves to
+            the same box as if the overlay lived inside Page. */}
+        {(() => {
+          // Skip the DOM read entirely on pages where every highlight has
+          // modern normalized_rects — getBoundingClientRect is a forced
+          // layout read, and doing it on every scroll tick for every visible
+          // page would churn layout. Only measure the page when at least
+          // one highlight actually needs the legacy pixel_rects → normalized
+          // fallback.
+          const needsPageSize = pageHighlights.some((h) => !h.normalizedRects?.length && h.pixelRectsFallback?.length);
+          let pageSize = null;
+          if (needsPageSize) {
+            const pageEl = pageWrapperRef.current?.querySelector('.react-pdf__Page');
+            if (pageEl) {
+              const { width, height } = pageEl.getBoundingClientRect();
+              pageSize = { width, height };
+            }
+          }
+          return pageHighlights.map((h) => {
+            const rects = resolveRectsFromPage(h, pageSize);
+            return (
+              <React.Fragment key={h.id}>
+                {rects.map((rect, i) => {
+                  const isActive = h.id === activeHighlightId;
+                  const hasNote = !!h.noteBackendId;
+                  const isPulsing = h.id === focusPulseId;
+                  // Marginalia-style mark: a thin accent underline reads as
+                  // "a note lives here", with a gentle fill only when the
+                  // highlight is the user's active focus. Keeps the accent
+                  // rare per DESIGN.md §3 — the page reads as a page, not a
+                  // UI state.
+                  return (
+                    <div
+                      key={i}
+                      onClick={(e) => { e.stopPropagation(); onHighlightClick(h.id); }}
+                      data-annotation-id={h.id}
+                      className={isPulsing ? 'highlight-focus-pulse' : undefined}
+                      onAnimationEnd={isPulsing ? (e) => {
+                        // Clear the pulse state when the CSS animation finishes
+                        // playing. Earlier we used a fixed 1200ms timer, which
+                        // raced with slow page paints — if the rect appeared
+                        // after the timer fired, the class never attached.
+                        // Animation-end is paint-synchronized, so it fires
+                        // exactly when the pulse is done regardless of when
+                        // the rect actually painted.
+                        if (e.animationName === 'odyssey-focus-pulse') onPulseEnd?.(h.id);
+                      } : undefined}
+                      style={{
+                        position: 'absolute',
+                        top: `${rect.y * 100}%`,
+                        left: `${rect.x * 100}%`,
+                        width: `${rect.width * 100}%`,
+                        height: `${rect.height * 100}%`,
+                        cursor: 'pointer',
+                        // pdf.js stamps z-index: 2 on its .textLayer; sit
+                        // above so clicks reach this handler rather than
+                        // getting swallowed by the text spans.
+                        zIndex: 3,
+                        background: isActive
+                          ? 'color-mix(in oklab, var(--accent) 18%, transparent)'
+                          : hasNote
+                            ? 'color-mix(in oklab, var(--accent) 7%, transparent)'
+                            : 'color-mix(in oklab, var(--accent) 10%, transparent)',
+                        boxShadow: hasNote
+                          ? isActive
+                            ? 'inset 0 -2px 0 color-mix(in oklab, var(--accent) 78%, transparent)'
+                            : 'inset 0 -1px 0 color-mix(in oklab, var(--accent) 45%, transparent)'
+                          : 'none',
+                        transition: 'background 220ms cubic-bezier(.2,.7,.2,1), box-shadow 220ms cubic-bezier(.2,.7,.2,1)',
+                        mixBlendMode: 'multiply',
+                      }}
+                    />
+                  );
+                })}
+              </React.Fragment>
+            );
+          });
+        })()}
+
+        {pendingHighlight && pendingHighlight.pageIndex === index && pendingHighlight.rects.map((rect, i) => (
+          <div
+            key={i}
+            style={{
+              position: 'absolute',
+              top: `${rect.top}px`,
+              left: `${rect.left}px`,
+              width: `${rect.width}px`,
+              height: `${rect.height}px`,
+              background: 'color-mix(in oklab, var(--accent) 35%, transparent)',
+              mixBlendMode: 'multiply',
+              zIndex: 3,
+            }}
+          />
+        ))}
       </div>
 
       <div className="notes-column">
@@ -222,17 +360,76 @@ const PageRenderer = memo(function PageRenderer({
           );
         })}
       </div>
+      </div>
     </div>
   );
+});
+
+// ──────────────────────────────────────────────────────────────────
+// LazyPageRow — "mount once, never unmount" wrapper around PageRenderer
+//
+// The user's requirement was a book-reader feel: zero re-renders during
+// normal scroll. Virtualization (react-window) unmounted pages beyond
+// overscan, so scrolling back to them triggered a fresh canvas paint —
+// visible as the "refresh" the user complained about. We removed the
+// virtualizer entirely and replaced it with this: every page has a
+// placeholder reserving its estimated height immediately, and an
+// IntersectionObserver mounts the real PageRenderer content the first
+// time the placeholder comes within 1500px of the viewport. Once
+// mounted, we never unmount — the page's canvas lives for the rest of
+// the session, so scrolling back to it is instant.
+//
+// Memory cost: ~3–5MB per rendered page canvas. A reader working
+// through a 50-page chapter uses ~150–250MB; on a modern browser this
+// is a non-issue. Very long documents (300+ pages, fully read) could
+// push 1GB+ — if that becomes a real problem we can add an LRU cap
+// later (unmount pages 100+ pages away from current).
+// ──────────────────────────────────────────────────────────────────
+
+const LazyPageRow = memo(function LazyPageRow({ index, estimatedHeight, ...pageRendererProps }) {
+  const [mounted, setMounted] = useState(false);
+  const placeholderRef = useRef(null);
+
+  useEffect(() => {
+    if (mounted) return;
+    const el = placeholderRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setMounted(true);
+          observer.disconnect();
+        }
+      },
+      // 1500px lead on each side. On a 900-tall viewport that's ~1.5
+      // pages of prefetch in both directions. Pages finish painting
+      // well before the user's eyes reach them, even on fast scrolls.
+      { rootMargin: '1500px 0px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [mounted]);
+
+  if (!mounted) {
+    return (
+      <div
+        ref={placeholderRef}
+        data-page-row={index}
+        data-page-placeholder={index}
+        style={{ height: estimatedHeight }}
+      />
+    );
+  }
+
+  return <PageRenderer index={index} {...pageRendererProps} />;
 });
 
 // ──────────────────────────────────────────────────────────────────
 // DrawerFloater
 // Positions its child absolute-fixed on screen, tracking the target page's
 // current viewport rect. Rendering the drawer here (instead of inside
-// PageRenderer) keeps it mounted across react-window row recycling — so typed
-// text persists through annotation reloads, page-height measurements, and
-// index reshuffles.
+// PageRenderer) keeps it mounted across page re-layouts so typed text
+// persists through annotation reloads and height measurements.
 // ──────────────────────────────────────────────────────────────────
 
 function DrawerFloater({ drawer, children }) {
@@ -302,7 +499,7 @@ function DrawerFloater({ drawer, children }) {
 // PdfScreen
 // ──────────────────────────────────────────────────────────────────
 
-export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExit, onStartReview }) {
+export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit', onConsumedTarget, onExit, onStartReview }) {
   const [fileBlob, setFileBlob] = useState(null);
   const [fileMetadata, setFileMetadata] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -311,6 +508,17 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
   const [notes, setNotes] = useState([]);
   const [pendingHighlight, setPendingHighlight] = useState(null);
   const [activeHighlightId, setActiveHighlightId] = useState(null);
+  // When set, the matching highlight renders with `.highlight-focus-pulse`
+  // — a one-shot outline pulse to tell the user "this is where you came
+  // from." Cleared automatically after the animation settles.
+  const [focusPulseId, setFocusPulseId] = useState(null);
+  // Page 1's height at scale 1.0 (the PDF's intrinsic height). Fetched
+  // once via `pdf.getPage(1).getViewport({scale: 1})` in onDocLoad — this
+  // means we know accurate placeholder heights *before* any canvas is
+  // painted, so the initial layout is correct and read-position restore
+  // lands on the right page. Falls back to onPageRenderSuccess if the
+  // viewport fetch fails.
+  const [baseHeight, setBaseHeight] = useState(null);
   const [drawer, setDrawer] = useState(null); // null | {kind:'new', pageIndex, seedText, rects, normalizedRects, textAnchor, highlightedText} | {kind:'edit', pageIndex, noteId, initial}
   const [dueCount, setDueCount] = useState(0);
   const [error, setError] = useState(null);
@@ -321,13 +529,31 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
   // mid-read.
   const chromeVisible = true;
 
-  const listRef = useRef(null);
+  const scrollerRef = useRef(null);
   const viewerRef = useRef(null);
   const pageHeights = useRef({});
   const noteRefs = useRef({});
   const lastScrollY = useRef(0);
   const savePosTimer = useRef(null);
   const consumedTargetRef = useRef(false);
+  // If the user had a saved `last_read_position > 0`, we hold it here
+  // until page 1 has painted so the scroll math uses a real height
+  // estimate (not the wild-guess fallback).
+  const pendingRestoreRef = useRef(null);
+
+  // Scroll to a given page index via DOM — each row carries its index in
+  // `data-page-row={i}`, and the browser already knows where each element
+  // sits in the scroller. No per-page height arithmetic (which drifts
+  // with bad estimates); we just point at the element and let the native
+  // scrollIntoView land on it.
+  const scrollToPageIndex = useCallback((idx, align = 'start') => {
+    const scroller = scrollerRef.current;
+    if (!scroller || !Number.isFinite(idx) || idx < 0) return;
+    const row = scroller.querySelector(`[data-page-row="${idx}"]`);
+    if (!row) return;
+    const block = align === 'center' ? 'center' : align === 'end' ? 'end' : 'start';
+    row.scrollIntoView({ block, behavior: 'auto' });
+  }, []);
 
   const doc = useMemo(() => (fileMetadata ? toLibraryDoc(fileMetadata) : null), [fileMetadata]);
 
@@ -364,21 +590,53 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
 
   useEffect(() => { refreshDue(); }, [refreshDue, notes.length]);
 
-  // Document loaded
-  const onDocLoad = useCallback(({ numPages: np }) => {
+  // Document loaded. In addition to wiring numPages, we fetch page 1's
+  // intrinsic dimensions (scale=1.0) synchronously with pdf.js so every
+  // placeholder row reserves the correct height on its first render.
+  // Without this, every placeholder would fall back to DEFAULT_PAGE_HEIGHT_PT
+  // (US Letter), which is off by hundreds of pixels for A4/Crown/etc, and
+  // the scroll column would be the wrong length — which makes read-position restore
+  // land on the wrong page and the current-page counter read wrong too.
+  //
+  // The saved read position is held in `pendingRestoreRef` and executed
+  // once `baseHeight` is in state (see useEffect below), so we scroll
+  // only after the accurate estimate propagates to placeholders.
+  const onDocLoad = useCallback(async (pdf) => {
+    const np = pdf.numPages;
     setNumPages(np);
-    // Persist page count if new
     if (fileMetadata && np !== fileMetadata.total_pages) {
       apiService.updateTotalPages(docId, np).catch(() => {});
     }
-    // Restore scroll position after a tick
-    setTimeout(() => {
-      const saved = fileMetadata?.last_read_position || 0;
-      if (listRef.current && saved > 0 && saved < np) {
-        listRef.current.scrollToItem(saved, 'start');
-      }
-    }, 50);
-  }, [docId, fileMetadata]);
+    try {
+      const page1 = await pdf.getPage(1);
+      const vp = page1.getViewport({ scale: 1.0 });
+      setBaseHeight(vp.height);
+    } catch {
+      // fall through — page-1 paint in onPageRenderSuccess will set baseHeight
+    }
+    // Only restore last-read position when the user isn't being routed to
+    // a specific note (NotesScreen deep-link or Review → Open source).
+    // Otherwise the restore scroll would race against the note-focus scroll
+    // and sometimes win, stranding the user on the wrong page.
+    const saved = fileMetadata?.last_read_position || 0;
+    if (saved > 0 && saved < np && targetNoteId == null) {
+      pendingRestoreRef.current = saved;
+    }
+  }, [docId, fileMetadata, targetNoteId]);
+
+  // Execute pending read-position restore once baseHeight is set (so
+  // placeholder heights are accurate) and the target row is in the DOM.
+  useEffect(() => {
+    if (baseHeight == null) return;
+    const target = pendingRestoreRef.current;
+    if (target == null) return;
+    pendingRestoreRef.current = null;
+    // One frame for placeholders to re-render at the new estimate.
+    requestAnimationFrame(() => {
+      const row = scrollerRef.current?.querySelector(`[data-page-row="${target}"]`);
+      if (row) row.scrollIntoView({ block: 'start', behavior: 'auto' });
+    });
+  }, [baseHeight]);
 
   // Load annotations once the doc + metadata are ready. We store raw parsed
   // position data on each highlight; PageRenderer resolves to actual pixel
@@ -435,26 +693,32 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
     return () => clearTimeout(t);
   }, [scale, fileMetadata?.id]);
 
-  // Page height estimate + react-window itemSize
-  const getPageHeight = useCallback((i) => pageHeights.current[i] || 1188 * scale, [scale]);
+  // Per-page height. Painted pages use their measured height; unpainted
+  // ones use baseHeight (page 1's intrinsic height at scale 1.0) × current
+  // scale. DEFAULT_PAGE_HEIGHT_PT is the tiny-window fallback — see the
+  // comment where that constant is declared.
+  const getPageHeight = useCallback((i) => {
+    const cached = pageHeights.current[i];
+    if (cached != null) return cached;
+    const basePt = baseHeight ?? DEFAULT_PAGE_HEIGHT_PT;
+    return Math.round(basePt * scale) + PAGE_GAP_PX;
+  }, [scale, baseHeight]);
 
-  // When a page finishes rendering, cache its measured height and re-measure
-  // the list from that index onward — but only if the height actually changed.
-  //
-  // Bug this fixes: the old code read `page._pageIndex`, a private field that
-  // is undefined in current react-pdf. `resetAfterIndex(undefined)` rebuilt
-  // the entire offset cache on every page render success, which caused a
-  // continuous layout churn every time a page re-rendered.
+  // When a page finishes rendering, cache its measured height. Also fill
+  // in baseHeight from page 1 if onDocLoad's getViewport read failed.
   const onPageRenderSuccess = useCallback((page) => {
     const pageNumber = page?.pageNumber;
     if (!pageNumber) return;
     const idx = pageNumber - 1;
-    const h = Math.round(page.height) + 24;
+    const h = Math.round(page.height) + PAGE_GAP_PX;
     if (pageHeights.current[idx] !== h) {
       pageHeights.current[idx] = h;
-      listRef.current?.resetAfterIndex(idx, false);
     }
-  }, []);
+    if (idx === 0 && baseHeight == null) {
+      // page.height is at current scale; store the scale=1 equivalent.
+      setBaseHeight(page.height / scale);
+    }
+  }, [baseHeight, scale]);
 
   // Text selection — produces the pending highlight + add-note bubble
   const onViewerMouseUp = useCallback(() => {
@@ -627,6 +891,13 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
     setActiveHighlightId((prev) => (prev === id ? null : id));
   }, []);
 
+  // Fires when the CSS pulse animation ends — clear focusPulseId so the
+  // class detaches and the rect is eligible to be pulsed again if the
+  // user jumps to it a second time.
+  const handlePulseEnd = useCallback((id) => {
+    setFocusPulseId((prev) => (prev === id ? null : prev));
+  }, []);
+
   // Click the sticky: open the capture drawer in edit mode.
   const handleOpenNote = useCallback((note) => {
     setActiveHighlightId(note.id);
@@ -644,30 +915,54 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
     });
   }, []);
 
-  // Target-note deep link from NotesScreen
+  // Target-note deep link — branches on mode:
+  //   `edit`  (default, from NotesScreen row click) opens the capture drawer.
+  //   `focus` (from Review → Open source) scrolls the page into view and
+  //           emphasizes the highlight with a one-shot pulse, no drawer.
   useEffect(() => {
     if (!targetNoteId || consumedTargetRef.current) return;
     if (!notes.length) return;
     const note = notes.find((n) => n.backendId === targetNoteId || n.id === String(targetNoteId));
     if (!note) return;
     consumedTargetRef.current = true;
-    // Scroll to that page
+
+    if (targetNoteMode === 'focus') {
+      setTimeout(() => {
+        if (note.pageIndex != null) {
+          scrollToPageIndex(note.pageIndex, 'center');
+        }
+        setActiveHighlightId(note.id);
+        setFocusPulseId(note.id);
+        // NOTE: we don't clear focusPulseId on a timer any more. The CSS
+        // animation runs once (520ms) when the class first attaches to
+        // the rect and settles naturally; leaving focusPulseId set doesn't
+        // cause the rect to keep pulsing. Clearing it on a fixed timer
+        // caused a race: if the target page's canvas painted slowly (which
+        // happens on first load of a doc with many annotations), the rect
+        // didn't render until *after* focusPulseId was cleared, and the
+        // pulse class never attached at all.
+        onConsumedTarget?.();
+      }, 80);
+      return;
+    }
+
     setTimeout(() => {
-      if (listRef.current && note.pageIndex != null) {
-        listRef.current.scrollToItem(note.pageIndex, 'start');
+      if (note.pageIndex != null) {
+        scrollToPageIndex(note.pageIndex, 'start');
       }
       // Deep-link from NotesScreen opens the note for edit.
       handleOpenNote(note);
       onConsumedTarget?.();
     }, 80);
-  }, [targetNoteId, notes, handleOpenNote, onConsumedTarget]);
+  }, [targetNoteId, targetNoteMode, notes, handleOpenNote, onConsumedTarget, scrollToPageIndex]);
 
-  // Scroll handling. Chrome is always visible now; this handler only tracks
-  // the current page index and debounces a read-position save.
-  const handleListScroll = useCallback(({ scrollOffset }) => {
+  // Native scroll handler on the scroller div. Tracks current page index
+  // from pageHeights and debounces a read-position save. No react-window
+  // machinery to coordinate with — just the real scrollTop of the real div.
+  const onScrollerScroll = useCallback((e) => {
+    const scrollOffset = e.currentTarget.scrollTop;
     lastScrollY.current = scrollOffset;
 
-    // current page from pageHeights accumulation
     let cum = 0, idx = 0;
     for (let i = 0; i < numPages; i++) {
       const h = getPageHeight(i);
@@ -700,13 +995,13 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
         else if (pendingHighlight) setPendingHighlight(null);
         else onExit();
       }
-      if (e.key === 'ArrowRight' && listRef.current && numPages) {
+      if (e.key === 'ArrowRight' && numPages) {
         const next = Math.min(numPages - 1, currentPage);
-        listRef.current.scrollToItem(next, 'start');
+        scrollToPageIndex(next, 'start');
       }
-      if (e.key === 'ArrowLeft' && listRef.current) {
+      if (e.key === 'ArrowLeft') {
         const prev = Math.max(0, currentPage - 2);
-        listRef.current.scrollToItem(prev, 'start');
+        scrollToPageIndex(prev, 'start');
       }
       if ((e.metaKey || e.ctrlKey) && (e.key === '+' || e.key === '=')) {
         e.preventDefault();
@@ -780,7 +1075,7 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--paper)', border: '1px solid var(--rule)', padding: '6px 10px', borderRadius: 'var(--rad)' }}>
             <button
               className="btn ghost xs"
-              onClick={() => listRef.current?.scrollToItem(Math.max(0, currentPage - 2), 'start')}
+              onClick={() => scrollToPageIndex(Math.max(0, currentPage - 2), 'start')}
               aria-label="Previous page"
             >
               <Ic.Left/>
@@ -792,7 +1087,7 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
             <div className="mono-sm" style={{ color: 'var(--ink-2)', minWidth: 72, textAlign: 'center' }}>{currentPage} / {numPages || '—'}</div>
             <button
               className="btn ghost xs"
-              onClick={() => listRef.current?.scrollToItem(Math.min(numPages - 1, currentPage), 'start')}
+              onClick={() => scrollToPageIndex(Math.min(numPages - 1, currentPage), 'start')}
               aria-label="Next page"
             >
               <Ic.Right/>
@@ -838,46 +1133,41 @@ export default function PdfScreen({ docId, targetNoteId, onConsumedTarget, onExi
         </div>
       </div>
 
-      {/* Viewer */}
+      {/* Viewer — native-scroll container. This is the only thing that
+          scrolls; each LazyPageRow lives in normal block flow inside. */}
       <div
-        ref={viewerRef}
+        ref={(el) => { scrollerRef.current = el; viewerRef.current = el; }}
         className="scroll"
         style={{ flex: 1, padding: '80px 0' }}
         onMouseUp={onViewerMouseUp}
+        onScroll={onScrollerScroll}
       >
         <Document file={fileBlob} onLoadSuccess={onDocLoad}>
           {numPages > 0 && (
-            <List
-              ref={listRef}
-              height={window.innerHeight - 0}
-              itemCount={numPages}
-              itemSize={getPageHeight}
-              width={'100%'}
-              onScroll={handleListScroll}
-              // Keep a generous band of pages pre-rendered above and below
-              // the viewport. Normal scroll velocity stays inside this band,
-              // so the user never watches a page paint — it's already there.
-              // Costs ~5x the memory vs overscan=1 but for PDFs at this scale
-              // that's ≈50MB, well within budget.
-              overscanCount={5}
-            >
-              {({ index, style }) => (
-                <PageRenderer
-                  index={index}
-                  style={style}
-                  scale={scale}
-                  highlights={highlights}
-                  pendingHighlight={pendingHighlight}
-                  pageNotes={notesByPage.get(index) || []}
-                  activeHighlightId={activeHighlightId}
-                  drawerState={drawer}
-                  onPageRenderSuccess={onPageRenderSuccess}
-                  onHighlightClick={handleHighlightClick}
-                  onOpenNote={handleOpenNote}
-                  noteRefs={noteRefs}
-                />
-              )}
-            </List>
+            // Plain stacked list — no virtualizer. Each LazyPageRow mounts
+            // its page on first proximity to the viewport and never
+            // unmounts. That's what makes scrolling feel like reading:
+            // every page you've passed stays painted, so scrolling back
+            // is instant.
+            Array.from({ length: numPages }, (_, index) => (
+              <LazyPageRow
+                key={index}
+                index={index}
+                estimatedHeight={getPageHeight(index)}
+                scale={scale}
+                highlights={highlights}
+                pendingHighlight={pendingHighlight}
+                pageNotes={notesByPage.get(index) || EMPTY_NOTES}
+                activeHighlightId={activeHighlightId}
+                focusPulseId={focusPulseId}
+                drawerState={drawer}
+                onPageRenderSuccess={onPageRenderSuccess}
+                onHighlightClick={handleHighlightClick}
+                onOpenNote={handleOpenNote}
+                onPulseEnd={handlePulseEnd}
+                noteRefs={noteRefs}
+              />
+            ))
           )}
         </Document>
       </div>

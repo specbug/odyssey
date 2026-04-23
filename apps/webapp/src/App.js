@@ -30,6 +30,11 @@ export default function App() {
     return 'home';
   });
   const [targetNoteId, setTargetNoteId] = useState(null);
+  // `edit` opens the drawer on the note (NotesScreen deep-link default).
+  // `focus` scrolls to the note and briefly emphasizes the highlight
+  // (Review → Open Source affordance). Must always be reset on every
+  // `onOpenDoc` to avoid a stale focus-mode leaking into NotesScreen.
+  const [targetNoteMode, setTargetNoteMode] = useState('edit');
   const [reviewFileId, setReviewFileId] = useState(null);
 
   useEffect(() => { localStorage.setItem(LS_ROUTE, route); }, [route]);
@@ -41,13 +46,17 @@ export default function App() {
     if (!VALID_ROUTES.has(next)) return;
     // Leaving review / pdf clears their transient state.
     if (next !== 'review') setReviewFileId(null);
-    if (next !== 'pdf') setTargetNoteId(null);
+    if (next !== 'pdf') {
+      setTargetNoteId(null);
+      setTargetNoteMode('edit');
+    }
     setRoute(next);
   }, []);
 
-  const onOpenDoc = useCallback((id, noteId = null) => {
+  const onOpenDoc = useCallback((id, noteId = null, mode = 'edit') => {
     setDocId(id);
     setTargetNoteId(noteId);
+    setTargetNoteMode(mode);
     setRoute('pdf');
   }, []);
 
@@ -56,11 +65,23 @@ export default function App() {
     setRoute('review');
   }, []);
 
+  // Review → PDF jump-to-source. Mirrors `onOpenDoc` but always in focus mode,
+  // and clears review state before navigating so the session ends cleanly.
+  const onJumpToSource = useCallback((fileId, annotationBackendId) => {
+    if (fileId == null) return;
+    setReviewFileId(null);
+    setDocId(fileId);
+    setTargetNoteId(annotationBackendId);
+    setTargetNoteMode('focus');
+    setRoute('pdf');
+  }, []);
+
   const onExit = useCallback(() => {
     // Pop back to home by default; the previous route isn't preserved because
     // going through pdf → library would feel non-linear. Home is the anchor.
     setReviewFileId(null);
     setTargetNoteId(null);
+    setTargetNoteMode('edit');
     setRoute('home');
   }, []);
 
@@ -85,13 +106,14 @@ export default function App() {
           <PdfScreen
             docId={docId}
             targetNoteId={targetNoteId}
+            targetNoteMode={targetNoteMode}
             onConsumedTarget={onConsumedTarget}
             onExit={() => onNav('library')}
             onStartReview={onStartReview}
           />
         )}
         {route === 'review' && (
-          <ReviewScreen fileId={reviewFileId} onExit={onExit}/>
+          <ReviewScreen fileId={reviewFileId} onExit={onExit} onJumpToSource={onJumpToSource}/>
         )}
       </main>
     </div>

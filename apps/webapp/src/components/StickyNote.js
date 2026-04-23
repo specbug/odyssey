@@ -9,16 +9,29 @@ export default function StickyNote({ note, onOpen, active = false, style }) {
   const clozeMode = note.type === 'cloze' ? 'inline' : 'none';
 
   // Active state — shown when the user clicks the linked highlight on the PDF.
-  // Dramatic: saturated backdrop, full-accent 2px ring, pronounced left rule,
-  // larger lift, and a glow. Has to read from across the page.
+  // Signal is carried by a few quiet moves, not a visual explosion:
+  //   1. the always-accent left rule deepens (--accent → --accent-deep) and
+  //      thickens by one pixel — the stripe is the brand anchor, so it earns
+  //      its small emphasis.
+  //   2. a thin accent ring wraps the card via `outline` (outline doesn't
+  //      change layout and doesn't interact with mix-blend-mode).
+  //   3. the backdrop steps from paper to paper-2.
+  // No transform, no glow, no outer drop shadow. Reading is a ritual; loudness
+  // breaks it.
+  //
+  // Style note: every side uses its own per-side shorthand (borderTop,
+  // borderLeft, …) rather than a `border` mega-shorthand plus longhand
+  // overrides. Mixing shorthand+longhand in an inline style object was
+  // causing React's diff on active→inactive to leave the left border with
+  // the wrong colour — ending up rule-grey instead of accent. Per-side
+  // shorthands resolve cleanly because each property has exactly one
+  // declaration site.
   const activeStyles = active
     ? {
-        background: 'color-mix(in oklab, var(--accent) 35%, var(--paper))',
-        border: '2px solid var(--accent)',
-        borderLeft: '6px solid var(--accent)',
-        boxShadow:
-          '0 0 0 4px color-mix(in oklab, var(--accent) 35%, transparent), 0 18px 44px -12px color-mix(in oklab, var(--accent) 80%, transparent)',
-        transform: 'translateX(-10px) scale(1.02)',
+        background: 'var(--paper-2)',
+        borderLeft: '4px solid var(--accent-deep, var(--accent))',
+        outline: '1px solid color-mix(in oklab, var(--accent) 50%, transparent)',
+        outlineOffset: '-1px',
       }
     : {};
 
@@ -27,16 +40,17 @@ export default function StickyNote({ note, onOpen, active = false, style }) {
       onClick={onOpen}
       data-active={active || undefined}
       style={{
-        background: 'color-mix(in oklab, var(--accent) 10%, var(--paper))',
-        border: '1px solid color-mix(in oklab, var(--accent) 30%, var(--rule))',
-        borderLeftWidth: 3,
+        background: 'var(--paper)',
+        borderTop: '1px solid var(--rule)',
+        borderRight: '1px solid var(--rule)',
+        borderBottom: '1px solid var(--rule)',
+        borderLeft: '3px solid var(--accent)',
         padding: '12px 14px',
         textAlign: 'left',
         cursor: 'pointer',
         fontFamily: 'var(--sans)',
         borderRadius: 'var(--rad)',
-        transition: 'transform 260ms cubic-bezier(.2,.7,.2,1), box-shadow 260ms, background 260ms, border-color 260ms',
-        boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+        transition: 'background 220ms cubic-bezier(.2,.7,.2,1), border-color 220ms cubic-bezier(.2,.7,.2,1)',
         width: '100%',
         display: 'block',
         ...activeStyles,
@@ -44,13 +58,11 @@ export default function StickyNote({ note, onOpen, active = false, style }) {
       }}
       onMouseEnter={(e) => {
         if (active) return;
-        e.currentTarget.style.transform = 'translateX(-4px)';
-        e.currentTarget.style.boxShadow = '0 6px 20px -8px rgba(0,0,0,0.12)';
+        e.currentTarget.style.background = 'var(--paper-2)';
       }}
       onMouseLeave={(e) => {
         if (active) return;
-        e.currentTarget.style.transform = 'translateX(0)';
-        e.currentTarget.style.boxShadow = '0 1px 2px rgba(0,0,0,0.03)';
+        e.currentTarget.style.background = 'var(--paper)';
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>

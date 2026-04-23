@@ -71,7 +71,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview }) {
 
   const handleNewNote = async (draft) => {
     try {
-      const payload = draftToPayload(draft);
+      const payload = draftToCreatePayload(draft);
       await apiService.createStandaloneAnnotation({
         ...payload,
         annotation_id: `note_${Date.now()}`,
@@ -86,7 +86,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview }) {
   const handleEditNote = async (draft) => {
     if (!modal?.note) return;
     try {
-      await apiService.updateAnnotation(modal.note.id, draftToPayload(draft));
+      await apiService.updateAnnotation(modal.note.id, draftToUpdatePayload(draft));
       setModal(null);
       await refresh();
     } catch (e) {
@@ -436,7 +436,10 @@ function filterBtn(active) {
   };
 }
 
-function draftToPayload(draft) {
+// Used for POST /annotations (standalone create). `null` anchor fields are
+// the correct semantic here — standalone notes have no PDF anchor — and the
+// backend coerces them to sensible empty values on insert.
+function draftToCreatePayload(draft) {
   return {
     question: draft.prompt || '',
     answer: draft.answer || '',
@@ -447,4 +450,24 @@ function draftToPayload(draft) {
     deck: 'Default',
     page_index: null,
   };
+}
+
+// Used for PUT /annotations/{id}. Only includes the three user-editable
+// fields: the modal has no control over PDF anchor data, so we must never
+// transmit those keys. Backend uses `exclude_unset=True` to leave any
+// omitted field untouched — which is exactly what preserves the existing
+// highlight anchor / page index for PDF-linked notes.
+//
+// `question` is only emitted when the draft has a non-empty trimmed prompt,
+// so accidentally Save-ing with an empty textarea doesn't clobber the
+// stored prompt. `answer` / `tag` empty strings are meaningful ("clear").
+function draftToUpdatePayload(draft) {
+  const payload = {
+    answer: draft.answer || '',
+    tag: draft.tag || '',
+  };
+  if (draft.prompt && draft.prompt.trim().length > 0) {
+    payload.question = draft.prompt;
+  }
+  return payload;
 }
