@@ -1,6 +1,6 @@
 # Odyssey
 
-**A PDF reader where highlights become flashcards — and flashcards remember where they came from.**
+**A PDF reader where highlights become flashcards**
 
 Most spaced repetition systems ask you to write cards separately from your reading, then orphan them in a deck with no trace of context. Odyssey keeps the loop closed: you read, you annotate, and the annotation *is* the card. Review sessions link back to the exact page and paragraph the card came from.
 
