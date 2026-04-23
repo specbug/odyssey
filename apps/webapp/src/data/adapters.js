@@ -55,6 +55,8 @@ export function toNote(ann) {
 }
 
 // StudyCardResponse → review queue card shape.
+// For cloze annotations with multiple blanks, each blank lives on its own card
+// (backend fans out to N StudyCards); `clozeIndex` picks which blank to hide.
 export function toQueueCard(card) {
   if (!card) return null;
   const ann = card.annotation || {};
@@ -62,6 +64,7 @@ export function toQueueCard(card) {
   return {
     id: card.id,
     annotationId: card.annotation_id,
+    clozeIndex: Number.isInteger(card.cloze_index) ? card.cloze_index : 0,
     source: ann.file_id ?? null,
     type: isCloze ? 'cloze' : 'recall',
     prompt: ann.question || ann.highlighted_text || '',

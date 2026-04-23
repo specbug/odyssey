@@ -58,6 +58,101 @@ load_dotenv()
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
+
+def _migrate_study_card_cloze_index() -> None:
+    """Idempotent migration: add study_cards.cloze_index + swap unique constraint.
+
+    The original schema carried `UniqueConstraint('annotation_id')` so each
+    annotation had exactly one card. The cloze redesign creates one card per
+    [[word]] blank, keyed on (annotation_id, cloze_index). SQLite can't drop a
+    table-level UNIQUE constraint in place, so when the old constraint is
+    detected we rebuild the table. `create_all` plus a stray
+    `CREATE UNIQUE INDEX IF NOT EXISTS` covers fresh databases.
+    """
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "study_cards" not in insp.get_table_names():
+        return
+
+    with engine.begin() as conn:
+        ddl_row = conn.execute(text(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='study_cards'"
+        )).first()
+        table_sql = (ddl_row[0] if ddl_row else "") or ""
+
+        # The old constraint text is the table-level form SQLAlchemy emits.
+        # Presence means we must rebuild; absence means the table is already
+        # on the new shape (or was created fresh by create_all).
+        has_legacy_unique = "UNIQUE (annotation_id)" in table_sql
+
+        if has_legacy_unique:
+            # Rebuild: copy rows into a correctly-shaped temp table, swap names.
+            # FKs are deferred so the copy doesn't trip on card_reviews.card_id.
+            conn.execute(text("PRAGMA foreign_keys=OFF"))
+            conn.execute(text("DROP TABLE IF EXISTS study_cards_new"))
+            conn.execute(text(
+                """
+                CREATE TABLE study_cards_new (
+                    id INTEGER NOT NULL PRIMARY KEY,
+                    annotation_id INTEGER NOT NULL,
+                    cloze_index INTEGER NOT NULL DEFAULT 0,
+                    difficulty FLOAT,
+                    stability FLOAT,
+                    elapsed_days INTEGER,
+                    scheduled_days INTEGER,
+                    reps INTEGER,
+                    lapses INTEGER,
+                    state VARCHAR,
+                    last_review DATETIME,
+                    created_date DATETIME DEFAULT (CURRENT_TIMESTAMP),
+                    due DATETIME,
+                    CONSTRAINT uq_study_card_annotation_cloze
+                        UNIQUE (annotation_id, cloze_index),
+                    FOREIGN KEY(annotation_id)
+                        REFERENCES annotations (id) ON DELETE CASCADE
+                )
+                """
+            ))
+            conn.execute(text(
+                """
+                INSERT INTO study_cards_new (
+                    id, annotation_id, cloze_index, difficulty, stability,
+                    elapsed_days, scheduled_days, reps, lapses, state,
+                    last_review, created_date, due
+                )
+                SELECT id, annotation_id, 0, difficulty, stability,
+                       elapsed_days, scheduled_days, reps, lapses, state,
+                       last_review, created_date, due
+                FROM study_cards
+                """
+            ))
+            conn.execute(text("DROP TABLE study_cards"))
+            conn.execute(text("ALTER TABLE study_cards_new RENAME TO study_cards"))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_study_cards_id ON study_cards (id)"
+            ))
+            conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_study_cards_annotation_id "
+                "ON study_cards (annotation_id)"
+            ))
+            conn.execute(text("PRAGMA foreign_keys=ON"))
+        else:
+            # Fresh table from create_all (or already rebuilt). Make sure the
+            # expected column + composite unique index exist.
+            cols = {c["name"] for c in insp.get_columns("study_cards")}
+            if "cloze_index" not in cols:
+                conn.execute(text(
+                    "ALTER TABLE study_cards ADD COLUMN cloze_index INTEGER NOT NULL DEFAULT 0"
+                ))
+            conn.execute(text(
+                "CREATE UNIQUE INDEX IF NOT EXISTS uq_study_card_annotation_cloze "
+                "ON study_cards (annotation_id, cloze_index)"
+            ))
+
+
+_migrate_study_card_cloze_index()
+
 app = FastAPI(
     title="PDF Annotation API",
     description="Backend API for PDF annotation and note-taking",
@@ -871,17 +966,21 @@ async def delete_all_annotations(file_id: int, db: Session = Depends(get_db)):
 # Spaced Repetition Endpoints
 
 
-@app.post("/study-cards", response_model=StudyCardResponse)
+@app.post("/study-cards", response_model=List[StudyCardResponse])
 async def create_study_card(annotation_id: int, db: Session = Depends(get_db)):
-    """Create a study card from an annotation. One card per annotation — multi-blank
-    cloze prompts are graded as a single card with all blanks revealing together."""
+    """Create one study card per cloze blank in the annotation.
+
+    Returns a list: N cards for an annotation with N `[[word]]` marks, or a
+    single-element list for non-cloze annotations. Idempotent — an annotation
+    gaining a new blank on edit can call this again to top up missing cards.
+    """
     try:
         annotation = db.query(Annotation).filter(Annotation.id == annotation_id).first()
         if not annotation:
             raise HTTPException(status_code=404, detail="Annotation not found")
 
-        study_card = SpacedRepetitionService.create_study_card(db, annotation_id)
-        return study_card
+        cards = SpacedRepetitionService.create_study_card(db, annotation_id)
+        return cards
     except Exception as e:
         raise HTTPException(
             status_code=500, detail=f"Error creating study card: {str(e)}"
