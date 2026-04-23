@@ -19,14 +19,8 @@
     },
     {
       "src": "logo.png",
-      "sizes": "192x192",
+      "sizes": "100x100",
       "type": "image/png"
-    },
-    {
-      "src": "logo.svg",
-      "type": "image/svg+xml",
-      "sizes": "any",
-      "purpose": "any maskable"
     }
   ],
   "start_url": ".",
