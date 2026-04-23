@@ -28,7 +28,9 @@ class PDFFile(Base):
     last_read_position = Column(Integer, default=0)
     total_pages = Column(Integer, nullable=True)
     # Design metadata — filled by the webapp after upload via pdfjs.getMetadata
-    # and a first-page text scrape. All nullable; display layer falls back.
+    # and a first-page text scrape, and/or by Gemini enrichment. All nullable;
+    # display layer falls back to original_filename when title is missing.
+    title = Column(String, nullable=True)
     author = Column(String, nullable=True)
     color_hue = Column(Integer, nullable=True)  # 0-360; derived from file_hash if null
     excerpt = Column(Text, nullable=True)       # ~200-char opening passage
