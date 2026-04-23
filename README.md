@@ -1,31 +1,19 @@
 # Odyssey
 
-**A PDF reader where highlights become flashcards**
+A PDF reader with spaced repetition built in. Highlights become FSRS-scheduled review cards that link back to the page they came from.
 
-Most spaced repetition systems ask you to write cards separately from your reading, then orphan them in a deck with no trace of context. Odyssey keeps the loop closed: you read, you annotate, and the annotation *is* the card. Review sessions link back to the exact page and paragraph the card came from.
+My learning workflow used to be scattered across three apps: PDFs in Preview, notes in Notion, flashcards in Anki. Cards would sit in a deck three months later with no memory of the paper they came from. Odyssey puts it in one place — you annotate inside the PDF, the annotation *is* the card, and reviews jump you back to the source whenever a prompt feels abstract.
 
-## How it works
+## What you get out of it
 
-Highlight a passage → a sticky note appears in the margin. Write a note, add a cloze deletion (`[[like this]]`), or leave it as a recall prompt. The backend creates an [FSRS](https://github.com/open-spaced-repetition/fsrs4anki/wiki/The-Algorithm)-scheduled study card. The review queue surfaces cards at scientifically optimal intervals. Grading (Again / Hard / Good / Easy) feeds back into the scheduler.
+- **One step from reading to reviewing.** Select text, type a note, done. No deck management, no separate card-writing session later.
+- **Cloze in plain text.** Wrap any word in `[[double brackets]]` to turn it into a fill-in-the-blank. Multiple blanks on one card reveal and grade together.
+- **Rich notes.** Paste images or diagrams straight into a note and they show up in the review prompt. Math renders as LaTeX.
+- **Context survives.** Every review links back to the source page, so cards never end up orphaned from the paper they came from.
+- **FSRS, not SM-2.** Modern scheduler — typically fewer reviews for the same retention than Anki.
+- **Local-first.** PDFs, annotations, and review history live on your machine. No account, no sync.
 
-A few specifics:
-
-- **Cloze syntax is `[[word]]` only** — clean, predictable, no Anki legacy cruft. Multiple blanks in one annotation are revealed and graded together in a single FSRS pass.
-- **Cards never leave context.** The review screen shows the prompt; tapping through shows the source page.
-- **Images in annotations** are stored by UUID and referenced inline — paste a diagram into a note, it shows up in the card.
-- **File deduplication** via Blake3 hash — uploading the same PDF twice is a no-op.
-
-## Architecture
-
-Monorepo with three apps, one backend:
-
-| App | Stack |
-|---|---|
-| `apps/api` | FastAPI · SQLite · FSRS |
-| `apps/webapp` | React 19 · react-pdf · KaTeX |
-| `apps/mac` | SwiftUI · macOS 14+ |
-
-The web app and native Mac app both speak to the same local FastAPI backend over HTTP. No cloud, no account, no sync — your PDFs and review history stay on your machine.
+Web app and native macOS app share the same local backend, so you can read on one and review on the other.
 
 ## Run it
 
@@ -34,12 +22,10 @@ cp .env.example .env
 podman compose up -d --build
 ```
 
-Web UI → `http://localhost:3000` · API → `http://localhost:8000`
+Web UI at `http://localhost:3000`, API at `http://localhost:8000`. For the native Mac app: `swift run` inside `apps/mac/OdysseyMacApp/`.
 
-For the native Mac app: `swift run` inside `apps/mac/OdysseyMacApp/`.
-
-Local development without containers: see `apps/api/README.md` and `apps/webapp/README.md`.
+Local dev without containers: see `apps/api/README.md` and `apps/webapp/README.md`.
 
 ## Credits
 
-Inspired by [Andy Matuschak](https://andymatuschak.org/)'s [Orbit](https://github.com/andymatuschak/orbit) and the mnemonic medium. FSRS algorithm via [open-spaced-repetition](https://github.com/open-spaced-repetition).
+Inspired by [Andy Matuschak](https://andymatuschak.org/)'s [Orbit](https://github.com/andymatuschak/orbit) and the mnemonic medium. FSRS by [open-spaced-repetition](https://github.com/open-spaced-repetition).
