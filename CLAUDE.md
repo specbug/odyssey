@@ -25,6 +25,7 @@ The FastAPI backend implements:
 - **FSRS Spaced Repetition**: Core scheduling algorithm in `app/spaced_repetition.py`
 - **Image Storage**: UUID-based image storage with `[image:UUID]` markers in annotation text
 - **Database**: SQLAlchemy ORM with SQLite (models in `app/models.py`)
+- **Gemini metadata enrichment** (optional): `app/gemini.py` pulls `title` / `author` / `excerpt` from an uploaded PDF when `GEMINI_API_KEY` is set
 
 Key backend modules:
 - `app/main.py`: FastAPI application with all REST endpoints
@@ -33,6 +34,7 @@ Key backend modules:
 - `app/schemas.py`: Pydantic schemas for request/response validation
 - `app/database.py`: Database session management
 - `app/utils.py`: File handling utilities (hashing, validation, storage)
+- `app/gemini.py`: Thin Gemini REST client — `extract_pdf_metadata(bytes)`, no-op without `GEMINI_API_KEY`
 
 ### Frontend (apps/webapp)
 
@@ -185,9 +187,30 @@ Key relationships:
 
 CASCADE deletion: deleting annotation deletes its study card and reviews.
 
-`PDFFile` carries design-layer metadata — `author`, `color_hue` (0–360),
-`excerpt` — populated on upload by `LibraryScreen` via pdfjs. All nullable
-so an upload never fails if extraction does.
+`PDFFile` carries design-layer metadata — `title`, `author`, `color_hue`
+(0–360), `excerpt` — populated on upload by `LibraryScreen` via pdfjs and/or
+by the Gemini background task (see below). All nullable so an upload never
+fails if extraction does. Precedence: user / pdfjs values win — the Gemini
+task only fills fields still `NULL` at write time. `PDFFileResponse.display_name`
+prefers `title`, falling back to the filename stem.
+
+### Gemini metadata enrichment
+
+Opt-in via `GEMINI_API_KEY` env var. When set, `POST /upload` queues a
+FastAPI `BackgroundTasks` entry (`_enrich_file_metadata_task` in `main.py`)
+that sends the PDF inline to `gemini-2.5-flash` (configurable via
+`GEMINI_MODEL`, free-tier eligible) and persists `{title, author, excerpt}`.
+The task runs *after* the upload response is returned — uploads are never
+blocked on the LLM call. Files above ~14 MB are skipped (Gemini inline cap).
+
+Bulk backfill: `POST /library/refresh-metadata[?force=true]` iterates all
+PDFs on disk, queueing one task per file. Default mode fills only nulls;
+`force=true` overwrites. Returns 503 if `GEMINI_API_KEY` isn't set.
+
+The module (`app/gemini.py`) is fully defensive — `is_configured()` is
+False without a key and callers treat `extract_pdf_metadata` returning
+`None` as "no enrichment available." API keys are scrubbed from all error
+log output before `print`.
 
 ## API Communication
 
@@ -216,6 +239,10 @@ Backend (apps/api):
 - `UPLOAD_DIR`: Upload directory path (default: ./uploads)
 - `MAX_FILE_SIZE`: Max PDF file size in bytes (default: 50MB)
 - `MAX_IMAGE_SIZE`: Max image file size in bytes (default: 10MB)
+- `GEMINI_API_KEY`: Optional. Enables automatic PDF metadata extraction
+  (title / author / excerpt) on upload and via `/library/refresh-metadata`.
+  Unset → integration is a no-op, uploads behave exactly as before.
+- `GEMINI_MODEL`: Override the Gemini model (default: `gemini-2.5-flash`).
 
 ## Design Discipline (webapp)
 

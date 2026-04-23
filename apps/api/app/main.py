@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, status, Request
+from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, status, Request, BackgroundTasks
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
@@ -40,8 +40,10 @@ from .schemas import (
     CardTimeline,
     TimelinePoint,
     DashboardStats,
+    LibraryRefreshResponse,
 )
 from .spaced_repetition import SpacedRepetitionService
+from . import gemini as gemini_client
 from .utils import (
     calculate_file_hash_from_bytes,
     is_pdf_file,
@@ -152,6 +154,28 @@ def _migrate_study_card_cloze_index() -> None:
 
 
 _migrate_study_card_cloze_index()
+
+
+def _migrate_pdf_file_title() -> None:
+    """Idempotent: add pdf_files.title column if missing.
+
+    Populated by Gemini enrichment and/or the webapp's pdfjs metadata path.
+    Older rows stay NULL; display layer falls back to original_filename.
+    """
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "pdf_files" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("pdf_files")}
+    if "title" in cols:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE pdf_files ADD COLUMN title VARCHAR"))
+
+
+_migrate_pdf_file_title()
+
 
 app = FastAPI(
     title="PDF Annotation API",
@@ -297,8 +321,93 @@ async def root():
     return {"message": "PDF Annotation API is running"}
 
 
+def _enrich_file_metadata_task(file_id: int, pdf_bytes: bytes) -> None:
+    """Background task: run Gemini extraction and persist results.
+
+    Fills in title/author/excerpt only if the row doesn't already have that
+    field (treating user / pdfjs-supplied values as authoritative). Uses its
+    own SessionLocal because the request-scoped session is already closed
+    by the time FastAPI runs the task.
+    """
+    if not gemini_client.is_configured():
+        return
+    meta = gemini_client.extract_pdf_metadata(pdf_bytes)
+    if not meta:
+        return
+
+    session = SessionLocal()
+    try:
+        file = session.query(PDFFile).filter(PDFFile.id == file_id).first()
+        if not file:
+            return
+        touched = False
+        if meta.get("title") and not file.title:
+            file.title = meta["title"]
+            touched = True
+        if meta.get("author") and not file.author:
+            file.author = meta["author"]
+            touched = True
+        if meta.get("excerpt") and not file.excerpt:
+            file.excerpt = meta["excerpt"]
+            touched = True
+        if touched:
+            session.commit()
+            print(
+                f"✨ Gemini enriched file_id={file_id}: "
+                f"title={file.title!r} author={file.author!r}"
+            )
+    except Exception as e:
+        session.rollback()
+        print(f"❌ Gemini enrichment DB write failed for file_id={file_id}: {e}")
+    finally:
+        session.close()
+
+
+def _refresh_file_metadata_task(file_id: int, force: bool) -> None:
+    """Background task: re-read a PDF from disk and re-run Gemini.
+
+    If `force` is False, only null fields are filled. If True, Gemini's output
+    overwrites whatever is there (still skipping when Gemini itself returns
+    None for a field).
+    """
+    if not gemini_client.is_configured():
+        return
+
+    session = SessionLocal()
+    try:
+        file = session.query(PDFFile).filter(PDFFile.id == file_id).first()
+        if not file or not file.file_path or not os.path.exists(file.file_path):
+            return
+        with open(file.file_path, "rb") as f:
+            pdf_bytes = f.read()
+        meta = gemini_client.extract_pdf_metadata(pdf_bytes)
+        if not meta:
+            return
+
+        touched = False
+        for field in ("title", "author", "excerpt"):
+            new_val = meta.get(field)
+            if not new_val:
+                continue
+            if force or not getattr(file, field):
+                setattr(file, field, new_val)
+                touched = True
+        if touched:
+            session.commit()
+            print(f"♻️  Refreshed metadata for file_id={file_id} (force={force})")
+    except Exception as e:
+        session.rollback()
+        print(f"❌ Refresh failed for file_id={file_id}: {e}")
+    finally:
+        session.close()
+
+
 @app.post("/upload", response_model=FileUploadResponse)
-async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db)):
+async def upload_file(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
     """
     Upload a PDF file with deduplication.
     If file already exists (same hash), return existing file info.
@@ -353,6 +462,14 @@ async def upload_file(file: UploadFile = File(...), db: Session = Depends(get_db
         db.add(db_file)
         db.commit()
         db.refresh(db_file)
+
+        # Kick Gemini enrichment after the response is sent. The pdfjs path
+        # in the webapp may PATCH /files/{id}/metadata first with its own
+        # author/excerpt; the task only fills fields still null at write time.
+        if gemini_client.is_configured():
+            background_tasks.add_task(
+                _enrich_file_metadata_task, db_file.id, file_content
+            )
 
         return FileUploadResponse(
             success=True,
@@ -482,6 +599,8 @@ async def update_file_metadata(
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
+    if meta.title is not None:
+        file.title = meta.title
     if meta.author is not None:
         file.author = meta.author
     if meta.color_hue is not None:
@@ -492,6 +611,52 @@ async def update_file_metadata(
     db.commit()
     db.refresh(file)
     return file
+
+
+@app.post("/library/refresh-metadata", response_model=LibraryRefreshResponse)
+async def refresh_library_metadata(
+    background_tasks: BackgroundTasks,
+    force: bool = False,
+    db: Session = Depends(get_db),
+):
+    """Bulk re-extract metadata for every PDF in the library via Gemini.
+
+    Queues one background task per file on disk. By default (`force=false`)
+    only null fields (title / author / excerpt) are filled, so repeated calls
+    are cheap and safe. Pass `?force=true` to overwrite existing values.
+
+    Requires GEMINI_API_KEY to be set; returns a 503 otherwise.
+    """
+    if not gemini_client.is_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="Gemini is not configured — set GEMINI_API_KEY to enable metadata refresh.",
+        )
+
+    files = db.query(PDFFile).all()
+    queued = 0
+    skipped = 0
+    for f in files:
+        # Skip files whose bytes we can't load.
+        if not f.file_path or not os.path.exists(f.file_path):
+            skipped += 1
+            continue
+        # When not forcing, skip rows that already have everything filled.
+        if not force and f.title and f.author and f.excerpt:
+            skipped += 1
+            continue
+        background_tasks.add_task(_refresh_file_metadata_task, f.id, force)
+        queued += 1
+
+    return LibraryRefreshResponse(
+        queued=queued,
+        skipped=skipped,
+        force=force,
+        message=(
+            f"Queued {queued} file(s) for Gemini metadata refresh"
+            f"{' (force overwrite)' if force else ''}; skipped {skipped}."
+        ),
+    )
 
 
 @app.get("/files/{file_id}/download")

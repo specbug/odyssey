@@ -21,6 +21,7 @@ class PDFFileResponse(PDFFileBase):
     zoom_level: float = 1.2
     last_read_position: int = 0
     total_pages: Optional[int] = None
+    title: Optional[str] = None
     author: Optional[str] = None
     color_hue: Optional[int] = None
     excerpt: Optional[str] = None
@@ -32,9 +33,11 @@ class PDFFileResponse(PDFFileBase):
     @computed_field
     @property
     def display_name(self) -> str:
-        """Return the original filename without the .pdf extension for display purposes."""
+        """Preferred user-facing label: extracted title, else filename stem."""
         from .utils import strip_file_extension
 
+        if self.title:
+            return self.title
         return strip_file_extension(self.original_filename)
 
     class Config:
@@ -42,10 +45,19 @@ class PDFFileResponse(PDFFileBase):
 
 
 class PDFFileMetadataUpdate(BaseModel):
-    """Partial update of user-visible metadata (author, hue, excerpt)."""
+    """Partial update of user-visible metadata (title, author, hue, excerpt)."""
+    title: Optional[str] = None
     author: Optional[str] = None
     color_hue: Optional[int] = Field(default=None, ge=0, le=360)
     excerpt: Optional[str] = None
+
+
+class LibraryRefreshResponse(BaseModel):
+    """Response from POST /library/refresh-metadata."""
+    queued: int
+    skipped: int
+    force: bool
+    message: str
 
 
 class AnnotationBase(BaseModel):
