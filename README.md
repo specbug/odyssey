@@ -29,6 +29,8 @@ podman compose up -d --build
 
 Web UI at `http://localhost:3000`, API at `http://localhost:8000`. For the native Mac app: `swift run` inside `apps/mac/OdysseyMacApp/`.
 
+Optional: set `GEMINI_API_KEY` in `.env` to have uploads auto-extract title / author / excerpt (free-tier Gemini). Restart the api service with `podman compose up -d api` after editing `.env`.
+
 Local dev without containers: see `apps/api/README.md` and `apps/webapp/README.md`.
 
 ## Credits

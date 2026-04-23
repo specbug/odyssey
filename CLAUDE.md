@@ -201,16 +201,37 @@ FastAPI `BackgroundTasks` entry (`_enrich_file_metadata_task` in `main.py`)
 that sends the PDF inline to `gemini-2.5-flash` (configurable via
 `GEMINI_MODEL`, free-tier eligible) and persists `{title, author, excerpt}`.
 The task runs *after* the upload response is returned — uploads are never
-blocked on the LLM call. Files above ~14 MB are skipped (Gemini inline cap).
+blocked on the LLM call.
+
+Before sending, `app/gemini.py:_prepare_payload` slices the PDF to the
+first `PAGE_SLICE_LIMIT` (10) pages with pypdf and pulls the PDF info dict
+(`/Title`, `/Author`, `/Producer`, …). The slice goes as `inlineData`, the
+info dict is appended to the prompt as a hint (authoring tools often
+populate junk there, so Gemini is told the title page wins). This keeps
+per-call payloads in the low hundreds of KB even for 25 MB books, and the
+14 MB inline-cap check is now a safety net for scan-heavy first-10-page
+slices rather than a routine gate. If pypdf can't parse a PDF, we fall
+back to sending the full file.
 
 Bulk backfill: `POST /library/refresh-metadata[?force=true]` iterates all
 PDFs on disk, queueing one task per file. Default mode fills only nulls;
-`force=true` overwrites. Returns 503 if `GEMINI_API_KEY` isn't set.
+`force=true` overwrites. Returns 503 if `GEMINI_API_KEY` isn't set. The
+refresh only writes `title` / `author` / `excerpt` on `PDFFile` — it does
+not touch annotations, `StudyCard` FSRS state, `CardReview` history, or
+any reading-state fields, so running it on a populated library is safe.
 
 The module (`app/gemini.py`) is fully defensive — `is_configured()` is
 False without a key and callers treat `extract_pdf_metadata` returning
 `None` as "no enrichment available." API keys are scrubbed from all error
 log output before `print`.
+
+**Deployment:** `GEMINI_API_KEY` (and optional `GEMINI_MODEL`) live in the
+root `.env` file alongside `CLOUDFLARE_TUNNEL_TOKEN` — `compose.yml` reads
+them via `${GEMINI_API_KEY:-}` and passes them into the `api` service.
+`.env` is gitignored. The canonical value is in 1Password; copy it with
+`op read "op://<vault>/<item>/<field>" >> .env` or paste manually, then
+`podman compose up -d api` to recreate the container with the new env.
+Leaving the key empty is a valid state — the backend degrades to no-op.
 
 ## API Communication
 
