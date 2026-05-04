@@ -4,7 +4,7 @@ Odyssey is a PDF reader with spaced repetition built in. Annotations become FSRS
 
 Reading and remembering usually live in separate apps: PDFs in Preview, notes in Notion, flashcards in Anki. Odyssey is one place for all three.
 
-![Reading and annotating in Odyssey](docs/screenshots/pdf.png)
+<img width="2585" height="1440" alt="image" src="https://github.com/user-attachments/assets/19bdd8b4-59a3-4182-9cf4-7aef8df985ec" />
 
 ## Features
 
