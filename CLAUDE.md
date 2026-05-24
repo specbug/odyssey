@@ -49,6 +49,7 @@ Capabilities:
 - **Cloze syntax**: `[[word]]` only; one `StudyCard` **per blank** — an annotation with N blanks produces N cards, each graded independently with the other blanks visible
 - **Review**: centered prompt, SPACE to reveal, 1–4 to grade, starburst tick progress
 - **LaTeX + images**: KaTeX via `utils/render.js`; images via `[image:UUID]` markers + `/images/*`
+- **Reading completion**: docs auto-mark `completed_at` first time the user reaches the last page (driven by `PATCH /files/{id}/position`). LibraryScreen sections into `READING` / `COMPLETED`; DocGlyph inverts to a sealed-stamp variant; PdfScreen topbar shows a `FINISHED · YYYY·MM·DD` tag. Auto-only — never unset.
 - **Routing**: state-based, persisted in `localStorage` keys `odyssey:route` / `odyssey:docId`
 
 Layout (`src/`):
@@ -194,6 +195,14 @@ fails if extraction does. Precedence: user / pdfjs values win — the Gemini
 task only fills fields still `NULL` at write time. `PDFFileResponse.display_name`
 prefers `title`, falling back to the filename stem.
 
+`PDFFile.completed_at` (nullable `DateTime`) is set inside
+`update_read_position` the first time `last_read_position >= total_pages - 1`
+and is never cleared. Skipped silently when `total_pages` is NULL so older
+rows can be marked retroactively the next time the user opens them. Both
+in-app (`_migrate_pdf_file_completed_at` in `main.py`) and standalone
+(`scripts/migrations/migrate_add_completed_at.py`) migrations are
+idempotent.
+
 ### Gemini metadata enrichment
 
 Opt-in via `GEMINI_API_KEY` env var. When set, `POST /upload` queues a
@@ -293,4 +302,6 @@ Quick pitfall list for future sessions:
 
 ## Current Feature Branch
 
-Branch: `redesign-rams` — full webapp redesign (PR open).
+Branch: `completed-docs` — auto-mark + visual distinction for finished
+documents (Library sectioning, sealed-stamp DocGlyph variant, PdfScreen
+topbar tag). PR open.

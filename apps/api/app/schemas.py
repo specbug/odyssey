@@ -27,6 +27,7 @@ class PDFFileResponse(PDFFileBase):
     excerpt: Optional[str] = None
     upload_date: datetime
     last_accessed: datetime
+    completed_at: Optional[datetime] = None
     annotation_count: Optional[int] = 0
     due_count: Optional[int] = 0
 

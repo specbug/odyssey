@@ -36,6 +36,9 @@ class PDFFile(Base):
     excerpt = Column(Text, nullable=True)       # ~200-char opening passage
     upload_date = Column(DateTime(timezone=True), server_default=func.now())
     last_accessed = Column(DateTime(timezone=True), server_default=func.now())
+    # Set once when last_read_position first reaches total_pages - 1.
+    # Auto-only — never cleared. Drives Library sectioning + topbar tag.
+    completed_at = Column(DateTime(timezone=True), nullable=True)
 
     def __repr__(self):
         return f"<PDFFile(filename='{self.filename}', hash='{self.file_hash}')>"
