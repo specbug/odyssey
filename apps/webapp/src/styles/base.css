@@ -204,3 +204,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [contentedita
 @media (prefers-reduced-motion: reduce) {
   .highlight-focus-pulse { animation: none; outline: none; }
 }
+
+/* Narrow viewports (phones): the side-mounted review progress orb overlaps
+   the centered prompt, so hide it. Session counter in the header still
+   communicates progress. */
+@media (max-width: 720px) {
+  .review-progress-orb { display: none; }
+}
