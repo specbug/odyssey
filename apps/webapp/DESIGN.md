@@ -137,6 +137,12 @@ Per-doc tapered mark with a tinted square wash. Hue comes from the doc's
 `color_hue` or hash fallback. Appears wherever a doc is represented (Library
 rows, Home reading cards, PdfScreen chrome).
 
+**Completed variant.** When `doc.completed === true` (driven by
+`PDFFile.completed_at`), the glyph inverts to a sealed-stamp: solid `--ink`
+fill with the starburst rendered in `--paper`, plus a small grayscale tick
+inset at the bottom-right corner. Grayscale only — completion is *not* an
+accent moment per §3.
+
 ### StickyNote (`src/components/StickyNote.js`)
 
 Collapsed note preview in the right rail. Left border is always 3px accent;
@@ -155,9 +161,9 @@ Three modes: `cloze` (with `[[brackets]]`), `recall` (Q/A), `note` (freeform).
 | Screen | File | One-line intent |
 |---|---|---|
 | Home | `screens/HomeScreen.js` | The ritual — today's queue as a starburst, what you're reading, what you're retaining |
-| Library | `screens/LibraryScreen.js` | Editorial index of docs. Sort by recent/progress/due. Hover for review + delete. |
+| Library | `screens/LibraryScreen.js` | Editorial index of docs. Sort by recent/progress/due. Splits into `READING` + `COMPLETED` sections (completed sorted by `completedAt` desc, regardless of segmented sort). Hover for review + delete. |
 | Notes | `screens/NotesScreen.js` | Cross-doc passage browser with source + tag filters + search |
-| PDF | `screens/PdfScreen.js` | Immersive reader with top chrome (auto-hide 2.6s), per-page sticky rail, inline capture drawer |
+| PDF | `screens/PdfScreen.js` | Immersive reader with top chrome (auto-hide 2.6s), per-page sticky rail, inline capture drawer. For completed docs the topbar carries a mono `FINISHED · YYYY·MM·DD` tag next to the author. |
 | Review | `screens/ReviewScreen.js` | Centered prompt, reveal on SPACE, grade 1–4, starburst ticks left |
 
 ## 8. Pitfalls learned (things that will burn again)

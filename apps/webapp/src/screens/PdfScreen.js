@@ -6,6 +6,7 @@ import 'katex/dist/katex.min.css';
 import apiService from '../api';
 import { toLibraryDoc } from '../data/adapters';
 import { hasCloze } from '../utils/cloze';
+import { formatDate } from '../utils/format';
 import StickyNote from '../components/StickyNote';
 import InlineCaptureDrawer from '../components/InlineCaptureDrawer';
 import DocGlyph from '../components/DocGlyph';
@@ -975,9 +976,18 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
     if (!fileMetadata?.id) return;
     if (savePosTimer.current) clearTimeout(savePosTimer.current);
     savePosTimer.current = setTimeout(() => {
-      apiService.updateReadPosition(fileMetadata.id, idx).catch(() => {});
+      apiService.updateReadPosition(fileMetadata.id, idx)
+        .then((updated) => {
+          // Surface the auto-set completion stamp live so the topbar tag
+          // appears the moment the user reaches the last page, without a
+          // page refresh. Only patch when the server actually flipped it.
+          if (updated?.completed_at && !fileMetadata.completed_at) {
+            setFileMetadata((prev) => prev ? { ...prev, completed_at: updated.completed_at } : prev);
+          }
+        })
+        .catch(() => {});
     }, 750);
-  }, [numPages, getPageHeight, currentPage, fileMetadata?.id]);
+  }, [numPages, getPageHeight, currentPage, fileMetadata?.id, fileMetadata?.completed_at]);
 
   // Chrome visibility is driven purely by scroll position (see handleListScroll).
   // Originally it also auto-hid on idle and woke on every mousemove / keypress
@@ -1068,7 +1078,22 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
           {doc && <DocGlyph doc={doc} size={28}/>}
           <div>
             <div style={{ fontSize: 13, fontWeight: 500 }}>{doc?.title || 'Document'}</div>
-            <div className="mono-sm" style={{ color: 'var(--ink-4)' }}>{doc?.authors || '—'}</div>
+            <div className="mono-sm" style={{ color: 'var(--ink-4)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>{doc?.authors || '—'}</span>
+              {doc?.completed && (
+                <span
+                  className="mono-sm"
+                  title={doc.completedAt ? `Finished ${formatDate(doc.completedAt)}` : 'Finished'}
+                  style={{
+                    color: 'var(--ink-2)',
+                    borderLeft: '1px solid var(--rule)',
+                    paddingLeft: 8,
+                  }}
+                >
+                  FINISHED{doc.completedAt ? ` · ${formatDate(doc.completedAt)}` : ''}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

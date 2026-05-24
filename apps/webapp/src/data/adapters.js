@@ -22,6 +22,8 @@ export function toLibraryDoc(file) {
     retained: null, // per-doc retention not yet in schema
     sample: file.excerpt || null,
     fileHash: file.file_hash,
+    completed: !!file.completed_at,
+    completedAt: file.completed_at || null,
     // pass-throughs for screens that need raw data
     raw: file,
   };

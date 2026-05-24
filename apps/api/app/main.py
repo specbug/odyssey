@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
+from sqlalchemy.sql import func
 from typing import List, Optional
 import os
 from datetime import datetime, timedelta
@@ -175,6 +176,28 @@ def _migrate_pdf_file_title() -> None:
 
 
 _migrate_pdf_file_title()
+
+
+def _migrate_pdf_file_completed_at() -> None:
+    """Idempotent: add pdf_files.completed_at column if missing.
+
+    Set once when last_read_position first reaches total_pages - 1. Backfills
+    NULL for existing rows so previously-finished docs only get marked when
+    the user next opens them and scrolls to the end.
+    """
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "pdf_files" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("pdf_files")}
+    if "completed_at" in cols:
+        return
+    with engine.begin() as conn:
+        conn.execute(text("ALTER TABLE pdf_files ADD COLUMN completed_at DATETIME"))
+
+
+_migrate_pdf_file_completed_at()
 
 
 app = FastAPI(
@@ -556,13 +579,24 @@ async def update_file_zoom(
 async def update_read_position(
     file_id: int, position_data: ReadPositionUpdate, db: Session = Depends(get_db)
 ):
-    """Update the last read position for a specific file."""
+    """Update the last read position for a specific file.
+
+    Also auto-marks the doc as completed the first time the position reaches
+    the last page (last_read_position >= total_pages - 1). The completion
+    timestamp is set once and never cleared — re-reads stay marked. If
+    total_pages isn't known yet, completion is skipped silently.
+    """
     file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
-    # Update read position
     file.last_read_position = position_data.last_read_position
+    if (
+        file.completed_at is None
+        and file.total_pages
+        and position_data.last_read_position >= file.total_pages - 1
+    ):
+        file.completed_at = func.now()
     db.commit()
     db.refresh(file)
 

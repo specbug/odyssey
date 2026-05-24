@@ -3,6 +3,7 @@ import { pdfjs } from 'react-pdf';
 import apiService from '../api';
 import { toLibraryDoc } from '../data/adapters';
 import { hashToHue } from '../utils/hue';
+import { formatDate } from '../utils/format';
 import DocGlyph from '../components/DocGlyph';
 import { Ic } from '../components/Icons';
 
@@ -107,6 +108,13 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
     return 0;
   });
 
+  // Sectioning: Reading (active, current sort) above Completed (finished docs,
+  // always sorted by completedAt desc — most recently finished first).
+  const readingDocs = sorted.filter((d) => !d.completed);
+  const completedDocs = sorted
+    .filter((d) => d.completed)
+    .sort((a, b) => (b.completedAt || '').localeCompare(a.completedAt || ''));
+
   if (error && !docs.length) {
     return (
       <div className="scroll" style={{ padding: '48px 64px' }}>
@@ -168,103 +176,136 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
             </header>
 
             <div className="enter-stagger">
-              {sorted.map((doc) => {
-                const pct = doc.pages ? Math.round((doc.read / doc.pages) * 100) : 0;
-                return (
-                  <div
-                    key={doc.id}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '80px 1fr 160px 200px',
-                      gap: 32,
-                      alignItems: 'center',
-                      padding: '28px 0',
-                      borderBottom: '1px solid var(--rule)',
-                      transition: 'padding 220ms, background 220ms',
-                      position: 'relative',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--paper-2)';
-                      e.currentTarget.style.paddingLeft = '12px';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.paddingLeft = '0';
-                    }}
-                  >
-                    <button onClick={() => onOpenDoc(doc.id)} style={rowGlyphBtn}>
-                      <DocGlyph doc={doc} size={72}/>
-                    </button>
-                    <button onClick={() => onOpenDoc(doc.id)} style={rowTextBtn}>
-                      <div style={{ fontSize: 20, fontWeight: 500, letterSpacing: '-0.015em', marginBottom: 4 }}>
-                        {doc.title}
-                      </div>
-                      <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 8 }}>{doc.authors}</div>
-                      {doc.sample && (
-                        <div
-                          style={{
-                            fontSize: 12.5,
-                            color: 'var(--ink-3)',
-                            fontStyle: 'italic',
-                            maxWidth: 500,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          "{doc.sample}"
-                        </div>
-                      )}
-                    </button>
-                    <button onClick={() => onOpenDoc(doc.id)} style={rowTextBtn}>
-                      <div className="mono" style={{ color: 'var(--ink-3)', marginBottom: 6 }}>
-                        p. {doc.read} / {doc.pages || '—'}
-                      </div>
-                      <div style={{ height: 1, background: 'var(--rule-2)', position: 'relative' }}>
-                        <div style={{ position: 'absolute', inset: 0, width: `${pct}%`, background: 'var(--ink)', height: 1 }}/>
-                      </div>
-                    </button>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end' }}>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 22, fontWeight: 300, letterSpacing: '-0.02em', lineHeight: 1 }}>{doc.cards}</div>
-                        <div className="mono-sm" style={{ color: 'var(--ink-4)', marginTop: 4 }}>
-                          {doc.due > 0 ? `${doc.due} DUE` : 'CARDS'}
-                        </div>
-                      </div>
-                      {doc.due > 0 && (
-                        <button
-                          className="btn xs"
-                          onClick={(e) => { e.stopPropagation(); onStartReview(doc.id); }}
-                          title={`Review ${doc.due} due card${doc.due === 1 ? '' : 's'}`}
-                        >
-                          <Ic.Review/>
-                        </button>
-                      )}
-                      {confirmDelete === doc.id ? (
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                          <button className="btn xs" onClick={() => setConfirmDelete(null)}>Cancel</button>
-                          <button className="btn xs" style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }} onClick={() => handleDelete(doc.id)}>
-                            Delete
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          className="btn ghost xs"
-                          onClick={(e) => { e.stopPropagation(); setConfirmDelete(doc.id); }}
-                          title="Delete document"
-                          style={{ color: 'var(--ink-4)' }}
-                        >
-                          <Ic.Trash/>
-                        </button>
-                      )}
-                      <Ic.Right color="var(--ink-4)"/>
-                    </div>
-                  </div>
-                );
-              })}
+              {readingDocs.length > 0 && completedDocs.length > 0 && (
+                <div className="mono-sm" style={{ color: 'var(--ink-4)', padding: '24px 0 8px' }}>
+                  READING · {readingDocs.length}
+                </div>
+              )}
+              {readingDocs.map((doc) => renderRow(doc, {
+                onOpenDoc,
+                onStartReview,
+                confirmDelete,
+                setConfirmDelete,
+                handleDelete,
+              }))}
+
+              {completedDocs.length > 0 && (
+                <div className="mono-sm" style={{ color: 'var(--ink-4)', padding: '32px 0 8px' }}>
+                  COMPLETED · {completedDocs.length}
+                </div>
+              )}
+              {completedDocs.map((doc) => renderRow(doc, {
+                onOpenDoc,
+                onStartReview,
+                confirmDelete,
+                setConfirmDelete,
+                handleDelete,
+              }))}
             </div>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+function renderRow(doc, { onOpenDoc, onStartReview, confirmDelete, setConfirmDelete, handleDelete }) {
+  const pct = doc.pages ? Math.round((doc.read / doc.pages) * 100) : 0;
+  const completed = !!doc.completed;
+  const finishedTag = completed && doc.completedAt ? `FINISHED · ${formatDate(doc.completedAt)}` : null;
+  return (
+    <div
+      key={doc.id}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '80px 1fr 160px 200px',
+        gap: 32,
+        alignItems: 'center',
+        padding: '28px 0',
+        borderBottom: '1px solid var(--rule)',
+        transition: 'padding 220ms, background 220ms',
+        position: 'relative',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = 'var(--paper-2)';
+        e.currentTarget.style.paddingLeft = '12px';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = 'transparent';
+        e.currentTarget.style.paddingLeft = '0';
+      }}
+    >
+      <button onClick={() => onOpenDoc(doc.id)} style={rowGlyphBtn}>
+        <DocGlyph doc={doc} size={72}/>
+      </button>
+      <button onClick={() => onOpenDoc(doc.id)} style={rowTextBtn}>
+        <div style={{ fontSize: 20, fontWeight: 500, letterSpacing: '-0.015em', marginBottom: 4, color: completed ? 'var(--ink-2)' : 'var(--ink)' }}>
+          {doc.title}
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span>{doc.authors}</span>
+          {finishedTag && (
+            <span className="mono-sm" style={{ color: 'var(--ink-4)' }}>{finishedTag}</span>
+          )}
+        </div>
+        {doc.sample && (
+          <div
+            style={{
+              fontSize: 12.5,
+              color: 'var(--ink-3)',
+              fontStyle: 'italic',
+              maxWidth: 500,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            "{doc.sample}"
+          </div>
+        )}
+      </button>
+      <button onClick={() => onOpenDoc(doc.id)} style={rowTextBtn}>
+        <div className="mono" style={{ color: 'var(--ink-3)', marginBottom: 6 }}>
+          p. {doc.read} / {doc.pages || '—'}
+        </div>
+        <div style={{ height: 1, background: 'var(--rule-2)', position: 'relative' }}>
+          <div style={{ position: 'absolute', inset: 0, width: `${pct}%`, background: 'var(--ink)', height: 1 }}/>
+        </div>
+      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end' }}>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 22, fontWeight: 300, letterSpacing: '-0.02em', lineHeight: 1 }}>{doc.cards}</div>
+          <div className="mono-sm" style={{ color: 'var(--ink-4)', marginTop: 4 }}>
+            {doc.due > 0 ? `${doc.due} DUE` : 'CARDS'}
+          </div>
+        </div>
+        {doc.due > 0 && (
+          <button
+            className="btn xs"
+            onClick={(e) => { e.stopPropagation(); onStartReview(doc.id); }}
+            title={`Review ${doc.due} due card${doc.due === 1 ? '' : 's'}`}
+          >
+            <Ic.Review/>
+          </button>
+        )}
+        {confirmDelete === doc.id ? (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button className="btn xs" onClick={() => setConfirmDelete(null)}>Cancel</button>
+            <button className="btn xs" style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }} onClick={() => handleDelete(doc.id)}>
+              Delete
+            </button>
+          </div>
+        ) : (
+          <button
+            className="btn ghost xs"
+            onClick={(e) => { e.stopPropagation(); setConfirmDelete(doc.id); }}
+            title="Delete document"
+            style={{ color: 'var(--ink-4)' }}
+          >
+            <Ic.Trash/>
+          </button>
+        )}
+        <Ic.Right color="var(--ink-4)"/>
       </div>
     </div>
   );
