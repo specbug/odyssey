@@ -12,6 +12,23 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section(header: Text("Backend")) {
+                // Quick preset buttons
+                HStack(spacing: 8) {
+                    Button("Local") {
+                        baseURLString = APIEnvironment.local.baseURL.absoluteString
+                        save()
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isSaving)
+
+                    Button("Production") {
+                        baseURLString = APIEnvironment.production.baseURL.absoluteString
+                        save()
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isSaving)
+                }
+
                 TextField("API Base URL", text: $baseURLString)
                     .textFieldStyle(.roundedBorder)
                     .autocorrectionDisabled()
@@ -81,7 +98,7 @@ struct SettingsView: View {
         Task {
             await appState.resetEnvironment()
             await MainActor.run {
-                baseURLString = APIEnvironment.production.baseURL.absoluteString
+                baseURLString = APIEnvironment.local.baseURL.absoluteString
                 statusMessage = "Reverted to defaults"
                 statusIsError = false
                 isSaving = false

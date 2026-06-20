@@ -83,7 +83,9 @@ final class AppState: ObservableObject {
         }
 
         let targetEnvironment: APIEnvironment
-        if url == APIEnvironment.production.baseURL {
+        if url == APIEnvironment.local.baseURL {
+            targetEnvironment = .local
+        } else if url == APIEnvironment.production.baseURL {
             targetEnvironment = .production
         } else {
             targetEnvironment = APIEnvironment(name: "Custom", baseURL: url)
@@ -98,7 +100,7 @@ final class AppState: ObservableObject {
 
     func resetEnvironment() async {
         APIEnvironment.reset()
-        try? await updateEnvironment(baseURLString: APIEnvironment.production.baseURL.absoluteString)
+        try? await updateEnvironment(baseURLString: APIEnvironment.local.baseURL.absoluteString)
     }
 }
 
