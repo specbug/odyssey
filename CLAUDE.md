@@ -49,13 +49,21 @@ Capabilities:
 - **Cloze syntax**: `[[word]]` only; one `StudyCard` **per blank** — an annotation with N blanks produces N cards, each graded independently with the other blanks visible
 - **Review**: centered prompt, SPACE to reveal, 1–4 to grade, starburst tick progress
 - **LaTeX + images**: KaTeX via `utils/render.js`; images via `[image:UUID]` markers + `/images/*`
-- **Routing**: state-based, persisted in `localStorage` keys `odyssey:route` / `odyssey:docId`
+- **Routing**: state-based, persisted in `localStorage` keys `odyssey:route` /
+  `odyssey:docId`, and mirrored onto the browser history stack by
+  `hooks/useRouteHistory.js` so Back / Forward work. A refresh on the
+  chrome-less routes (`pdf` / `review`, which hide the rail) deliberately
+  lands on `home` instead of restoring — refreshing is the user's way out of
+  a stuck screen. `library` / `notes` keep the rail, so they stay restored.
 
 Layout (`src/`):
 - `App.js` — shell + routing
 - `screens/{Home,Library,Notes,Pdf,Review}Screen.js`
 - `components/{Icons,Starburst,DocGlyph,Metric,Rail,StickyNote,InlineCaptureDrawer}.js`
+- `components/ErrorBoundary.js` — catches a screen that throws mid-render and
+  offers a way home, so a crash can't blank the shell
 - `hooks/useTimeHue.js` — sets `--accent-h` from hour of day
+- `hooks/useRouteHistory.js` — mirrors the route onto the browser history stack
 - `utils/{cloze,hue,format,render}.js`
 - `data/adapters.js` — API shape → design shape
 - `styles/{tokens,base,pdf}.css` — CSS vars + global rules

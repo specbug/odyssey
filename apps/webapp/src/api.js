@@ -39,12 +39,15 @@ class ApiService {
     return asJson(await fetch(`${this.baseUrl}/files`));
   }
 
-  async getFile(fileId) {
-    return asJson(await fetch(`${this.baseUrl}/files/${fileId}`));
+  // `opts` is passed straight to fetch — callers use it to hand in an
+  // AbortSignal so a hung request on a slow link can be cancelled instead of
+  // pinning the viewer on its loading state forever.
+  async getFile(fileId, opts = {}) {
+    return asJson(await fetch(`${this.baseUrl}/files/${fileId}`, opts));
   }
 
-  async downloadFile(fileId, hash = null) {
-    const res = await fetch(this.fileDownloadUrl(fileId, hash));
+  async downloadFile(fileId, hash = null, opts = {}) {
+    const res = await fetch(this.fileDownloadUrl(fileId, hash), opts);
     if (!res.ok) throw new Error(`Download failed: ${res.status}`);
     return res.blob();
   }

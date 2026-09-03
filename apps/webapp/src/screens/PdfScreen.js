@@ -23,6 +23,13 @@ const DEFAULT_PAGE_HEIGHT_PT = 792;
 // 24px inter-page gap — matches padding-bottom on .page-and-notes-container.
 const PAGE_GAP_PX = 24;
 
+// How long a document fetch may run before we tell the user it's slow, and
+// before we give up on it entirely. The first threshold only reveals extra
+// controls; the second aborts, so a stalled connection resolves into the
+// error view instead of an unescapable spinner.
+const SLOW_LOAD_MS = 6000;
+const LOAD_TIMEOUT_MS = 45000;
+
 const MemoizedPage = memo(Page);
 
 // Stable callback for react-pdf's text-layer renderer. Kept at module scope so
@@ -499,7 +506,7 @@ function DrawerFloater({ drawer, children }) {
 // PdfScreen
 // ──────────────────────────────────────────────────────────────────
 
-export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit', onConsumedTarget, onExit, onStartReview }) {
+export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit', onConsumedTarget, onExit, onGoHome, onStartReview }) {
   const [fileBlob, setFileBlob] = useState(null);
   const [fileMetadata, setFileMetadata] = useState(null);
   const [numPages, setNumPages] = useState(0);
@@ -522,6 +529,11 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
   const [drawer, setDrawer] = useState(null); // null | {kind:'new', pageIndex, seedText, rects, normalizedRects, textAnchor, highlightedText} | {kind:'edit', pageIndex, noteId, initial}
   const [dueCount, setDueCount] = useState(0);
   const [error, setError] = useState(null);
+  // Loading is a place users get stranded, so it reports on itself: `slowLoad`
+  // flips once the fetch outlives SLOW_LOAD_MS and surfaces the retry / exit
+  // controls, and bumping `loadAttempt` re-runs the load effect.
+  const [slowLoad, setSlowLoad] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   // Chrome is always visible. Earlier iterations tried scroll-based hiding +
   // idle auto-hide; both felt like the viewer was refreshing. A persistent
@@ -563,21 +575,52 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
   // previous upload's cached bytes for the same /files/{id}/download URL.
   useEffect(() => {
     let alive = true;
+    let timedOut = false;
+    const ctrl = new AbortController();
+
+    // Everything derived from the outgoing document, cleared together — a
+    // stale numPages would otherwise render the previous doc's rows for a
+    // frame once the new blob lands but before onDocLoad fires.
+    setFileBlob(null);
+    setFileMetadata(null);
+    setNumPages(0);
+    setBaseHeight(null);
+    pageHeights.current = {};
+    setError(null);
+    setSlowLoad(false);
+
+    const slowTimer = setTimeout(() => { if (alive) setSlowLoad(true); }, SLOW_LOAD_MS);
+    // A stalled connection leaves fetch pending indefinitely — without this
+    // the viewer sits on "Loading document…" with no terminal state to
+    // recover from. Aborting turns the hang into the error view, which has
+    // real exits.
+    const killTimer = setTimeout(() => { timedOut = true; ctrl.abort(); }, LOAD_TIMEOUT_MS);
+
     (async () => {
       try {
-        const meta = await apiService.getFile(docId);
+        const meta = await apiService.getFile(docId, { signal: ctrl.signal });
         if (!alive) return;
         setFileMetadata(meta);
         if (meta?.zoom_level) setScale(meta.zoom_level);
-        const blob = await apiService.downloadFile(docId, meta?.file_hash);
+        const blob = await apiService.downloadFile(docId, meta?.file_hash, { signal: ctrl.signal });
         if (!alive) return;
         setFileBlob(blob);
       } catch (e) {
-        if (alive) setError(e.message || String(e));
+        if (!alive) return;
+        if (timedOut) setError('Timed out fetching this document. Check your connection and try again.');
+        else if (e?.name !== 'AbortError') setError(e.message || String(e));
       }
     })();
-    return () => { alive = false; };
-  }, [docId]);
+
+    return () => {
+      alive = false;
+      clearTimeout(slowTimer);
+      clearTimeout(killTimer);
+      ctrl.abort();
+    };
+  }, [docId, loadAttempt]);
+
+  const retryLoad = useCallback(() => setLoadAttempt((n) => n + 1), []);
 
   // Refresh due count
   const refreshDue = useCallback(async () => {
@@ -1026,13 +1069,25 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
     return by;
   }, [notes]);
 
+  // Exits shared by the error and loading states. The rail is hidden on this
+  // route, so these are the only visible way out until the viewer paints —
+  // the case that used to strand users behind a hung download. Built on
+  // demand: the loaded viewer re-renders on every scroll tick.
+  const escapeHatch = () => (
+    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+      <button className="btn" onClick={retryLoad}>Retry</button>
+      <button className="btn" onClick={onExit}>Library</button>
+      <button className="btn" onClick={onGoHome}>Home</button>
+    </div>
+  );
+
   if (error) {
     return (
       <div style={{ position: 'fixed', inset: 0, display: 'grid', placeItems: 'center', background: 'var(--paper)' }}>
-        <div style={{ textAlign: 'center' }}>
+        <div style={{ textAlign: 'center', maxWidth: 420, padding: 24 }}>
           <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 16 }}>DOCUMENT ERROR</div>
           <div style={{ color: 'var(--ink-2)', marginBottom: 24 }}>{error}</div>
-          <button className="btn" onClick={onExit}>Back to library</button>
+          {escapeHatch()}
         </div>
       </div>
     );
@@ -1041,7 +1096,18 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
   if (!fileBlob) {
     return (
       <div style={{ position: 'fixed', inset: 0, display: 'grid', placeItems: 'center', background: 'var(--paper)' }}>
-        <div className="mono-sm" style={{ color: 'var(--ink-4)' }}>Loading document…</div>
+        <div style={{ textAlign: 'center', maxWidth: 420, padding: 24 }}>
+          <div className="mono-sm" style={{ color: 'var(--ink-4)' }}>Loading document…</div>
+          {slowLoad && (
+            <div className="enter" style={{ marginTop: 24 }}>
+              <div style={{ color: 'var(--ink-3)', marginBottom: 20, fontSize: 13 }}>
+                This is taking longer than usual — the connection may be slow.
+              </div>
+              {escapeHatch()}
+              <div className="mono-sm" style={{ color: 'var(--ink-4)', marginTop: 16 }}>ESC TO LEAVE</div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
@@ -1142,7 +1208,11 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
         onMouseUp={onViewerMouseUp}
         onScroll={onScrollerScroll}
       >
-        <Document file={fileBlob} onLoadSuccess={onDocLoad}>
+        <Document
+          file={fileBlob}
+          onLoadSuccess={onDocLoad}
+          onLoadError={(e) => setError(e?.message || 'This PDF could not be opened.')}
+        >
           {numPages > 0 && (
             // Plain stacked list — no virtualizer. Each LazyPageRow mounts
             // its page on first proximity to the viewport and never
