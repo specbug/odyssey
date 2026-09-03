@@ -215,5 +215,10 @@ shipping:
 - Don't mix font families within a single text run (sans + mono in one line
   is fine as adjacent spans; serif + sans is not).
 - Don't add new routes without also persisting `odyssey:route` in
-  localStorage via `App.js` — the shell relies on round-tripping.
+  localStorage via `App.js` — the shell relies on round-tripping. If the new
+  route hides the rail, add it to `CHROMELESS_ROUTES` too, or a refresh will
+  restore the user into a screen with no visible way out.
+- Don't ship a full-screen loading or error state without a visible exit.
+  The rail isn't there to save you on `pdf` / `review`; `PdfScreen`'s
+  `escapeHatch` (Retry / Library / Home) is the pattern to copy.
 - Don't introduce external font CDNs. All type is bundled from `src/fonts/`.
