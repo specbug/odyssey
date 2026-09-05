@@ -272,6 +272,130 @@ Backend (apps/api):
   (title / author / excerpt) on upload and via `/library/refresh-metadata`.
   Unset → integration is a no-op, uploads behave exactly as before.
 - `GEMINI_MODEL`: Override the Gemini model (default: `gemini-2.5-flash`).
+- `HEALTHCHECKS_URL`: Optional. If set, `app/heartbeat.py` pings this URL
+  every 60s from a FastAPI lifespan task. Unset → no-op. See
+  "Reliability & Hosting" below.
+
+## Reliability & Hosting
+
+Odyssey runs 24/7 on a Mac mini (M4, macOS 26 Tahoe) behind a Cloudflare
+Tunnel. The stack is podman compose (`api` + `web` + `cloudflared`)
+managed by a host-level LaunchAgent. The goal is *autonomous recovery
+from every single-node failure mode* — everything short of the mini
+being dead.
+
+### Host configuration (one-time, already applied)
+
+- **FileVault: off.** Required for auto-login + unattended boot. Apple
+  Silicon still hardware-encrypts the SSD and Activation Lock still
+  protects against theft — FV only added pre-boot password gating, which
+  on a Wi-Fi-only mini would mean "walk over to unlock after every
+  reboot" since Tahoe's pre-boot SSH unlock is Ethernet-only.
+- **Auto-login: on** for `rishitv`. Without this, LaunchAgents don't
+  fire on boot.
+- **Remote Login: on.** Post-boot SSH for management.
+- **Podman Desktop is NOT in Login Items.** Leaving it in caused a
+  severe race on every boot — Podman Desktop and our watchdog both
+  tried to start/manage the podman machine at login, and `podman
+  machine start` invoked by one party would SIGTERM the other party's
+  `gvproxy` (`"gvproxy exiting: signal caught"` in `$TMPDIR/podman/gvproxy.log`).
+  The stack looked up for seconds, then collapsed. If you want the
+  Podman Desktop GUI, open it manually when needed; do not re-add it
+  to Login Items. (Check: System Settings → General → Login Items.)
+- **`scripts/harden-mac-server.sh`** — one-shot idempotent tuning script,
+  run with `sudo`. Applies: `pmset` never-sleep settings, auto-reboot on
+  kernel panic, disables auto-install of macOS point releases (keeps
+  Rapid Security Responses on), disables local Time Machine snapshots,
+  disables App Nap for the server user, schedules a weekly clean reboot
+  at Monday 04:00.
+
+  Caveat: on macOS 26 the point-release toggle does **not** reliably take
+  from `defaults write` — the mini auto-installed 26.6.2 and rebooted
+  itself on 2026-09-04 despite the script having been run. The script now
+  reads that key back and warns when it failed; clearing it for real means
+  turning off "Install macOS updates" by hand in System Settings →
+  General → Software Update → Automatic Updates.
+
+### Process supervision
+
+Two layers, every layer self-heals:
+
+1. **compose `restart: always`** — podman auto-restarts any crashed
+   container.
+2. **compose healthcheck on `api`** — curls `/health` every 30s; 3
+   consecutive failures mark the container unhealthy and restart it.
+   `apps/api/Dockerfile` installs `curl` for this check.
+3. **LaunchAgent `in.sixeleven.odyssey`** — `scripts/odyssey.plist`
+   → `~/.local/bin/odyssey-start` (canonical source: `scripts/start.sh`).
+   Runs at login and every 2 min (`StartInterval=120`). The script:
+   starts the podman machine if down, runs `podman compose up -d` if
+   the stack is down, probes `/health` and restarts `odyssey_api_1` if
+   it fails 3x in a row. Silent when healthy.
+
+   **Critical plist keys — do not remove:**
+   - `AbandonProcessGroup=true` — `podman machine start` spawns vfkit
+     (the VM) as a child of our script. Without this key, launchd reaps
+     the whole process group when start.sh exits, killing vfkit within
+     seconds and collapsing the stack we just brought up. This was a
+     silent stack-collapse-on-boot bug that took a long time to find.
+
+   **Script hardening (in `start.sh`):**
+   - Pid-file lock at `/tmp/in.sixeleven.odyssey.lock` — prevents
+     stacked runs from racing `podman machine start` (two concurrent
+     starts SIGTERM each other's gvproxy).
+   - Readiness gate is `podman ps` (hits the socket), not `podman
+     machine inspect` — inspect's `"State": "running"` returns true
+     several seconds before SSH to the VM is usable on a loaded mini.
+   - `compose up -d` wrapped in a 120s kill-timeout — if podman-compose
+     wedges, we don't hold the lock forever.
+4. **External heartbeat** — `app/heartbeat.py` pings `HEALTHCHECKS_URL`
+   from inside the api container every 60s. Silence → Healthchecks.io
+   alerts. Detects outages an HTTP probe can't (ISP down, Mac off, full
+   process hang) because it comes *from* the service.
+5. **External HTTP probe** — UptimeRobot hits
+   `https://odyssey.sixeleven.in/api/health` every 60s (note: nginx
+   proxies `/api/*` to `api:8000/*` stripping the prefix, so this lands
+   on FastAPI's `/health`). The hostname is behind Cloudflare Access —
+   UptimeRobot authenticates using a service token via
+   `CF-Access-Client-Id` / `CF-Access-Client-Secret` headers so the
+   probe doesn't bounce off the Access login. Detects "tunnel is up but
+   upstream is broken" that a push heartbeat can't.
+
+### Recovery runbook
+
+**Alert fires (Healthchecks.io silent or UptimeRobot red):**
+
+1. SSH in: `ssh rishitv@<mac-lan-ip>`.
+2. `tail -50 ~/Library/Logs/odyssey.log` — did the watchdog see anything?
+3. `podman ps` — are containers up?
+4. `launchctl kickstart -k "gui/$(id -u)/in.sixeleven.odyssey"` — force
+   the watchdog to run now.
+5. Last resort: `sudo shutdown -r now`. With FV off + auto-login, the
+   Mac comes back up, session starts, LaunchAgent fires, stack boots
+   within ~90s of reboot.
+
+**Editing the startup script:**
+
+```sh
+cp scripts/start.sh ~/.local/bin/odyssey-start && chmod +x ~/.local/bin/odyssey-start
+launchctl kickstart -k "gui/$UID/in.sixeleven.odyssey"
+```
+
+**Editing the plist (`StartInterval`, `Label`, etc.):**
+
+```sh
+cp scripts/odyssey.plist ~/Library/LaunchAgents/in.sixeleven.odyssey.plist
+launchctl bootout "gui/$UID/in.sixeleven.odyssey" 2>/dev/null || true
+launchctl bootstrap "gui/$UID" ~/Library/LaunchAgents/in.sixeleven.odyssey.plist
+launchctl kickstart -k "gui/$UID/in.sixeleven.odyssey"
+```
+
+### What the scheduled weekly reboot does
+
+`pmset repeat restart M 04:00:00` (applied by `harden-mac-server.sh`) —
+Mac reboots every Monday at 4am. Flushes kernel/memory cruft and
+exercises the recovery path so it doesn't silently break. Services are
+down for ~90s.
 
 ## Design Discipline (webapp)
 
