@@ -1,0 +1,27 @@
+# hostd manifest. Everything hostd needs to deploy and supervise this app.
+# Replaces scripts/start.sh and this repo's entry in the old deployd registry.
+# See SPEC.md in the hostd repo.
+
+name: odyssey
+branch: main
+
+health:
+  container: odyssey_api_1
+  url: http://localhost:8000/health
+  restart: odyssey_api_1
+
+backup:
+  # Declared with a global `name:` in compose.yml so it carries no project
+  # prefix and the backup stack can mount it.
+  volume: odyssey-data
+  # Source paths are relative to the volume root. hostd roots them at
+  # /sources/odyssey when it generates the backup container's jobs.yml.
+  jobs:
+    - name: odyssey-db
+      type: sqlite       # hot-backup via sqlite3 .backup, gzip, replace
+      source: odyssey.db
+      destination: odyssey/db/odyssey.db.gz
+    - name: odyssey-uploads
+      type: sync         # rclone sync, mirror semantics
+      source: uploads/
+      destination: odyssey/uploads/
