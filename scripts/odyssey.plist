@@ -20,10 +20,20 @@
     <key>KeepAlive</key>
     <false/>
 
-    <!-- Watchdog: re-run every 5 min. Script is idempotent and silent when healthy,
-         so this just restarts the stack if podman machine or the container dies. -->
+    <!-- CRITICAL: `podman machine start` spawns vfkit (the VM) as a child.
+         Without this key, launchd reaps the entire process group when our
+         short-lived script exits — killing vfkit and collapsing the stack
+         seconds after we just brought it up. This flag tells launchd to
+         leave our children alone. Documented in podman's own macOS autostart
+         docs; without it any LaunchAgent-based setup is structurally broken. -->
+    <key>AbandonProcessGroup</key>
+    <true/>
+
+    <!-- Watchdog: re-run every 2 min. Script is idempotent and silent when healthy;
+         it (a) starts the podman machine if down, (b) brings the stack up if down,
+         (c) probes /health and restarts the api container if it's wedged. -->
     <key>StartInterval</key>
-    <integer>300</integer>
+    <integer>120</integer>
 
     <key>StandardOutPath</key>
     <string>/Users/rishitv/Library/Logs/odyssey.log</string>

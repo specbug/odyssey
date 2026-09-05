@@ -14,8 +14,16 @@ services:
       # Optional Gemini metadata enrichment. Unset in .env → backend no-ops.
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      # Optional Healthchecks.io push heartbeat URL. Unset → no-op.
+      HEALTHCHECKS_URL: ${HEALTHCHECKS_URL:-}
     ports:
       - "8000:8000"   # Mac app still reaches API at localhost:8000
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-m", "3", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   web:
     build: ./apps/webapp
