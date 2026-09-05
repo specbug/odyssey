@@ -325,7 +325,7 @@ Two layers, every layer self-heals:
 2. **compose healthcheck on `api`** — curls `/health` every 30s; 3
    consecutive failures mark the container unhealthy and restart it.
    `apps/api/Dockerfile` installs `curl` for this check.
-3. **hostd**, the host framework in `../backupd` (`framework/hostd`,
+3. **hostd**, the host framework in `../hostd` (`framework/hostd`,
    contract in its `SPEC.md`). Odyssey declares itself in `deploy.yml` at
    this repo root and carries no hosting machinery of its own. hostd's
    `in.sixeleven.hostd-watch` agent runs every 2 min: starts the podman
@@ -385,7 +385,7 @@ Two layers, every layer self-heals:
 
 Edit `deploy.yml` in this repo (health target, deploy branch, backup jobs)
 and commit. hostd reads it from `HEAD` on its next tick; there is nothing
-to copy anywhere. Framework changes live in `../backupd/framework/hostd`.
+to copy anywhere. Framework changes live in `../hostd/framework/hostd`.
 
 ### What the scheduled weekly reboot does
 
