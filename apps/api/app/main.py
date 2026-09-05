@@ -8,6 +8,7 @@ from typing import List, Optional
 import os
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
+from contextlib import asynccontextmanager
 import gzip
 import io
 
@@ -44,6 +45,7 @@ from .schemas import (
 )
 from .spaced_repetition import SpacedRepetitionService
 from . import gemini as gemini_client
+from . import heartbeat as heartbeat_client
 from .utils import (
     calculate_file_hash_from_bytes,
     is_pdf_file,
@@ -177,10 +179,21 @@ def _migrate_pdf_file_title() -> None:
 _migrate_pdf_file_title()
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Start the Healthchecks.io heartbeat (no-op if HEALTHCHECKS_URL unset).
+    task = heartbeat_client.start_heartbeat()
+    try:
+        yield
+    finally:
+        await heartbeat_client.stop_heartbeat(task)
+
+
 app = FastAPI(
     title="PDF Annotation API",
     description="Backend API for PDF annotation and note-taking",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # CORS middleware — allow localhost dev and production origins
