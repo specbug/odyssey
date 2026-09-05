@@ -325,29 +325,35 @@ Two layers, every layer self-heals:
 2. **compose healthcheck on `api`** — curls `/health` every 30s; 3
    consecutive failures mark the container unhealthy and restart it.
    `apps/api/Dockerfile` installs `curl` for this check.
-3. **LaunchAgent `in.sixeleven.odyssey`** — `scripts/odyssey.plist`
-   → `~/.local/bin/odyssey-start` (canonical source: `scripts/start.sh`).
-   Runs at login and every 2 min (`StartInterval=120`). The script:
-   starts the podman machine if down, runs `podman compose up -d` if
-   the stack is down, probes `/health` and restarts `odyssey_api_1` if
-   it fails 3x in a row. Silent when healthy.
+3. **hostd**, the host framework in `../backupd` (`framework/hostd`,
+   contract in its `SPEC.md`). Odyssey declares itself in `deploy.yml` at
+   this repo root and carries no hosting machinery of its own. hostd's
+   `in.sixeleven.hostd-watch` agent runs every 2 min: starts the podman
+   machine if down, runs `podman compose up -d` if the stack is down,
+   probes `/health` and restarts `odyssey_api_1` after 3 consecutive
+   failures. `in.sixeleven.hostd-deploy` runs every 5 min and rebuilds
+   this stack when `origin/main` moves.
 
-   **Critical plist keys — do not remove:**
-   - `AbandonProcessGroup=true` — `podman machine start` spawns vfkit
-     (the VM) as a child of our script. Without this key, launchd reaps
-     the whole process group when start.sh exits, killing vfkit within
-     seconds and collapsing the stack we just brought up. This was a
+   This replaced `scripts/start.sh` and `scripts/odyssey.plist`, which
+   were one of three near-identical copies of the same watchdog. They had
+   drifted: fixes made here (the lock re-check, the SIGPIPE fix) were
+   never propagated to the other two. The hard-won details from that
+   script survive in hostd and are documented in `SPEC.md`:
+
+   - `AbandonProcessGroup=true` in the plist. `podman machine start`
+     spawns vfkit (the VM) as a child; without this key launchd reaps the
+     whole process group when the script exits, killing vfkit within
+     seconds and collapsing the stack it just brought up. This was a
      silent stack-collapse-on-boot bug that took a long time to find.
-
-   **Script hardening (in `start.sh`):**
-   - Pid-file lock at `/tmp/in.sixeleven.odyssey.lock` — prevents
-     stacked runs from racing `podman machine start` (two concurrent
-     starts SIGTERM each other's gvproxy).
-   - Readiness gate is `podman ps` (hits the socket), not `podman
-     machine inspect` — inspect's `"State": "running"` returns true
+   - The readiness gate is `podman ps` (which hits the socket), not
+     `podman machine inspect`. Inspect reports `"State": "running"`
      several seconds before SSH to the VM is usable on a loaded mini.
-   - `compose up -d` wrapped in a 120s kill-timeout — if podman-compose
-     wedges, we don't hold the lock forever.
+   - `compose up` is wrapped in a kill-timeout so a wedged podman-compose
+     cannot hold the app lock forever.
+   - Only one process starts the podman machine now, so the concurrent
+     `machine start` race (two starts SIGTERM each other's gvproxy) is
+     structurally impossible rather than merely avoided by a lock.
+
 4. **External heartbeat** — `app/heartbeat.py` pings `HEALTHCHECKS_URL`
    from inside the api container every 60s. Silence → Healthchecks.io
    alerts. Detects outages an HTTP probe can't (ISP down, Mac off, full
@@ -366,29 +372,20 @@ Two layers, every layer self-heals:
 **Alert fires (Healthchecks.io silent or UptimeRobot red):**
 
 1. SSH in: `ssh rishitv@<mac-lan-ip>`.
-2. `tail -50 ~/Library/Logs/odyssey.log` — did the watchdog see anything?
+2. `tail -50 ~/Library/Logs/in.sixeleven.hostd-watch.log`: did the
+   watchdog see anything? `hostd status` summarises all apps at once.
 3. `podman ps` — are containers up?
-4. `launchctl kickstart -k "gui/$(id -u)/in.sixeleven.odyssey"` — force
-   the watchdog to run now.
+4. `launchctl kickstart -k "gui/$(id -u)/in.sixeleven.hostd-watch"` to
+   force the watchdog to run now.
 5. Last resort: `sudo shutdown -r now`. With FV off + auto-login, the
    Mac comes back up, session starts, LaunchAgent fires, stack boots
    within ~90s of reboot.
 
-**Editing the startup script:**
+**Changing how this app is hosted:**
 
-```sh
-cp scripts/start.sh ~/.local/bin/odyssey-start && chmod +x ~/.local/bin/odyssey-start
-launchctl kickstart -k "gui/$UID/in.sixeleven.odyssey"
-```
-
-**Editing the plist (`StartInterval`, `Label`, etc.):**
-
-```sh
-cp scripts/odyssey.plist ~/Library/LaunchAgents/in.sixeleven.odyssey.plist
-launchctl bootout "gui/$UID/in.sixeleven.odyssey" 2>/dev/null || true
-launchctl bootstrap "gui/$UID" ~/Library/LaunchAgents/in.sixeleven.odyssey.plist
-launchctl kickstart -k "gui/$UID/in.sixeleven.odyssey"
-```
+Edit `deploy.yml` in this repo (health target, deploy branch, backup jobs)
+and commit. hostd reads it from `HEAD` on its next tick; there is nothing
+to copy anywhere. Framework changes live in `../backupd/framework/hostd`.
 
 ### What the scheduled weekly reboot does
 
