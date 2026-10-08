@@ -233,8 +233,11 @@ a reasoning model: we send `reasoning_effort: "minimal"` and must not send
 `MIN_TEXT_CHARS` of text (a scan) is skipped rather than guessed at.
 
 429 / 5xx / transport errors retry up to `MAX_ATTEMPTS` (3), honouring
-`Retry-After` (capped at 30s); other 4xx fail fast. Contributor-tier rate
-limits are per team, not per key.
+`Retry-After` (capped at 30s); other 4xx fail fast — except a 400 naming
+`reasoning_effort` or `response_format`, which drops that parameter and
+resends (`DROPPABLE_PARAMS`), so a model that rejects one of them degrades
+instead of failing every upload. Contributor-tier rate limits are per team,
+not per key.
 
 Bulk backfill: `POST /library/refresh-metadata[?force=true]` iterates all
 PDFs on disk, queueing one task per file. Default mode fills only nulls;

@@ -62,6 +62,16 @@ MAX_ATTEMPTS = 3
 RETRY_STATUSES = {408, 429, 500, 502, 503, 504}
 MAX_BACKOFF_S = 30.0
 
+# Parameters we send that aren't essential. If the API 400s naming one, drop
+# it and resend rather than failing: without `reasoning_effort` the model
+# just thinks longer; without `response_format` the prompt still asks for
+# JSON and the parser tolerates fences. Keyed by param, valued by the words
+# that identify it in an error body.
+DROPPABLE_PARAMS = {
+    "reasoning_effort": ("reasoning_effort",),
+    "response_format": ("response_format", "json_schema"),
+}
+
 _SYSTEM_PROMPT = (
     "You extract bibliographic metadata from the text of a document (book, "
     "paper, article, blog post saved as PDF, or similar). You are given the "
@@ -201,6 +211,17 @@ def _retry_delay(resp: Optional[httpx.Response], attempt: int) -> float:
     return min(2.0 ** attempt, MAX_BACKOFF_S)
 
 
+def _rejected_optional_param(resp: httpx.Response, payload: dict) -> Optional[str]:
+    """If a 400 names one of the optional parameters we send, return it."""
+    if resp.status_code != 400:
+        return None
+    body = resp.text.lower()
+    for param, mentions in DROPPABLE_PARAMS.items():
+        if param in payload and any(m in body for m in mentions):
+            return param
+    return None
+
+
 def _post_with_retries(
     url: str,
     payload: dict,
@@ -213,8 +234,11 @@ def _post_with_retries(
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
     }
+    payload = dict(payload)
+    attempt = 0
     with httpx.Client(timeout=REQUEST_TIMEOUT_S, transport=transport) as client:
-        for attempt in range(1, MAX_ATTEMPTS + 1):
+        while attempt < MAX_ATTEMPTS:
+            attempt += 1
             resp: Optional[httpx.Response] = None
             try:
                 resp = client.post(url, json=payload, headers=headers)
@@ -233,6 +257,15 @@ def _post_with_retries(
                     f"⚠️  Meta request failed (attempt {attempt}, "
                     f"status={resp.status_code}): {body}"
                 )
+                dropped = _rejected_optional_param(resp, payload)
+                if dropped:
+                    # A model that rejects one of our optional knobs should
+                    # degrade, not fail every upload. Doesn't count as an
+                    # attempt: the request never reached the model.
+                    payload.pop(dropped)
+                    attempt -= 1
+                    print(f"   Retrying without `{dropped}`.")
+                    continue
                 if resp.status_code not in RETRY_STATUSES:
                     return None
             if attempt < MAX_ATTEMPTS:

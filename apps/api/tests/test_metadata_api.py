@@ -176,6 +176,25 @@ def test_plain_patch_still_overwrites(client, llm):
     assert out["title"] == LLM["title"]  # untouched fields stay
 
 
+def test_patch_rejects_out_of_range_hue(client, no_llm):
+    # Regression: the 422 handler used to re-read the request body and hang.
+    file_id = upload(client)["file_data"]["id"]
+    resp = client.patch(f"/files/{file_id}/metadata", json={"color_hue": 999})
+    assert resp.status_code == 422
+    assert resp.json()["body"] == {"color_hue": 999}
+
+
+def test_upload_without_file_field_is_422_not_500(client, no_llm):
+    # Regression: the 422 handler echoed the multipart body (FormData with
+    # UploadFile objects) into a JSONResponse, which raised → 500.
+    resp = client.post(
+        "/upload", files={"wrong": ("a.pdf", b"%PDF-1.4", "application/pdf")},
+    )
+    assert resp.status_code == 422
+    assert resp.json()["body"] is None
+    assert resp.json()["detail"][0]["loc"] == ["body", "file"]
+
+
 def test_patch_missing_file_404(client):
     resp = client.patch("/files/999999/metadata", json={"author": "x"})
     assert resp.status_code == 404

@@ -212,6 +212,38 @@ def test_client_errors_are_not_retried(status):
     assert srv.sleeps == []
 
 
+@pytest.mark.parametrize("param,error", [
+    ("reasoning_effort", "Unsupported parameter: 'reasoning_effort'"),
+    ("response_format", "response_format.json_schema is not supported"),
+])
+def test_rejected_optional_param_is_dropped_and_resent(param, error):
+    srv = FakeServer(
+        httpx.Response(400, json={"error": {"message": error}}), GOOD,
+    )
+    assert srv.run()["author"] == "Vicent Martí"
+    assert len(srv.requests) == 2
+    assert param in srv.body(0)
+    assert param not in srv.body(1)
+    assert srv.sleeps == []
+
+
+def test_both_optional_params_can_be_dropped():
+    srv = FakeServer(
+        httpx.Response(400, text="reasoning_effort: invalid value"),
+        httpx.Response(400, text="json_schema not supported for this model"),
+        GOOD,
+    )
+    assert srv.run()["title"] == "Git at any scale"
+    body = srv.body(2)
+    assert "reasoning_effort" not in body and "response_format" not in body
+
+
+def test_unrelated_400_is_not_resent():
+    srv = FakeServer(httpx.Response(400, text="messages: too long"))
+    assert srv.run() is None
+    assert len(srv.requests) == 1
+
+
 def test_api_key_is_redacted_from_logs(capsys):
     srv = FakeServer(httpx.Response(401, text=f"invalid key {KEY}"))
     srv.run()

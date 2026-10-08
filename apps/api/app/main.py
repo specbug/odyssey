@@ -1,5 +1,6 @@
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, status, Request, BackgroundTasks
 from fastapi.responses import FileResponse, JSONResponse
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from pydantic import ValidationError
@@ -308,12 +309,19 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     print(f"❌ Validation error on {request.method} {request.url}")
     print(f"   Errors: {exc.errors()}")
-    print(f"   Body: {await request.body()}")
+    # FastAPI has already consumed the body and hands the parsed copy over as
+    # exc.body. `await request.body()` would read the drained stream again —
+    # this handler gets a fresh Request — and block until the client gives up.
+    print(f"   Body: {exc.body!r}")
+    # Echo the body back only when it's plain JSON. A multipart body arrives
+    # as FormData holding UploadFile objects, which JSONResponse can't
+    # serialise — echoing it turned every bad upload into a 500.
+    body = exc.body if isinstance(exc.body, (dict, list, str, int, float, bool)) else None
     return JSONResponse(
         status_code=422,
         content={
-            "detail": exc.errors(),
-            "body": exc.body,
+            "detail": jsonable_encoder(exc.errors()),
+            "body": body,
             "message": "Validation failed - check request data format",
         },
     )
