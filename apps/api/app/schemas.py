@@ -50,6 +50,9 @@ class PDFFileMetadataUpdate(BaseModel):
     author: Optional[str] = None
     color_hue: Optional[int] = Field(default=None, ge=0, le=360)
     excerpt: Optional[str] = None
+    # Only set fields that are still NULL on the row. Used by the webapp's
+    # pdfjs pass so it never overwrites the LLM enrichment.
+    fill_only: bool = False
 
 
 class LibraryRefreshResponse(BaseModel):

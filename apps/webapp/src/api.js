@@ -89,11 +89,12 @@ class ApiService {
     }));
   }
 
-  async updateFileMetadata(fileId, { author, color_hue, excerpt }) {
+  async updateFileMetadata(fileId, { author, color_hue, excerpt }, { fillOnly = false } = {}) {
     const body = {};
     if (author !== undefined) body.author = author;
     if (color_hue !== undefined) body.color_hue = color_hue;
     if (excerpt !== undefined) body.excerpt = excerpt;
+    if (fillOnly) body.fill_only = true;
     return asJson(await fetch(`${this.baseUrl}/files/${fileId}/metadata`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

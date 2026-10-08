@@ -9,7 +9,9 @@ import { Ic } from '../components/Icons';
 pdfjs.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL || ''}/pdf.worker.min.mjs`;
 
 // Extract design metadata (author + excerpt) from a freshly uploaded PDF.
-// Best-effort — encrypted or unusual PDFs fall back to null fields.
+// Best-effort — encrypted or unusual PDFs fall back to null fields. This is
+// only a fallback for when LLM enrichment is off or fails: it's PATCHed
+// with fillOnly, and the backend's LLM task overwrites it.
 async function extractPdfMetadata(fileId, hash) {
   try {
     const url = apiService.fileDownloadUrl(fileId, hash);
@@ -71,7 +73,9 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
         const { author, excerpt, totalPages } = await extractPdfMetadata(data.id, data.file_hash);
         const color_hue = hashToHue(data.file_hash);
         try {
-          await apiService.updateFileMetadata(data.id, { author, color_hue, excerpt });
+          await apiService.updateFileMetadata(
+            data.id, { author, color_hue, excerpt }, { fillOnly: true },
+          );
         } catch (e) { console.warn('metadata patch failed', e); }
         if (totalPages && totalPages !== data.total_pages) {
           try { await apiService.updateTotalPages(data.id, totalPages); }
