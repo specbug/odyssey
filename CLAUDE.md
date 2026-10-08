@@ -25,7 +25,7 @@ The FastAPI backend implements:
 - **FSRS Spaced Repetition**: Core scheduling algorithm in `app/spaced_repetition.py`
 - **Image Storage**: UUID-based image storage with `[image:UUID]` markers in annotation text
 - **Database**: SQLAlchemy ORM with SQLite (models in `app/models.py`)
-- **Gemini metadata enrichment** (optional): `app/gemini.py` pulls `title` / `author` / `excerpt` from an uploaded PDF when `GEMINI_API_KEY` is set
+- **LLM metadata enrichment** (optional): `app/meta_ai.py` pulls `title` / `author` / `excerpt` from an uploaded PDF via the Meta Model API when `META_API_KEY` is set
 
 Key backend modules:
 - `app/main.py`: FastAPI application with all REST endpoints
@@ -34,7 +34,7 @@ Key backend modules:
 - `app/schemas.py`: Pydantic schemas for request/response validation
 - `app/database.py`: Database session management
 - `app/utils.py`: File handling utilities (hashing, validation, storage)
-- `app/gemini.py`: Thin Gemini REST client — `extract_pdf_metadata(bytes)`, no-op without `GEMINI_API_KEY`
+- `app/meta_ai.py`: Thin Meta Model API client — `extract_pdf_metadata(bytes)`, no-op without `META_API_KEY`
 
 ### Frontend (apps/webapp)
 
@@ -197,47 +197,67 @@ CASCADE deletion: deleting annotation deletes its study card and reviews.
 
 `PDFFile` carries design-layer metadata — `title`, `author`, `color_hue`
 (0–360), `excerpt` — populated on upload by `LibraryScreen` via pdfjs and/or
-by the Gemini background task (see below). All nullable so an upload never
-fails if extraction does. Precedence: user / pdfjs values win — the Gemini
-task only fills fields still `NULL` at write time. `PDFFileResponse.display_name`
-prefers `title`, falling back to the filename stem.
+by the LLM background task (see below). All nullable so an upload never
+fails if extraction does. Precedence: the LLM wins. The pdfjs pass is a
+fallback for when the LLM is off or fails — its excerpt is a raw first-page
+text dump and its author is the PDF info dict, which is usually empty — so it
+PATCHes with `fill_only: true` and never overwrites a value. The LLM task
+overwrites any field it returns a value for, whichever of the two lands first.
+A plain PATCH (no `fill_only`) still overwrites, for explicit edits.
+`PDFFileResponse.display_name` prefers `title`, falling back to the filename
+stem.
 
-### Gemini metadata enrichment
+### LLM metadata enrichment (Meta Model API)
 
-Opt-in via `GEMINI_API_KEY` env var. When set, `POST /upload` queues a
-FastAPI `BackgroundTasks` entry (`_enrich_file_metadata_task` in `main.py`)
-that sends the PDF inline to `gemini-2.5-flash` (configurable via
-`GEMINI_MODEL`, free-tier eligible) and persists `{title, author, excerpt}`.
-The task runs *after* the upload response is returned — uploads are never
-blocked on the LLM call.
+Opt-in via `META_API_KEY`. When set, `POST /upload` queues a FastAPI
+`BackgroundTasks` entry (`_enrich_file_metadata_task` in `main.py`) that asks
+a Muse Spark model for `{title, author, excerpt}` and persists them. The task
+runs *after* the upload response is returned — uploads are never blocked on
+the LLM call.
 
-Before sending, `app/gemini.py:_prepare_payload` slices the PDF to the
-first `PAGE_SLICE_LIMIT` (10) pages with pypdf and pulls the PDF info dict
-(`/Title`, `/Author`, `/Producer`, …). The slice goes as `inlineData`, the
-info dict is appended to the prompt as a hint (authoring tools often
-populate junk there, so Gemini is told the title page wins). This keeps
-per-call payloads in the low hundreds of KB even for 25 MB books, and the
-14 MB inline-cap check is now a safety net for scan-heavy first-10-page
-slices rather than a routine gate. If pypdf can't parse a PDF, we fall
-back to sending the full file.
+Default model is `muse-spark-1.3-contributor` (Contributor tier: ~$0.10 /
+$0.20 per M input / output tokens, **in exchange for Meta training on the
+prompts and completions** — i.e. the opening pages of every uploaded PDF).
+`META_MODEL=muse-spark-1.3` switches to the Standard tier (no training,
+~12× the input price). The API is OpenAI-compatible Chat Completions at
+`https://api.meta.ai/v1` (`META_BASE_URL` overrides), Bearer auth.
+
+The API takes text and images, not PDFs, so `app/meta_ai.py:_prepare_text`
+extracts the text layer of the first `PAGE_SLICE_LIMIT` (10) pages with
+pypdf, keeping line breaks (they separate headline / byline / date) and
+`[page N]` markers, capped at `MAX_PROMPT_CHARS` (24k chars, ~6k tokens).
+The PDF info dict goes along as a hint the prompt says to distrust. The
+reply is constrained with a `json_schema` `response_format`. Muse Spark is
+a reasoning model: we send `reasoning_effort: "minimal"` and must not send
+`stop`, `n`, `logprobs` or `logit_bias` (400s). A PDF with under
+`MIN_TEXT_CHARS` of text (a scan) is skipped rather than guessed at.
+
+429 / 5xx / transport errors retry up to `MAX_ATTEMPTS` (3), honouring
+`Retry-After` (capped at 30s); other 4xx fail fast. Contributor-tier rate
+limits are per team, not per key.
 
 Bulk backfill: `POST /library/refresh-metadata[?force=true]` iterates all
 PDFs on disk, queueing one task per file. Default mode fills only nulls;
-`force=true` overwrites. Returns 503 if `GEMINI_API_KEY` isn't set. The
-refresh only writes `title` / `author` / `excerpt` on `PDFFile` — it does
-not touch annotations, `StudyCard` FSRS state, `CardReview` history, or
-any reading-state fields, so running it on a populated library is safe.
+`force=true` overwrites (needed to replace old pdfjs junk excerpts, since
+those aren't null). Returns 503 if `META_API_KEY` isn't set. The refresh
+only writes `title` / `author` / `excerpt` on `PDFFile` — it does not touch
+annotations, `StudyCard` FSRS state, `CardReview` history, or any
+reading-state fields, so running it on a populated library is safe.
 
-The module (`app/gemini.py`) is fully defensive — `is_configured()` is
-False without a key and callers treat `extract_pdf_metadata` returning
-`None` as "no enrichment available." API keys are scrubbed from all error
-log output before `print`.
+The module is fully defensive — `is_configured()` is False without a key and
+callers treat `extract_pdf_metadata` returning `None` as "no enrichment
+available." The key travels only in the `Authorization` header and is
+scrubbed from all logged error text.
 
-**Deployment:** `GEMINI_API_KEY` (and optional `GEMINI_MODEL`) live in the
-root `.env` file alongside `CLOUDFLARE_TUNNEL_TOKEN` — `compose.yml` reads
-them via `${GEMINI_API_KEY:-}` and passes them into the `api` service.
-`.env` is gitignored. The canonical value is in 1Password; copy it with
-`op read "op://<vault>/<item>/<field>" >> .env` or paste manually, then
+Live check: `python -m scripts.smoke_meta_metadata <pdf>...` (from
+`apps/api`, or `podman exec odyssey_api_1 python -m scripts.smoke_meta_metadata
+/data/uploads/<file>.pdf`) runs the real API and prints fields + latency.
+
+**Deployment:** `META_API_KEY` (and optional `META_MODEL`) live in the root
+`.env` file alongside `CLOUDFLARE_TUNNEL_TOKEN` — `compose.yml` reads them
+via `${META_API_KEY:-}` and passes them into the `api` service. `.env` is
+gitignored. The canonical value is in 1Password; copy it with
+`op read "op://<vault>/<item>/<field>"` or paste manually, then
 `podman compose up -d api` to recreate the container with the new env.
 Leaving the key empty is a valid state — the backend degrades to no-op.
 
@@ -252,9 +272,14 @@ All API endpoints are documented in OpenAPI format at `/docs` when the backend i
 
 ## Testing
 
-- Backend: no test suite yet (TODO). Smoke-test via `curl` against
-  `/health`, `/stats/dashboard`, `/annotations`, `/files` after any schema
-  or endpoint change.
+- Backend: pytest under `apps/api/tests/` (`pip install -r
+  requirements-dev.txt && python -m pytest` from `apps/api`; Python 3.11 —
+  the pinned pydantic doesn't build on 3.13). Covers the Meta metadata
+  client against a fake server and the upload / PATCH / refresh precedence
+  rules against a throwaway SQLite DB. `scripts/tests/` holds older ad-hoc
+  scripts that need a live server and are excluded by `pytest.ini`. For
+  other endpoints, smoke-test via `curl` against `/health`,
+  `/stats/dashboard`, `/annotations`, `/files`.
 - Web frontend: Jest / RTL via `bun run test`. No tests currently under
   `src/` — the old `App.test.js` was removed with the redesign.
 - Mac app: XCTest (`swift test`).
@@ -268,10 +293,12 @@ Backend (apps/api):
 - `UPLOAD_DIR`: Upload directory path (default: ./uploads)
 - `MAX_FILE_SIZE`: Max PDF file size in bytes (default: 50MB)
 - `MAX_IMAGE_SIZE`: Max image file size in bytes (default: 10MB)
-- `GEMINI_API_KEY`: Optional. Enables automatic PDF metadata extraction
+- `META_API_KEY`: Optional. Enables automatic PDF metadata extraction
   (title / author / excerpt) on upload and via `/library/refresh-metadata`.
   Unset → integration is a no-op, uploads behave exactly as before.
-- `GEMINI_MODEL`: Override the Gemini model (default: `gemini-2.5-flash`).
+- `META_MODEL`: Override the model (default: `muse-spark-1.3-contributor`;
+  `muse-spark-1.3` for the Standard tier, which Meta doesn't train on).
+- `META_BASE_URL`: Override the API base (default: `https://api.meta.ai/v1`).
 - `HEALTHCHECKS_URL`: Optional. If set, `app/heartbeat.py` pings this URL
   every 60s from a FastAPI lifespan task. Unset → no-op. See
   "Reliability & Hosting" below.

@@ -11,9 +11,10 @@ services:
       DATABASE_URL: sqlite:////data/odyssey.db
       RELOAD: "false"
       CORS_ORIGINS: ${CORS_ORIGINS:-https://odyssey.sixeleven.in}
-      # Optional Gemini metadata enrichment. Unset in .env → backend no-ops.
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      # Optional LLM metadata enrichment (Meta Model API). Unset in .env →
+      # backend no-ops.
+      META_API_KEY: ${META_API_KEY:-}
+      META_MODEL: ${META_MODEL:-muse-spark-1.3-contributor}
       # Optional Healthchecks.io push heartbeat URL. Unset → no-op.
       HEALTHCHECKS_URL: ${HEALTHCHECKS_URL:-}
     ports:

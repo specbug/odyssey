@@ -44,7 +44,7 @@ from .schemas import (
     LibraryRefreshResponse,
 )
 from .spaced_repetition import SpacedRepetitionService
-from . import gemini as gemini_client
+from . import meta_ai as llm_client
 from . import heartbeat as heartbeat_client
 from .utils import (
     calculate_file_hash_from_bytes,
@@ -161,7 +161,7 @@ _migrate_study_card_cloze_index()
 def _migrate_pdf_file_title() -> None:
     """Idempotent: add pdf_files.title column if missing.
 
-    Populated by Gemini enrichment and/or the webapp's pdfjs metadata path.
+    Populated by LLM enrichment and/or the webapp's pdfjs metadata path.
     Older rows stay NULL; display layer falls back to original_filename.
     """
     from sqlalchemy import inspect, text
@@ -335,16 +335,20 @@ async def root():
 
 
 def _enrich_file_metadata_task(file_id: int, pdf_bytes: bytes) -> None:
-    """Background task: run Gemini extraction and persist results.
+    """Background task: run Meta Model API extraction and persist results.
 
-    Fills in title/author/excerpt only if the row doesn't already have that
-    field (treating user / pdfjs-supplied values as authoritative). Uses its
-    own SessionLocal because the request-scoped session is already closed
-    by the time FastAPI runs the task.
+    The LLM's title/author/excerpt overwrite whatever the row holds. The only
+    other writer at upload time is the webapp's pdfjs pass, whose excerpt is
+    a raw first-page text dump and whose author is the PDF info dict — both
+    strictly worse than the model reading the title page. That pass PATCHes
+    with `fill_only`, so it can't clobber these values if it lands second.
+    A field the LLM returns null for is left alone, keeping any fallback.
+    Uses its own SessionLocal because the request-scoped session is already
+    closed by the time FastAPI runs the task.
     """
-    if not gemini_client.is_configured():
+    if not llm_client.is_configured():
         return
-    meta = gemini_client.extract_pdf_metadata(pdf_bytes)
+    meta = llm_client.extract_pdf_metadata(pdf_bytes)
     if not meta:
         return
 
@@ -354,36 +358,32 @@ def _enrich_file_metadata_task(file_id: int, pdf_bytes: bytes) -> None:
         if not file:
             return
         touched = False
-        if meta.get("title") and not file.title:
-            file.title = meta["title"]
-            touched = True
-        if meta.get("author") and not file.author:
-            file.author = meta["author"]
-            touched = True
-        if meta.get("excerpt") and not file.excerpt:
-            file.excerpt = meta["excerpt"]
-            touched = True
+        for field in ("title", "author", "excerpt"):
+            new_val = meta.get(field)
+            if new_val and getattr(file, field) != new_val:
+                setattr(file, field, new_val)
+                touched = True
         if touched:
             session.commit()
             print(
-                f"✨ Gemini enriched file_id={file_id}: "
+                f"✨ Enriched file_id={file_id}: "
                 f"title={file.title!r} author={file.author!r}"
             )
     except Exception as e:
         session.rollback()
-        print(f"❌ Gemini enrichment DB write failed for file_id={file_id}: {e}")
+        print(f"❌ Metadata enrichment DB write failed for file_id={file_id}: {e}")
     finally:
         session.close()
 
 
 def _refresh_file_metadata_task(file_id: int, force: bool) -> None:
-    """Background task: re-read a PDF from disk and re-run Gemini.
+    """Background task: re-read a PDF from disk and re-run the LLM.
 
-    If `force` is False, only null fields are filled. If True, Gemini's output
-    overwrites whatever is there (still skipping when Gemini itself returns
+    If `force` is False, only null fields are filled. If True, the LLM's output
+    overwrites whatever is there (still skipping when the LLM itself returns
     None for a field).
     """
-    if not gemini_client.is_configured():
+    if not llm_client.is_configured():
         return
 
     session = SessionLocal()
@@ -393,7 +393,7 @@ def _refresh_file_metadata_task(file_id: int, force: bool) -> None:
             return
         with open(file.file_path, "rb") as f:
             pdf_bytes = f.read()
-        meta = gemini_client.extract_pdf_metadata(pdf_bytes)
+        meta = llm_client.extract_pdf_metadata(pdf_bytes)
         if not meta:
             return
 
@@ -476,10 +476,10 @@ async def upload_file(
         db.commit()
         db.refresh(db_file)
 
-        # Kick Gemini enrichment after the response is sent. The pdfjs path
-        # in the webapp may PATCH /files/{id}/metadata first with its own
-        # author/excerpt; the task only fills fields still null at write time.
-        if gemini_client.is_configured():
+        # Kick LLM enrichment after the response is sent. The webapp's pdfjs
+        # pass PATCHes /files/{id}/metadata with `fill_only`, so whichever
+        # lands second, the LLM's values win over the pdfjs heuristics.
+        if llm_client.is_configured():
             background_tasks.add_task(
                 _enrich_file_metadata_task, db_file.id, file_content
             )
@@ -607,19 +607,21 @@ async def update_file_metadata(
 
     Called by the webapp after upload, once pdfjs has extracted PDF metadata
     and a first-page excerpt. All fields are optional; only provided ones are set.
+    With `fill_only`, a field is set only if it is still empty — the pdfjs pass
+    uses this so its heuristics never overwrite the LLM's enrichment, which may
+    have finished first.
     """
     file = db.query(PDFFile).filter(PDFFile.id == file_id).first()
     if not file:
         raise HTTPException(status_code=404, detail="File not found")
 
-    if meta.title is not None:
-        file.title = meta.title
-    if meta.author is not None:
-        file.author = meta.author
-    if meta.color_hue is not None:
-        file.color_hue = meta.color_hue
-    if meta.excerpt is not None:
-        file.excerpt = meta.excerpt
+    for field in ("title", "author", "color_hue", "excerpt"):
+        value = getattr(meta, field)
+        if value is None:
+            continue
+        if meta.fill_only and getattr(file, field) is not None:
+            continue
+        setattr(file, field, value)
 
     db.commit()
     db.refresh(file)
@@ -632,18 +634,18 @@ async def refresh_library_metadata(
     force: bool = False,
     db: Session = Depends(get_db),
 ):
-    """Bulk re-extract metadata for every PDF in the library via Gemini.
+    """Bulk re-extract metadata for every PDF in the library via the Meta Model API.
 
     Queues one background task per file on disk. By default (`force=false`)
     only null fields (title / author / excerpt) are filled, so repeated calls
     are cheap and safe. Pass `?force=true` to overwrite existing values.
 
-    Requires GEMINI_API_KEY to be set; returns a 503 otherwise.
+    Requires META_API_KEY to be set; returns a 503 otherwise.
     """
-    if not gemini_client.is_configured():
+    if not llm_client.is_configured():
         raise HTTPException(
             status_code=503,
-            detail="Gemini is not configured — set GEMINI_API_KEY to enable metadata refresh.",
+            detail="Metadata enrichment is not configured — set META_API_KEY to enable refresh.",
         )
 
     files = db.query(PDFFile).all()
@@ -666,7 +668,7 @@ async def refresh_library_metadata(
         skipped=skipped,
         force=force,
         message=(
-            f"Queued {queued} file(s) for Gemini metadata refresh"
+            f"Queued {queued} file(s) for LLM metadata refresh"
             f"{' (force overwrite)' if force else ''}; skipped {skipped}."
         ),
     )
