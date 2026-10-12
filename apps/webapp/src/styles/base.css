@@ -213,3 +213,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [contentedita
 .graph-link:hover .graph-unlink,
 .graph-unlink:focus-visible { opacity: 1; }
 @media (hover: none) { .graph-unlink { opacity: 1; } }
+/* Graph nodes are focusable <g>s: drop the UA outline (a thick rounded box
+   around the node's bounding rect) and draw a hairline ring on keyboard
+   focus only. */
+.graph-node { outline: none; }
+.graph-node-focus { opacity: 0; transition: opacity 160ms cubic-bezier(.2,.7,.2,1); }
+.graph-node:focus-visible .graph-node-focus { opacity: 1; }

@@ -286,8 +286,10 @@ function GraphCanvas({ nodes, links, positions, degree, selected, focus, neighbo
 
   const dim = (id) => neighbours != null && !neighbours.has(id);
   const isHot = (l) => focus != null && (l.source === focus || l.target === focus);
-  // Labels: the focused note and its neighbours, or the hubs once zoomed in.
-  const showLabel = (id) => (neighbours != null ? neighbours.has(id) : scale >= 1.6 && (degree.get(id) || 0) >= 3);
+  const labels = useMemo(
+    () => placeLabels({ nodes, positions, degree, focus, neighbours, scale }),
+    [nodes, positions, degree, focus, neighbours, scale],
+  );
 
   return (
     <svg
@@ -334,6 +336,7 @@ function GraphCanvas({ nodes, links, positions, degree, selected, focus, neighbo
           return (
             <g
               key={n.id}
+              className="graph-node"
               transform={`translate(${p.x},${p.y})`}
               style={{ cursor: 'pointer', opacity: dim(n.id) ? 0.22 : 1, transition: `opacity 220ms ${EASE}` }}
               onClick={(e) => { e.stopPropagation(); onSelect(n.id); }}
@@ -345,31 +348,101 @@ function GraphCanvas({ nodes, links, positions, degree, selected, focus, neighbo
               aria-label={plainText(n.prompt || n.excerpt, 80) || 'Note'}
               aria-pressed={active}
             >
+              {/* Keyboard focus ring; the UA outline is suppressed in base.css. */}
+              <circle className="graph-node-focus" r={p.r + 4} fill="none" stroke="var(--ink-3)" strokeWidth={1} vectorEffect="non-scaling-stroke"/>
               {active && <circle r={p.r + 4} fill="none" stroke="var(--accent)" strokeWidth={1} vectorEffect="non-scaling-stroke"/>}
               <circle r={p.r} fill={hueFill(n.sourceHue)} stroke="var(--paper)" strokeWidth={1.5} vectorEffect="non-scaling-stroke"/>
-              {showLabel(n.id) && (
-                <text
-                  x={p.r + 6}
-                  y={3.5}
-                  style={{
-                    fontFamily: 'var(--sans)',
-                    fontSize: 11 / Math.max(scale, 0.6),
-                    fill: active ? 'var(--ink)' : 'var(--ink-2)',
-                    paintOrder: 'stroke',
-                    stroke: 'var(--paper)',
-                    strokeWidth: 3 / Math.max(scale, 0.6),
-                    pointerEvents: 'none',
-                  }}
-                >
-                  {plainText(n.prompt || n.excerpt, 42)}
-                </text>
-              )}
             </g>
           );
         })}
+        {/* Labels sit in their own layer, above every node and edge. */}
+        <g style={{ pointerEvents: 'none' }}>
+          {labels.map((l) => (
+            <text
+              key={l.id}
+              x={l.x}
+              y={l.y + l.h / 2}
+              dominantBaseline="central"
+              style={{
+                fontFamily: 'var(--sans)',
+                fontSize: l.fs,
+                fill: l.id === focus ? 'var(--ink)' : 'var(--ink-2)',
+                paintOrder: 'stroke',
+                stroke: 'var(--paper)',
+                strokeWidth: l.fs * 0.3,
+                strokeLinejoin: 'round',
+              }}
+            >
+              {l.text}
+            </text>
+          ))}
+        </g>
       </g>
     </svg>
   );
+}
+
+// Text width in graph units. Canvas measures the real face once it has
+// loaded; the em estimate covers the first paint.
+let measureCtx = null;
+function textWidth(text, fs) {
+  try {
+    measureCtx = measureCtx || document.createElement('canvas').getContext('2d');
+    measureCtx.font = `${fs}px 'R Sans'`;
+    return measureCtx.measureText(text).width;
+  } catch {
+    return text.length * fs * 0.55;
+  }
+}
+
+const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+
+// Greedy label placement: the focused note first, then its neighbours by
+// degree. Each tries right, left, above, below and is dropped if all four
+// collide with a placed label or another node — the side panel lists every
+// neighbour anyway, so a missing label loses nothing.
+function placeLabels({ nodes, positions, degree, focus, neighbours, scale }) {
+  const fs = 11 / Math.max(scale, 0.6);
+  const h = fs * 1.3;
+  const gap = 6 / Math.max(scale, 0.6);
+  let ids;
+  if (neighbours != null) {
+    ids = [focus, ...[...neighbours].filter((id) => id !== focus)
+      .sort((a, b) => (degree.get(b) || 0) - (degree.get(a) || 0) || a - b)];
+  } else if (scale >= 1.6) {
+    // Zoomed in with nothing focused: name the hubs.
+    ids = nodes.map((n) => n.id).filter((id) => (degree.get(id) || 0) >= 3);
+  } else {
+    return [];
+  }
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const discs = nodes
+    .map((n) => ({ id: n.id, p: positions.get(n.id) }))
+    .filter((d) => d.p)
+    .map(({ id, p }) => ({ id, x: p.x - p.r, y: p.y - p.r, w: p.r * 2, h: p.r * 2 }));
+  const placed = [];
+  const out = [];
+  ids.forEach((id) => {
+    const n = byId.get(id);
+    const p = positions.get(id);
+    if (!n || !p) return;
+    const text = plainText(n.prompt || n.excerpt, 42);
+    if (!text) return;
+    const w = textWidth(text, fs);
+    const spots = [
+      { x: p.x + p.r + gap, y: p.y - h / 2 },
+      { x: p.x - p.r - gap - w, y: p.y - h / 2 },
+      { x: p.x - w / 2, y: p.y - p.r - gap - h },
+      { x: p.x - w / 2, y: p.y + p.r + gap },
+    ].map((s) => ({ ...s, w, h }));
+    const free = spots.find((box) => !placed.some((b) => overlaps(box, b))
+      && !discs.some((d) => d.id !== id && overlaps(box, d)));
+    const box = free || (id === focus ? spots[0] : null);
+    if (!box) return;
+    placed.push(box);
+    out.push({ id, text, fs, ...box });
+  });
+  return out;
 }
 
 function LinkTooltip({ hover }) {
@@ -433,11 +506,6 @@ function Overview({ stats, notes, degree, onSelect }) {
       .slice(0, 6),
     [notes, degree],
   );
-  const verified = stats && stats.proposed > 0 ? `${Math.round((stats.accepted / stats.proposed) * 100)}%` : '—';
-  const kept = stats && stats.active + stats.rejected > 0
-    ? `${Math.round((stats.active / (stats.active + stats.rejected)) * 100)}%`
-    : '—';
-
   return (
     <div className="enter">
       <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 14 }}>ABOUT THE LINKS</div>
@@ -447,12 +515,13 @@ function Overview({ stats, notes, degree, onSelect }) {
         and it won’t come back.
       </p>
 
-      {stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: 'var(--rule)', border: '1px solid var(--rule)', marginBottom: 32 }}>
-          <Stat label="LINKS" value={stats.active}/>
-          <Stat label="NOTES READ" value={`${stats.notes - stats.pending}/${stats.notes}`}/>
-          <Stat label="PASSED CHECK" value={verified} sub={`${stats.accepted} of ${stats.proposed} proposed`}/>
-          <Stat label="KEPT BY YOU" value={kept} sub={`${stats.rejected} unlinked`}/>
+      {stats && stats.proposed > 0 && (
+        // The two numbers that say whether the links are any good, as a
+        // quiet ledger line rather than dashboard tiles.
+        <div className="mono" style={{ color: 'var(--ink-3)', lineHeight: 1.7, marginBottom: 32 }}>
+          {stats.accepted} of {stats.proposed} proposals passed the second check.
+          <br/>
+          {stats.rejected} of {stats.active + stats.rejected} links unlinked by you.
         </div>
       )}
 
@@ -475,16 +544,6 @@ function Overview({ stats, notes, degree, onSelect }) {
           ))}
         </>
       )}
-    </div>
-  );
-}
-
-function Stat({ label, value, sub }) {
-  return (
-    <div style={{ background: 'var(--paper)', padding: '14px 16px' }}>
-      <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 6 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 400, letterSpacing: '-0.02em' }}>{value}</div>
-      {sub && <div className="mono" style={{ fontSize: 10.5, color: 'var(--ink-4)', marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
