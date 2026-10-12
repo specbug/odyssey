@@ -14,7 +14,7 @@ import gzip
 import io
 
 from .database import SessionLocal, engine, get_db
-from .models import Base, PDFFile, Annotation, StudyCard, CardReview, ReviewSession, Image
+from .models import Base, PDFFile, Annotation, StudyCard, CardReview, ReviewSession, Image, NoteLink
 from .schemas import (
     PDFFileResponse,
     PDFFileMetadataUpdate,
@@ -43,10 +43,14 @@ from .schemas import (
     TimelinePoint,
     DashboardStats,
     LibraryRefreshResponse,
+    NoteLinkResponse,
+    LinksResponse,
+    LinkedNote,
 )
 from .spaced_repetition import SpacedRepetitionService
 from . import meta_ai as llm_client
 from . import heartbeat as heartbeat_client
+from . import linker
 from .utils import (
     calculate_file_hash_from_bytes,
     is_pdf_file,
@@ -184,9 +188,13 @@ _migrate_pdf_file_title()
 async def lifespan(app: FastAPI):
     # Start the Healthchecks.io heartbeat (no-op if HEALTHCHECKS_URL unset).
     task = heartbeat_client.start_heartbeat()
+    # Background note linker (no-op without META_API_KEY or with
+    # LINKER_ENABLED=false).
+    link_task = linker.start()
     try:
         yield
     finally:
+        await linker.stop(link_task)
         await heartbeat_client.stop_heartbeat(task)
 
 
@@ -944,9 +952,12 @@ async def list_all_annotations(
             for f in db.query(PDFFile).filter(PDFFile.id.in_(file_ids)).all()
         }
 
+    link_counts = _active_link_counts(db, [r.id for r in rows])
+
     out: List[AnnotationResponse] = []
     for row in rows:
         resp = AnnotationResponse.from_orm(row)
+        resp.link_count = link_counts.get(row.id, 0)
         if row.file_id is not None:
             f = files_by_id.get(row.file_id)
             if f is not None:
@@ -955,6 +966,30 @@ async def list_all_annotations(
                 resp.file_color_hue = f.color_hue
         out.append(resp)
     return out
+
+
+def _active_link_counts(db: Session, ids: List[int]) -> dict:
+    """{annotation id: number of active links}, for the given ids."""
+    if not ids:
+        return {}
+    counts: dict = {}
+    pairs = (
+        db.query(NoteLink.a_id, NoteLink.b_id)
+        .filter(NoteLink.status == linker.ACTIVE)
+        .filter((NoteLink.a_id.in_(ids)) | (NoteLink.b_id.in_(ids)))
+        .all()
+    )
+    for a, b in pairs:
+        counts[a] = counts.get(a, 0) + 1
+        counts[b] = counts.get(b, 0) + 1
+    return counts
+
+
+def _link_response(row: NoteLink) -> NoteLinkResponse:
+    return NoteLinkResponse(
+        id=row.id, source=row.a_id, target=row.b_id, status=row.status,
+        relation=row.relation, reason=row.reason, updated_date=row.updated_date,
+    )
 
 
 @app.post("/files/{file_id}/annotations", response_model=AnnotationResponse)
@@ -1149,6 +1184,75 @@ async def delete_all_annotations(file_id: int, db: Session = Depends(get_db)):
         raise HTTPException(
             status_code=500, detail=f"Error deleting annotations: {str(e)}"
         )
+
+
+# Note links (written by the background linker — see app/linker.py)
+
+
+@app.get("/links", response_model=LinksResponse)
+async def list_links(db: Session = Depends(get_db)):
+    """Every active link, plus the linker's counters for the graph screen."""
+    rows = db.query(NoteLink).filter(NoteLink.status == linker.ACTIVE).all()
+    return LinksResponse(
+        links=[_link_response(r) for r in rows],
+        stats=linker.stats(db),
+    )
+
+
+@app.get("/annotations/{annotation_id}/links", response_model=List[LinkedNote])
+async def get_annotation_links(annotation_id: int, db: Session = Depends(get_db)):
+    """The notes linked to one annotation, each with the link's reason."""
+    rows = (
+        db.query(NoteLink)
+        .filter(NoteLink.status == linker.ACTIVE)
+        .filter((NoteLink.a_id == annotation_id) | (NoteLink.b_id == annotation_id))
+        .all()
+    )
+    other_ids = [r.b_id if r.a_id == annotation_id else r.a_id for r in rows]
+    anns = {
+        a.id: a for a in db.query(Annotation).filter(Annotation.id.in_(other_ids)).all()
+    } if other_ids else {}
+    file_ids = {a.file_id for a in anns.values() if a.file_id is not None}
+    files = {
+        f.id: f for f in db.query(PDFFile).filter(PDFFile.id.in_(file_ids)).all()
+    } if file_ids else {}
+
+    out = []
+    for row, other_id in zip(rows, other_ids):
+        ann = anns.get(other_id)
+        if ann is None:
+            continue
+        note = AnnotationResponse.from_orm(ann)
+        f = files.get(ann.file_id)
+        if f is not None:
+            note.file_title = f.title or strip_file_extension(f.original_filename)
+            note.file_color_hue = f.color_hue
+        out.append(LinkedNote(link=_link_response(row), note=note))
+    return out
+
+
+def _set_link_status(db: Session, link_id: int, frm: str, to: str) -> NoteLinkResponse:
+    row = db.query(NoteLink).filter(NoteLink.id == link_id).first()
+    if row is None:
+        raise HTTPException(status_code=404, detail="Link not found")
+    if row.status != frm:
+        raise HTTPException(status_code=409, detail=f"Link is {row.status}, not {frm}")
+    row.status = to
+    db.commit()
+    db.refresh(row)
+    return _link_response(row)
+
+
+@app.delete("/links/{link_id}", response_model=NoteLinkResponse)
+async def reject_link(link_id: int, db: Session = Depends(get_db)):
+    """Unlink. The pair is tombstoned, so the linker never recreates it."""
+    return _set_link_status(db, link_id, linker.ACTIVE, linker.REJECTED)
+
+
+@app.post("/links/{link_id}/restore", response_model=NoteLinkResponse)
+async def restore_link(link_id: int, db: Session = Depends(get_db)):
+    """Undo an unlink."""
+    return _set_link_status(db, link_id, linker.REJECTED, linker.ACTIVE)
 
 
 # Spaced Repetition Endpoints

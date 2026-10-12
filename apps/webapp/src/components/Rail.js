@@ -24,6 +24,7 @@ export default function Rail({ route, onNav }) {
         {btn('home', 'Ritual', Ic.Home)}
         {btn('library', 'Library', Ic.Book)}
         {btn('notes', 'Notes', Ic.Note)}
+        {btn('graph', 'Graph', Ic.Graph)}
         {btn('review', 'Review', Ic.Review)}
       </div>
       <div className="rail-spacer"/>

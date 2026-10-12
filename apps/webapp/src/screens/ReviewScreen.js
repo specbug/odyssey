@@ -3,6 +3,7 @@ import apiService from '../api';
 import { toQueueCard } from '../data/adapters';
 import { extractAnswers, hasCloze } from '../utils/cloze';
 import { renderRich } from '../utils/render';
+import { plainText, RELATION_LABEL } from '../utils/format';
 import Starburst from '../components/Starburst';
 import { Ic } from '../components/Icons';
 
@@ -21,6 +22,9 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
   const [doc, setDoc] = useState(null);
   const cardStartRef = useRef(Date.now());
   const endedRef = useRef(false);
+  // annotation id → linked notes, fetched as each card comes up and shown
+  // only after reveal (a neighbour can contain the answer).
+  const [linked, setLinked] = useState({});
 
   // Load session + queue
   useEffect(() => {
@@ -76,6 +80,17 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
     }
     onJumpToSource(card.source, card.annotationId);
   }, [canJump, leaving, sessionId, onJumpToSource, card]);
+
+  const annotationId = card?.annotationId;
+  useEffect(() => {
+    if (annotationId == null || linked[annotationId] !== undefined) return;
+    let alive = true;
+    apiService.getAnnotationLinks(annotationId)
+      .then((rows) => { if (alive) setLinked((m) => ({ ...m, [annotationId]: rows })); })
+      .catch(() => { if (alive) setLinked((m) => ({ ...m, [annotationId]: [] })); });
+    return () => { alive = false; };
+  }, [annotationId, linked]);
+  const connections = (annotationId != null && linked[annotationId]) || [];
 
   // End session once on DoneView
   useEffect(() => {
@@ -267,7 +282,7 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
                 paddingTop: 28,
                 borderTop: '1px solid var(--rule)',
                 opacity: revealed ? 1 : 0,
-                maxHeight: revealed ? 400 : 0,
+                maxHeight: revealed ? 720 : 0,
                 overflow: 'hidden',
                 transition: 'opacity 420ms cubic-bezier(.2,.7,.2,1) 120ms, max-height 420ms cubic-bezier(.2,.7,.2,1)',
               }}>
@@ -327,6 +342,8 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
                     </button>
                   </div>
                 )}
+
+                {connections.length > 0 && <Connections rows={connections}/>}
               </div>
 
               {!revealed && (
@@ -346,6 +363,31 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+// The card's neighbours in the note graph. Quiet on purpose: grading is the
+// task, this is context for after.
+function Connections({ rows }) {
+  return (
+    <div style={{ marginTop: 28 }}>
+      <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 4 }}>CONNECTED</div>
+      {rows.slice(0, 3).map(({ link, note }) => (
+        <div key={link.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--rule)' }}>
+          <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 4 }}>
+            {RELATION_LABEL[link.relation] || 'Linked'}
+            {note.file_title ? ` · ${note.file_title.toUpperCase()}` : ''}
+          </div>
+          <div style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--ink-2)', marginBottom: 4 }}>
+            {/* Blanks stay blank: a neighbour may be due later this session. */}
+            {plainText((note.question || note.highlighted_text || '').replace(/\[\[[^\]]+\]\]/g, '[…]'), 200)}
+          </div>
+          {link.reason && (
+            <div style={{ fontSize: 12.5, lineHeight: 1.5, color: 'var(--ink-3)' }}>{link.reason}</div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

@@ -6,6 +6,7 @@ from sqlalchemy import (
     Text,
     Float,
     Boolean,
+    CheckConstraint,
     ForeignKey,
     UniqueConstraint,
 )
@@ -210,3 +211,73 @@ class CardReview(Base):
 
     def __repr__(self):
         return f"<CardReview(id={self.id}, card_id={self.card_id}, rating={self.rating})>"
+
+
+class NoteLink(Base):
+    """A judged pair of annotations — the edges of the note graph.
+
+    Written by the background linker (`app/linker.py`). One row per unordered
+    pair (a_id < b_id), whatever the verdict, so the row doubles as a memo:
+    a pair is re-judged only when `pair_sig` — derived from both notes' text —
+    stops matching.
+
+    status:
+      active   — verified link, shown in the graph and at review
+      declined — the model judged the pair unrelated (or a re-check after an
+                 edit no longer supports an old link); hidden
+      rejected — the user unlinked it; a tombstone the linker never overrides
+    """
+
+    __tablename__ = "note_links"
+    __table_args__ = (
+        UniqueConstraint("a_id", "b_id", name="uq_note_link_pair"),
+        CheckConstraint("a_id < b_id", name="ck_note_link_order"),
+    )
+
+    id = Column(Integer, primary_key=True, index=True)
+    a_id = Column(
+        Integer, ForeignKey("annotations.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    b_id = Column(
+        Integer, ForeignKey("annotations.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    status = Column(String, nullable=False, index=True)
+    relation = Column(String, nullable=True)
+    reason = Column(Text, nullable=True)  # the link context: why these two connect
+    pair_sig = Column(String, nullable=False)
+    model = Column(String, nullable=True)
+    created_date = Column(DateTime(timezone=True), server_default=func.now())
+    updated_date = Column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    def __repr__(self):
+        return f"<NoteLink({self.a_id}<->{self.b_id}, {self.status})>"
+
+
+class NoteLinkState(Base):
+    """The linker's per-annotation bookkeeping.
+
+    `digest_sig` / `scan_sig` are the note's content signature at the time its
+    digest / link scan last completed; a mismatch with the current text is
+    what marks a note as pending. `proposed` / `accepted` count, across all of
+    the note's scans, the judge's strong verdicts and how many of them
+    survived verification — the verifier's veto rate is one of the numbers
+    to watch.
+    """
+
+    __tablename__ = "note_link_state"
+
+    annotation_id = Column(
+        Integer, ForeignKey("annotations.id", ondelete="CASCADE"), primary_key=True
+    )
+    digest_sig = Column(String, nullable=True)
+    substantive = Column(Boolean, default=False)
+    gist = Column(Text, nullable=True)
+    concepts = Column(Text, nullable=True)  # JSON list of strings
+    scan_sig = Column(String, nullable=True)
+    proposed = Column(Integer, default=0)
+    accepted = Column(Integer, default=0)
+    scanned_date = Column(DateTime(timezone=True), nullable=True)

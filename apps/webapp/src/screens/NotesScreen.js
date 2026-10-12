@@ -8,7 +8,7 @@ import { Ic } from '../components/Icons';
 
 // All-notes browser. Filter by source or tag, search by substring, create
 // standalone notes via the inline capture drawer as a modal.
-export default function NotesScreen({ onOpenDoc, onStartReview }) {
+export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
   const [notes, setNotes] = useState([]);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -221,6 +221,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview }) {
                 onEdit={() => { setMenuId(null); setModal({ kind: 'edit', note: n }); }}
                 onDelete={() => handleDelete(n.id)}
                 onOpen={() => (n.source ? onOpenDoc(n.source, n.id) : setModal({ kind: 'edit', note: n }))}
+                onOpenGraph={onOpenGraph ? () => onOpenGraph(n.id) : null}
               />
             ))}
           </div>
@@ -260,7 +261,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview }) {
   );
 }
 
-function NoteRow({ note, onEdit, onDelete, onOpen, menuOpen, onMenuToggle }) {
+function NoteRow({ note, onEdit, onDelete, onOpen, onOpenGraph, menuOpen, onMenuToggle }) {
   return (
     <article
       style={{
@@ -412,6 +413,17 @@ function NoteRow({ note, onEdit, onDelete, onOpen, menuOpen, onMenuToggle }) {
           color="var(--ink-3)"
           maxLength={0.9}
         />
+        {note.linkCount > 0 && onOpenGraph && (
+          <button
+            className="btn ghost xs"
+            style={{ padding: '2px 6px', color: 'var(--ink-3)' }}
+            onClick={(e) => { e.stopPropagation(); onOpenGraph(); }}
+            title="Show in graph"
+          >
+            <Ic.Graph size={14}/>
+            <span className="mono-sm">{note.linkCount} linked</span>
+          </button>
+        )}
       </div>
     </article>
   );

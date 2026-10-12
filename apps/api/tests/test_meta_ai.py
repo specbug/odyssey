@@ -309,3 +309,36 @@ def test_whitespace_collapsed_and_excerpt_truncated():
     assert out["title"] == "Git at any scale"
     assert len(out["excerpt"]) == 240
     assert out["excerpt"].endswith("…")
+
+
+# ─── complete_json (used by the note linker) ────────────────────────────
+
+def test_complete_json_sends_schema_and_overrides():
+    srv = FakeServer(completion(json.dumps({"ok": True})))
+    schema = {
+        "type": "object",
+        "properties": {"ok": {"type": "boolean"}},
+        "required": ["ok"],
+        "additionalProperties": False,
+    }
+    out = meta_ai.complete_json(
+        "sys", "user", "probe", schema,
+        model="muse-spark-1.3", reasoning_effort="low", max_completion_tokens=77,
+        transport=httpx.MockTransport(srv.handler), sleep=srv.sleeps.append,
+    )
+    assert out == {"ok": True}
+    body = srv.body()
+    assert body["model"] == "muse-spark-1.3"
+    assert body["reasoning_effort"] == "low"
+    assert body["max_completion_tokens"] == 77
+    assert body["response_format"]["json_schema"] == {"name": "probe", "strict": True, "schema": schema}
+    assert [m["role"] for m in body["messages"]] == ["system", "user"]
+
+
+def test_complete_json_noop_without_key(monkeypatch):
+    monkeypatch.delenv(meta_ai.API_KEY_ENV)
+    srv = FakeServer()
+    assert meta_ai.complete_json(
+        "s", "u", "probe", {}, transport=httpx.MockTransport(srv.handler)
+    ) is None
+    assert srv.requests == []

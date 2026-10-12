@@ -26,15 +26,17 @@ The FastAPI backend implements:
 - **Image Storage**: UUID-based image storage with `[image:UUID]` markers in annotation text
 - **Database**: SQLAlchemy ORM with SQLite (models in `app/models.py`)
 - **LLM metadata enrichment** (optional): `app/meta_ai.py` pulls `title` / `author` / `excerpt` from an uploaded PDF via the Meta Model API when `META_API_KEY` is set
+- **Automatic note linking** (optional): `app/linker.py` runs a background worker that links genuinely related annotations; see "Note linking" below
 
 Key backend modules:
 - `app/main.py`: FastAPI application with all REST endpoints
-- `app/models.py`: SQLAlchemy database models (PDFFile, Annotation, StudyCard, CardReview, ReviewSession, Image)
+- `app/models.py`: SQLAlchemy database models (PDFFile, Annotation, StudyCard, CardReview, ReviewSession, Image, NoteLink, NoteLinkState)
 - `app/spaced_repetition.py`: FSRS algorithm implementation via `SpacedRepetitionService` class
 - `app/schemas.py`: Pydantic schemas for request/response validation
 - `app/database.py`: Database session management
 - `app/utils.py`: File handling utilities (hashing, validation, storage)
-- `app/meta_ai.py`: Thin Meta Model API client — `extract_pdf_metadata(bytes)`, no-op without `META_API_KEY`
+- `app/meta_ai.py`: Thin Meta Model API client — `extract_pdf_metadata(bytes)` and the generic `complete_json(...)`, no-op without `META_API_KEY`
+- `app/linker.py`: Background note linker — keeps the Zettelkasten-style graph of related annotations (`NoteLink`, `NoteLinkState`)
 
 ### Frontend (apps/webapp)
 
@@ -47,18 +49,19 @@ Capabilities:
 - **PDF rendering**: react-pdf + react-window, per-page sticky-note rail
 - **Annotation**: selection → "Add note" bubble → inline capture drawer (cloze / recall / note)
 - **Cloze syntax**: `[[word]]` only; one `StudyCard` **per blank** — an annotation with N blanks produces N cards, each graded independently with the other blanks visible
-- **Review**: centered prompt, SPACE to reveal, 1–4 to grade, starburst tick progress
+- **Review**: centered prompt, SPACE to reveal, 1–4 to grade, starburst tick progress; after reveal, up to 3 linked notes ("Connected", cloze blanks masked)
+- **Graph**: `GraphScreen` — d3-force layout (run to rest, then held still) in SVG, d3-zoom pan/zoom, side panel with each link's reason and Unlink / Undo; Notes rows with links show "N linked" → opens the graph on that note
 - **LaTeX + images**: KaTeX via `utils/render.js`; images via `[image:UUID]` markers + `/images/*`
 - **Routing**: state-based, persisted in `localStorage` keys `odyssey:route` /
   `odyssey:docId`, and mirrored onto the browser history stack by
   `hooks/useRouteHistory.js` so Back / Forward work. A refresh on the
   chrome-less routes (`pdf` / `review`, which hide the rail) deliberately
   lands on `home` instead of restoring — refreshing is the user's way out of
-  a stuck screen. `library` / `notes` keep the rail, so they stay restored.
+  a stuck screen. `library` / `notes` / `graph` keep the rail, so they stay restored.
 
 Layout (`src/`):
 - `App.js` — shell + routing
-- `screens/{Home,Library,Notes,Pdf,Review}Screen.js`
+- `screens/{Home,Library,Notes,Graph,Pdf,Review}Screen.js`
 - `components/{Icons,Starburst,DocGlyph,Metric,Rail,StickyNote,InlineCaptureDrawer}.js`
 - `components/ErrorBoundary.js` — catches a screen that throws mid-render and
   offers a way home, so a crash can't blank the shell
@@ -192,6 +195,8 @@ Key relationships:
 - `StudyCard` 1→many `CardReview`
 - `ReviewSession` 1→many `CardReview`
 - `Annotation` 1→many `Image` (via `[image:UUID]` references)
+- `NoteLink`: one row per judged unordered pair (`a_id < b_id`, both FK → annotations, CASCADE); `status` active / declined / rejected
+- `NoteLinkState`: per-annotation linker bookkeeping (digest, content signatures, counters), CASCADE
 
 CASCADE deletion: deleting annotation deletes its study card and reviews.
 
@@ -264,6 +269,49 @@ gitignored. The canonical value is in 1Password; copy it with
 `podman compose up -d api` to recreate the container with the new env.
 Leaving the key empty is a valid state — the backend degrades to no-op.
 
+### Note linking (Zettelkasten layer)
+
+Manual linking is deliberately absent — remembering an old note to link it
+is the pain point. `app/linker.py` runs as a FastAPI lifespan task (like the
+heartbeat) when `META_API_KEY` is set and `LINKER_ENABLED` isn't false. Every
+60s it takes notes untouched for `QUIET_PERIOD` (90s) whose text changed and
+runs, each step cached by a content signature:
+
+1. **Digest** (reasoning `minimal`): `{substantive, gist, concepts}`. Test
+   text / fragments are marked non-substantive and never link.
+2. **Retrieve**: local TF-IDF over gist + concepts + text, top
+   `CANDIDATE_LIMIT` (8). No LLM, no embeddings — recall only.
+3. **Judge** (reasoning `low`): note + candidates; strong / weak / none with
+   one of six relations (`same_concept`, `elaborates`, `example`,
+   `contrasts`, `prerequisite`, `cause_effect`) and a reason.
+4. **Verify** (reasoning `low`): each strong pair re-asked alone. Both must
+   agree. The verifier's reason is stored as the link context.
+
+Precision over recall throughout: the prompts list the noise to refuse
+(shared words, same broad field, neighbours in one document), and caps are
+`MAX_LINKS_PER_NOTE` (6) and `MAX_SAME_DOC_LINKS` (2). Every judged pair gets
+a `NoteLink` row, so a pair is re-judged only when either note's text
+changes; an existing link whose text changed is re-verified (not re-judged,
+so links don't flicker on typo fixes) and goes to `declined` if it no longer
+holds. User unlink = `rejected`, a tombstone the worker never overrides;
+`POST /links/{id}/restore` undoes it. Bumping `PIPELINE_VERSION` re-runs the
+whole archive gradually.
+
+Endpoints: `GET /links` (active links + `stats`), `GET
+/annotations/{id}/links`, `DELETE /links/{id}`, `POST /links/{id}/restore`;
+`/annotations` rows carry `link_count`. Stats to watch: `rejected` vs
+`active` (the user's false-positive rate) and `accepted` / `proposed` (how
+often the verifier vetoes the judge). The graph's side panel shows both.
+Links do not feed FSRS — that's a later decision once the graph proves
+useful.
+
+Live check: `python -m scripts.smoke_linker` runs labelled pairs (mostly hard
+negatives) through judge → verify on the real API and exits non-zero on any
+false link; set `META_LINK_MODEL` to compare models.
+
+Privacy: note text goes to the Meta API. On the Contributor tier Meta may
+train on it.
+
 ## API Communication
 
 Both web and native Mac apps communicate with the same FastAPI backend:
@@ -278,8 +326,9 @@ All API endpoints are documented in OpenAPI format at `/docs` when the backend i
 - Backend: pytest under `apps/api/tests/` (`pip install -r
   requirements-dev.txt && python -m pytest` from `apps/api`; Python 3.11 —
   the pinned pydantic doesn't build on 3.13). Covers the Meta metadata
-  client against a fake server and the upload / PATCH / refresh precedence
-  rules against a throwaway SQLite DB. `scripts/tests/` holds older ad-hoc
+  client against a fake server, the upload / PATCH / refresh precedence
+  rules against a throwaway SQLite DB, and the linker pipeline + link API
+  against a scripted fake LLM (`tests/test_linker.py`). `scripts/tests/` holds older ad-hoc
   scripts that need a live server and are excluded by `pytest.ini`. For
   other endpoints, smoke-test via `curl` against `/health`,
   `/stats/dashboard`, `/annotations`, `/files`.
@@ -302,6 +351,10 @@ Backend (apps/api):
 - `META_MODEL`: Override the model (default: `muse-spark-1.3-contributor`;
   `muse-spark-1.3` for the Standard tier, which Meta doesn't train on).
 - `META_BASE_URL`: Override the API base (default: `https://api.meta.ai/v1`).
+- `LINKER_ENABLED`: Default true. `false` stops the background note linker
+  (notes are then never sent to the API) while keeping metadata enrichment.
+  Tests set it false in `conftest.py` and drive `linker.run_once` directly.
+- `META_LINK_MODEL`: Model for linking only. Empty → `META_MODEL`.
 - `HEALTHCHECKS_URL`: Optional. If set, `app/heartbeat.py` pings this URL
   every 60s from a FastAPI lifespan task. Unset → no-op. See
   "Reliability & Hosting" below.

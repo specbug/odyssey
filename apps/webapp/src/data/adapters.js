@@ -50,6 +50,7 @@ export function toNote(ann) {
     tags: Array.isArray(ann.tags) ? ann.tags : [],
     tag: ann.tag || '',
     stability: 0, // filled from study card if linked (not always needed)
+    linkCount: ann.link_count || 0,
     raw: ann,
   };
 }

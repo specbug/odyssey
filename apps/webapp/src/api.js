@@ -123,10 +123,11 @@ class ApiService {
     return asJson(await fetch(`${this.baseUrl}/files/${fileId}/annotations`));
   }
 
-  async getAllAnnotations({ source, tag } = {}) {
+  async getAllAnnotations({ source, tag, limit } = {}) {
     const params = new URLSearchParams();
     if (source != null) params.set('source', String(source));
     if (tag) params.set('tag', tag);
+    if (limit != null) params.set('limit', String(limit));
     const qs = params.toString();
     return asJson(await fetch(`${this.baseUrl}/annotations${qs ? `?${qs}` : ''}`));
   }
@@ -143,6 +144,26 @@ class ApiService {
     return asJson(await fetch(`${this.baseUrl}/annotations/${annotationId}`, {
       method: 'DELETE',
     }));
+  }
+
+  // ─── Note links (written by the backend's background linker) ─────────
+  // { links: [{id, source, target, relation, reason}], stats: {...} }
+  async getLinks() {
+    return asJson(await fetch(`${this.baseUrl}/links`));
+  }
+
+  // [{ link, note }] — the notes linked to one annotation.
+  async getAnnotationLinks(annotationId) {
+    return asJson(await fetch(`${this.baseUrl}/annotations/${annotationId}/links`));
+  }
+
+  // Unlink. The backend tombstones the pair so it is never re-proposed.
+  async rejectLink(linkId) {
+    return asJson(await fetch(`${this.baseUrl}/links/${linkId}`, { method: 'DELETE' }));
+  }
+
+  async restoreLink(linkId) {
+    return asJson(await fetch(`${this.baseUrl}/links/${linkId}/restore`, { method: 'POST' }));
   }
 
   // ─── Images ──────────────────────────────────────────────────────────

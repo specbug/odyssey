@@ -353,6 +353,50 @@ def extract_pdf_metadata(
     }
 
 
+def complete_json(
+    system: str,
+    user: str,
+    schema_name: str,
+    schema: dict,
+    *,
+    model: Optional[str] = None,
+    reasoning_effort: str = REASONING_EFFORT,
+    max_completion_tokens: int = MAX_COMPLETION_TOKENS,
+    transport: Optional[httpx.BaseTransport] = None,
+    sleep: Callable[[float], None] = time.sleep,
+) -> Optional[dict]:
+    """One structured-output chat completion. Returns the parsed JSON object.
+
+    Same transport, retry and parameter-dropping behaviour as
+    `extract_pdf_metadata`. Returns None when the key is unset or the call
+    fails after retries — never raises. `model` falls back to META_MODEL.
+    """
+    api_key = os.getenv(API_KEY_ENV)
+    if not api_key:
+        return None
+    base_url = (os.getenv(BASE_URL_ENV) or DEFAULT_BASE_URL).rstrip("/")
+    payload = {
+        "model": model or os.getenv(MODEL_ENV) or DEFAULT_MODEL,
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {"name": schema_name, "strict": True, "schema": schema},
+        },
+        "reasoning_effort": reasoning_effort,
+        "max_completion_tokens": max_completion_tokens,
+    }
+    data = _post_with_retries(
+        f"{base_url}/chat/completions", payload, api_key,
+        transport=transport, sleep=sleep,
+    )
+    if data is None:
+        return None
+    return _parse_content(data)
+
+
 def _clean(value, max_len: Optional[int] = None) -> Optional[str]:
     if value is None:
         return None
