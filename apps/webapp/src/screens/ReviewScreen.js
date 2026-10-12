@@ -217,7 +217,7 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
         <DoneView answered={answered} queue={queue} onExit={onExit}/>
       ) : (
         <>
-          <div style={{ position: 'absolute', left: 48, top: '50%', transform: 'translateY(-50%)', opacity: 0.95 }}>
+          <div className="review-progress-orb" style={{ position: 'absolute', left: 48, top: '50%', transform: 'translateY(-50%)', opacity: 0.95 }}>
             <Starburst
               prompts={progressPrompts}
               size={200}
