@@ -6,6 +6,7 @@ import { renderRich } from '../utils/render';
 import { plainText, RELATION_LABEL } from '../utils/format';
 import Starburst from '../components/Starburst';
 import { Ic } from '../components/Icons';
+import { docColor } from '../utils/hue';
 
 // The ritual. Centered prompt, starburst progress on the left, reveal on SPACE,
 // grade 1–4. Cloze prompts reveal all [[x]] blanks together. `O` jumps to the
@@ -253,7 +254,7 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
               transition: 'opacity 280ms cubic-bezier(.2,.7,.2,1), transform 280ms cubic-bezier(.2,.7,.2,1)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: doc?.color_hue != null ? `oklch(58% 0.16 ${doc.color_hue})` : 'var(--ink-4)' }}/>
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: docColor(doc?.color_hue) }}/>
                 <div className="mono-sm" style={{ color: 'var(--ink-3)' }}>
                   {(card?.raw?.annotation?.file_title || doc?.original_filename || 'NOTE').toUpperCase()}
                 </div>

@@ -7,6 +7,7 @@ import { toNote } from '../data/adapters';
 import { renderRich } from '../utils/render';
 import { plainText, relativeDate, RELATION_LABEL } from '../utils/format';
 import { Ic } from '../components/Icons';
+import { docColor } from '../utils/hue';
 
 // The note graph. Links are written by the backend's background linker —
 // nothing here creates them; the reader only browses and unlinks. Layout is
@@ -17,9 +18,7 @@ const POLL_MS = 60_000;
 const EASE = 'cubic-bezier(.2,.7,.2,1)';
 
 const nodeRadius = (degree) => 2.5 + Math.sqrt(degree) * 1.3;
-// Doc hues stay decorative (DESIGN.md §3): softer than the 4px source dots
-// elsewhere, because here they're the whole field of view.
-const hueFill = (hue) => (hue != null ? `oklch(68% 0.09 ${hue})` : 'var(--ink-4)');
+const hueFill = (hue) => docColor(hue);
 
 export default function GraphScreen({ focusId = null, onOpenDoc }) {
   const [notes, setNotes] = useState([]);

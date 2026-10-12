@@ -73,10 +73,16 @@ probably clobbered inherit with an inline style. Check there first.
    - Review cards (prompt context dots, cloze reveal, Again button)
    - Active highlight (drawer open on it)
    - Sticky note left border (because it's a live reference to a highlight)
-3. **Doc hues are decorative**, tied to `PDFFile.color_hue` (0–360). Used
-   on DocGlyph backgrounds + small source dots in NotesScreen / PdfScreen
-   crumb. Never on text. Deterministic fallback via `hashToHue(file_hash)`
-   in `src/utils/hue.js` if the column is null.
+3. **Doc hues are decorative**, tied to `PDFFile.color_hue` (0–360) and
+   drawn from twelve named swatches (`SWATCHES` in `src/utils/hue.js`: red,
+   orange, brown, yellow, lime, green, turquoise, cyan, blue, violet,
+   purple, pink). That's Orbit's source-colour *system*, but the values are
+   our own, hand-tuned in OKLCH so every swatch sits at even weight on
+   paper. Stored hues snap to the nearest swatch; `hashToHue(file_hash)`
+   picks a swatch when the column is null. Always go through
+   `docColor(hue, 'dot' | 'ink' | 'wash')` — never build an
+   `oklch(... ${hue})` inline. Used on DocGlyph, source dots and graph
+   nodes. Never on text.
 4. Mixing with `color-mix(in oklab, var(--accent) X%, transparent)` keeps
    accent tints on the same axis as the CSS var — use this pattern for
    highlights and drawer borders. Don't compute your own `rgba(...)`.
