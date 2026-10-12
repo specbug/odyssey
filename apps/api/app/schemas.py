@@ -97,6 +97,8 @@ class AnnotationResponse(AnnotationBase):
     # Denormalized file metadata so NotesScreen doesn't need a second fetch.
     file_title: Optional[str] = None
     file_color_hue: Optional[int] = None
+    # Active auto-links touching this note (see app/linker.py).
+    link_count: int = 0
 
     @computed_field
     @property
@@ -376,3 +378,39 @@ class DashboardStats(BaseModel):
         0,
         description="Total number of StudyCards across all annotations.",
     )
+
+
+class NoteLinkResponse(BaseModel):
+    id: int
+    source: int  # annotation id (the lower of the pair)
+    target: int
+    status: str
+    relation: Optional[str] = None
+    reason: Optional[str] = None
+    updated_date: Optional[datetime] = None
+
+
+class LinkerStats(BaseModel):
+    enabled: bool
+    running: bool
+    model: Optional[str] = None
+    last_run: Optional[str] = None
+    last_error: Optional[str] = None
+    notes: int
+    pending: int
+    substantive: int
+    active: int
+    declined: int
+    rejected: int
+    proposed: int
+    accepted: int
+
+
+class LinksResponse(BaseModel):
+    links: List[NoteLinkResponse]
+    stats: LinkerStats
+
+
+class LinkedNote(BaseModel):
+    link: NoteLinkResponse
+    note: AnnotationResponse

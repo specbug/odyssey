@@ -204,3 +204,18 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, [contentedita
 @media (prefers-reduced-motion: reduce) {
   .highlight-focus-pulse { animation: none; outline: none; }
 }
+
+/* Graph screen (screens/GraphScreen.js). Unlink stays out of the way until
+   the row is hovered or focused — the panel reads as a list of connections,
+   not a list of delete buttons. */
+.graph-row:hover > span:nth-child(2) { color: var(--ink); }
+.graph-unlink { opacity: 0; transition: opacity 180ms cubic-bezier(.2,.7,.2,1); }
+.graph-link:hover .graph-unlink,
+.graph-unlink:focus-visible { opacity: 1; }
+@media (hover: none) { .graph-unlink { opacity: 1; } }
+/* Graph nodes are focusable <g>s: drop the UA outline (a thick rounded box
+   around the node's bounding rect) and draw a hairline ring on keyboard
+   focus only. */
+.graph-node { outline: none; }
+.graph-node-focus { opacity: 0; transition: opacity 160ms cubic-bezier(.2,.7,.2,1); }
+.graph-node:focus-visible .graph-node-focus { opacity: 1; }

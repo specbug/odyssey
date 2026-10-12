@@ -26,6 +26,7 @@ export const Ic = {
   Upload: svg(<><path d="M10 14V4M6 8l4-4 4 4"/><path d="M4 14v2a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-2"/></>),
   Dots:   svg(<><circle cx="4" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="10" cy="10" r="1.2" fill="currentColor" stroke="none"/><circle cx="16" cy="10" r="1.2" fill="currentColor" stroke="none"/></>),
   Sun:    svg(<><circle cx="10" cy="10" r="3.5"/><path d="M10 2v2M10 16v2M18 10h-2M4 10H2M15.7 4.3l-1.4 1.4M5.7 14.3l-1.4 1.4M15.7 15.7l-1.4-1.4M5.7 5.7L4.3 4.3"/></>),
+  Graph:  svg(<><circle cx="5" cy="6" r="2"/><circle cx="15" cy="5" r="2"/><circle cx="11" cy="15" r="2"/><path d="M7 6.2l6-.9M6.2 7.7l3.7 5.6M14.4 6.9l-2.6 6.2"/></>),
   Trash:  svg(<><path d="M4 6h12M8 6V4h4v2M5.5 6l1 10h7l1-10M9 9v5M11 9v5"/></>),
 };
 

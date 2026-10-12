@@ -37,3 +37,28 @@ export function formatDate(iso) {
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}·${pad(d.getMonth() + 1)}·${pad(d.getDate())}`;
 }
+
+// Note text as one plain line: drawer HTML, cloze brackets and image markers
+// stripped. For labels and snippets where rich rendering would be noise.
+export function plainText(text, max = Infinity) {
+  if (!text) return '';
+  // DOMParser builds an inert document: no scripts run, no images load.
+  const html = String(text).replace(/<(br|div|p)[^>]*>/gi, ' ');
+  const body = new DOMParser().parseFromString(html, 'text/html').body;
+  const s = (body.textContent || '')
+    .replace(/\[\[([^\]]+)\]\]/g, '$1')
+    .replace(/\[image:[^\]]+\]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return s.length > max ? `${s.slice(0, max - 1).trimEnd()}…` : s;
+}
+
+// Display names for the linker's relation types (app/linker.py:RELATIONS).
+export const RELATION_LABEL = {
+  same_concept: 'Same idea',
+  elaborates: 'Elaborates',
+  example: 'Example',
+  contrasts: 'Contrasts',
+  prerequisite: 'Prerequisite',
+  cause_effect: 'Cause & effect',
+};

@@ -15,6 +15,9 @@ os.environ["DATABASE_URL"] = f"sqlite:///{_TMP}/test.db"
 os.environ["UPLOAD_DIR"] = os.path.join(_TMP, "uploads")
 os.environ.pop("META_API_KEY", None)
 os.environ.pop("HEALTHCHECKS_URL", None)
+# The linker worker would otherwise start with the app; tests drive it
+# directly through linker.run_once.
+os.environ["LINKER_ENABLED"] = "false"
 
 
 def pytest_sessionfinish(session, exitstatus):

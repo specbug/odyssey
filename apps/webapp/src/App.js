@@ -6,12 +6,13 @@ import useTimeHue from './hooks/useTimeHue';
 import HomeScreen from './screens/HomeScreen';
 import LibraryScreen from './screens/LibraryScreen';
 import NotesScreen from './screens/NotesScreen';
+import GraphScreen from './screens/GraphScreen';
 import PdfScreen from './screens/PdfScreen';
 import ReviewScreen from './screens/ReviewScreen';
 
 const LS_ROUTE = 'odyssey:route';
 const LS_DOC = 'odyssey:docId';
-const VALID_ROUTES = new Set(['home', 'library', 'notes', 'pdf', 'review']);
+const VALID_ROUTES = new Set(['home', 'library', 'notes', 'graph', 'pdf', 'review']);
 // Routes that hide the rail. Nothing on screen guarantees a way out of these,
 // so they get special treatment on reload (see `initialRoute`).
 const CHROMELESS_ROUTES = new Set(['pdf', 'review']);
@@ -59,6 +60,8 @@ export default function App() {
   // `onOpenDoc` to avoid a stale focus-mode leaking into NotesScreen.
   const [targetNoteMode, setTargetNoteMode] = useState('edit');
   const [reviewFileId, setReviewFileId] = useState(null);
+  // Note to select when the graph opens from a Notes row; not persisted.
+  const [graphFocusId, setGraphFocusId] = useState(null);
 
   useEffect(() => { localStorage.setItem(LS_ROUTE, route); }, [route]);
   useEffect(() => {
@@ -69,6 +72,7 @@ export default function App() {
     if (!VALID_ROUTES.has(next)) return;
     // Leaving review / pdf clears their transient state.
     if (next !== 'review') setReviewFileId(null);
+    setGraphFocusId(null);
     if (next !== 'pdf') {
       setTargetNoteId(null);
       setTargetNoteMode('edit');
@@ -96,6 +100,11 @@ export default function App() {
     setTargetNoteId(noteId);
     setTargetNoteMode(mode);
     setRoute('pdf');
+  }, []);
+
+  const onOpenGraph = useCallback((noteId = null) => {
+    setGraphFocusId(noteId);
+    setRoute('graph');
   }, []);
 
   const onStartReview = useCallback((fileId = null) => {
@@ -140,7 +149,10 @@ export default function App() {
             <LibraryScreen onOpenDoc={onOpenDoc} onStartReview={onStartReview}/>
           )}
           {route === 'notes' && (
-            <NotesScreen onOpenDoc={onOpenDoc} onStartReview={onStartReview}/>
+            <NotesScreen onOpenDoc={onOpenDoc} onStartReview={onStartReview} onOpenGraph={onOpenGraph}/>
+          )}
+          {route === 'graph' && (
+            <GraphScreen focusId={graphFocusId} onOpenDoc={onOpenDoc}/>
           )}
           {route === 'pdf' && docId != null && (
             <PdfScreen

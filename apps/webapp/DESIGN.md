@@ -73,10 +73,16 @@ probably clobbered inherit with an inline style. Check there first.
    - Review cards (prompt context dots, cloze reveal, Again button)
    - Active highlight (drawer open on it)
    - Sticky note left border (because it's a live reference to a highlight)
-3. **Doc hues are decorative**, tied to `PDFFile.color_hue` (0–360). Used
-   on DocGlyph backgrounds + small source dots in NotesScreen / PdfScreen
-   crumb. Never on text. Deterministic fallback via `hashToHue(file_hash)`
-   in `src/utils/hue.js` if the column is null.
+3. **Doc hues are decorative**, tied to `PDFFile.color_hue` (0–360) and
+   drawn from twelve named swatches (`SWATCHES` in `src/utils/hue.js`: red,
+   orange, brown, yellow, lime, green, turquoise, cyan, blue, violet,
+   purple, pink). That's Orbit's source-colour *system*, but the values are
+   our own, hand-tuned in OKLCH so every swatch sits at even weight on
+   paper. Stored hues snap to the nearest swatch; `hashToHue(file_hash)`
+   picks a swatch when the column is null. Always go through
+   `docColor(hue, 'dot' | 'ink' | 'wash')` — never build an
+   `oklch(... ${hue})` inline. Used on DocGlyph, source dots and graph
+   nodes. Never on text.
 4. Mixing with `color-mix(in oklab, var(--accent) X%, transparent)` keeps
    accent tints on the same axis as the CSS var — use this pattern for
    highlights and drawer borders. Don't compute your own `rgba(...)`.
@@ -150,6 +156,24 @@ Three modes: `cloze` (with `[[brackets]]`), `recall` (Q/A), `note` (freeform).
 `cmd+Enter` commits, Esc cancels. Image paste → `/images/upload` →
 `[image:UUID]` marker in the prompt/answer.
 
+### GraphScreen (`src/screens/GraphScreen.js`)
+
+The note graph the backend linker writes. Rules that keep it from turning
+into an Obsidian hairball:
+- **Still, not alive.** The force layout runs to rest synchronously, then
+  holds. A poll only re-lays out when the set of nodes / links changes, and
+  seeds from the previous positions, so a new link nudges rather than
+  reshuffles. No physics on hover, no node dragging.
+- **Grayscale field.** Edges are 1px `--rule-2`. Nodes take the doc hue,
+  softened (`oklch(68% 0.09 h)`) since here they're the whole view; standalone
+  notes are `--ink-4`. Accent appears only on the focused node's ring and
+  its edges — that's the "active highlight" moment.
+- **Labels on demand.** Only the focused note and its neighbours, or hubs
+  once zoomed past 1.6×. Sans, with a paper halo.
+- **The reason is the content.** The side panel (340px) shows each link's
+  relation (mono) and reason (sans) — the Zettelkasten "link context".
+  Unlink appears on row hover; Undo replaces the row in place.
+
 ## 7. Per-screen intent
 
 | Screen | File | One-line intent |
@@ -157,6 +181,7 @@ Three modes: `cloze` (with `[[brackets]]`), `recall` (Q/A), `note` (freeform).
 | Home | `screens/HomeScreen.js` | The ritual — today's queue as a starburst, what you're reading, what you're retaining |
 | Library | `screens/LibraryScreen.js` | Editorial index of docs. Sort by recent/progress/due. Hover for review + delete. |
 | Notes | `screens/NotesScreen.js` | Cross-doc passage browser with source + tag filters + search |
+| Graph | `screens/GraphScreen.js` | How notes connect — still force layout, link reasons, unlink |
 | PDF | `screens/PdfScreen.js` | Immersive reader with top chrome (auto-hide 2.6s), per-page sticky rail, inline capture drawer |
 | Review | `screens/ReviewScreen.js` | Centered prompt, reveal on SPACE, grade 1–4, starburst ticks left |
 

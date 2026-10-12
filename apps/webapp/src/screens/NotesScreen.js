@@ -5,10 +5,11 @@ import { renderRich } from '../utils/render';
 import Starburst from '../components/Starburst';
 import InlineCaptureDrawer from '../components/InlineCaptureDrawer';
 import { Ic } from '../components/Icons';
+import { docColor } from '../utils/hue';
 
 // All-notes browser. Filter by source or tag, search by substring, create
 // standalone notes via the inline capture drawer as a modal.
-export default function NotesScreen({ onOpenDoc, onStartReview }) {
+export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
   const [notes, setNotes] = useState([]);
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -136,7 +137,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview }) {
             {sources.map((s) => (
               <button key={s.id} onClick={() => setFilter(s.id === 'standalone' ? 'standalone' : Number(s.id))} style={filterBtn(filter === s.id || filter === Number(s.id))}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: s.hue != null ? `oklch(58% 0.15 ${s.hue})` : 'var(--ink-4)' }}/>
+                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: docColor(s.hue) }}/>
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
                 </span>
                 <span className="mono" style={{ color: 'var(--ink-4)' }}>{s.count}</span>
@@ -221,6 +222,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview }) {
                 onEdit={() => { setMenuId(null); setModal({ kind: 'edit', note: n }); }}
                 onDelete={() => handleDelete(n.id)}
                 onOpen={() => (n.source ? onOpenDoc(n.source, n.id) : setModal({ kind: 'edit', note: n }))}
+                onOpenGraph={onOpenGraph ? () => onOpenGraph(n.id) : null}
               />
             ))}
           </div>
@@ -260,7 +262,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview }) {
   );
 }
 
-function NoteRow({ note, onEdit, onDelete, onOpen, menuOpen, onMenuToggle }) {
+function NoteRow({ note, onEdit, onDelete, onOpen, onOpenGraph, menuOpen, onMenuToggle }) {
   return (
     <article
       style={{
@@ -286,7 +288,7 @@ function NoteRow({ note, onEdit, onDelete, onOpen, menuOpen, onMenuToggle }) {
     >
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <span style={{ width: 4, height: 4, borderRadius: '50%', background: note.sourceHue != null ? `oklch(58% 0.15 ${note.sourceHue})` : 'var(--ink-4)' }}/>
+          <span style={{ width: 4, height: 4, borderRadius: '50%', background: docColor(note.sourceHue) }}/>
           <span className="mono-sm" style={{ color: 'var(--ink-3)' }}>
             {note.sourceTitle ? `${note.sourceTitle.toUpperCase()} · p. ${note.page ?? '—'}` : 'STANDALONE'}
           </span>
@@ -412,6 +414,17 @@ function NoteRow({ note, onEdit, onDelete, onOpen, menuOpen, onMenuToggle }) {
           color="var(--ink-3)"
           maxLength={0.9}
         />
+        {note.linkCount > 0 && onOpenGraph && (
+          <button
+            className="btn ghost xs"
+            style={{ padding: '2px 6px', color: 'var(--ink-3)' }}
+            onClick={(e) => { e.stopPropagation(); onOpenGraph(); }}
+            title="Show in graph"
+          >
+            <Ic.Graph size={14}/>
+            <span className="mono-sm">{note.linkCount} linked</span>
+          </button>
+        )}
       </div>
     </article>
   );
