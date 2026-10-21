@@ -26,6 +26,12 @@
   user-select: text;
 }
 
+/* PDF.js renders embedded link borders as CSS borders or SVG backgrounds. */
+.pdf-screen .annotationLayer .linkAnnotation {
+  border-color: transparent !important;
+  background-image: none !important;
+}
+
 .page-and-notes-container {
   display: flex;
   align-items: flex-start;
