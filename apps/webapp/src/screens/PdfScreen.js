@@ -6,6 +6,7 @@ import 'katex/dist/katex.min.css';
 import apiService from '../api';
 import { toLibraryDoc } from '../data/adapters';
 import { hasCloze } from '../utils/cloze';
+import useReaderChrome from '../hooks/useReaderChrome';
 import StickyNote from '../components/StickyNote';
 import InlineCaptureDrawer from '../components/InlineCaptureDrawer';
 import DocGlyph from '../components/DocGlyph';
@@ -535,11 +536,12 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
   const [slowLoad, setSlowLoad] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
-  // Chrome is always visible. Earlier iterations tried scroll-based hiding +
-  // idle auto-hide; both felt like the viewer was refreshing. A persistent
-  // 64px strip is cheaper than the cognitive cost of a toolbar that vanishes
-  // mid-read.
-  const chromeVisible = true;
+  const {
+    visible: chromeVisible, onScroll: onChromeScroll, onNavigate: onChromeNavigate,
+    readerProps, chromeProps,
+  } = useReaderChrome(docId, numPages > 0 && !error);
+
+  useEffect(() => { onChromeNavigate(); }, [scale, onChromeNavigate]);
 
   const scrollerRef = useRef(null);
   const viewerRef = useRef(null);
@@ -563,9 +565,10 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
     if (!scroller || !Number.isFinite(idx) || idx < 0) return;
     const row = scroller.querySelector(`[data-page-row="${idx}"]`);
     if (!row) return;
+    onChromeNavigate();
     const block = align === 'center' ? 'center' : align === 'end' ? 'end' : 'start';
     row.scrollIntoView({ block, behavior: 'auto' });
-  }, []);
+  }, [onChromeNavigate]);
 
   const doc = useMemo(() => (fileMetadata ? toLibraryDoc(fileMetadata) : null), [fileMetadata]);
 
@@ -1003,6 +1006,7 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
   // from pageHeights and debounces a read-position save. No react-window
   // machinery to coordinate with — just the real scrollTop of the real div.
   const onScrollerScroll = useCallback((e) => {
+    onChromeScroll(e.currentTarget);
     const scrollOffset = e.currentTarget.scrollTop;
     lastScrollY.current = scrollOffset;
 
@@ -1020,12 +1024,7 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
     savePosTimer.current = setTimeout(() => {
       apiService.updateReadPosition(fileMetadata.id, idx).catch(() => {});
     }, 750);
-  }, [numPages, getPageHeight, currentPage, fileMetadata?.id]);
-
-  // Chrome visibility is driven purely by scroll position (see handleListScroll).
-  // Originally it also auto-hid on idle and woke on every mousemove / keypress
-  // / touchstart — the continuous opacity cycle that caused made the whole
-  // viewer feel like it was refreshing constantly.
+  }, [numPages, getPageHeight, currentPage, fileMetadata?.id, onChromeScroll]);
 
   // Keyboard: arrows, Esc, zoom
   useEffect(() => {
@@ -1057,7 +1056,7 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [drawer, pendingHighlight, onExit, numPages, currentPage]);
+  }, [drawer, pendingHighlight, onExit, numPages, currentPage, scrollToPageIndex]);
 
   const notesByPage = useMemo(() => {
     const by = new Map();
@@ -1113,17 +1112,18 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
   }
 
   return (
-    <div className="pdf-screen" style={{ position: 'fixed', inset: 0, background: 'var(--paper)', zIndex: 50, display: 'flex', flexDirection: 'column' }}>
+    <div className="pdf-screen" {...readerProps} style={{ position: 'fixed', inset: 0, background: 'var(--paper)', zIndex: 50, display: 'flex', flexDirection: 'column' }}>
       {/* Top chrome */}
       <div
+        {...chromeProps}
+        className={`pdf-chrome${chromeVisible ? '' : ' pdf-chrome-hidden'}`}
+        role="region"
+        aria-label="Reader controls"
         style={{
           position: 'absolute',
           top: 16, left: 16, right: 16,
           zIndex: 10,
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          opacity: chromeVisible ? 1 : 0,
-          transition: 'opacity 420ms ease',
-          pointerEvents: chromeVisible ? 'auto' : 'none',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--paper)', border: '1px solid var(--rule)', padding: '8px 12px', borderRadius: 'var(--rad)' }}>
