@@ -2,6 +2,27 @@
    and its sticky-note rail on the right — the rail reads as continuous
    because pages stack, but each note lives inside its page's virtualized cell. */
 
+.pdf-chrome {
+  opacity: 1;
+  transition: opacity 280ms cubic-bezier(.2,.7,.2,1);
+}
+
+.pdf-chrome-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Hidden controls remain in the tab order and reveal immediately on focus. */
+.pdf-chrome:has(:focus-visible) {
+  opacity: 1;
+  pointer-events: auto;
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pdf-chrome { transition: none; }
+}
+
 .pdf-screen .react-pdf__Page {
   position: relative !important;
   margin: 0 !important;
