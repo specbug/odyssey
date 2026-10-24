@@ -53,13 +53,23 @@
   background-image: none !important;
 }
 
+.pdf-screen .react-pdf__Document {
+  /* One scroll surface for every row, including lazy placeholders. If only
+     a rendered page grows, panning right can leave later placeholders off
+     screen horizontally and prevent IntersectionObserver from loading them. */
+  width: max-content;
+  min-width: 100%;
+}
+
 .page-and-notes-container {
   display: flex;
   align-items: flex-start;
-  justify-content: center;
   gap: 24px;
   padding: 0 24px 24px;
-  max-width: 1200px;
+  /* Center the whole page + rail when it fits. When zoom makes it wider
+     than the viewport, auto margins resolve to zero so the left gutter
+     stays reachable instead of overflowing into negative scroll space. */
+  width: max-content;
   margin: 0 auto;
   box-sizing: border-box;
 }
