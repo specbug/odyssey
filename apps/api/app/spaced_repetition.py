@@ -10,7 +10,9 @@ from typing import Dict, List, Optional, Tuple
 from sqlalchemy.orm import Session
 from fsrs import FSRS, Card, Rating
 
-from .models import StudyCard, CardReview, ReviewSession, Annotation
+from . import review_queue
+from .linker import ACTIVE
+from .models import StudyCard, CardReview, ReviewSession, Annotation, NoteLink
 from .schemas import StudyCardResponse, CardReviewCreate, CardReviewResult
 
 
@@ -322,54 +324,62 @@ class SpacedRepetitionService:
         ]
 
     @staticmethod
+    def deliverable_due_cards(
+        db: Session, file_id: Optional[int] = None, now: Optional[datetime] = None
+    ) -> List[StudyCard]:
+        """Due cards minus buried siblings, one per annotation (unordered).
+
+        What a review session can actually show right now — see
+        `review_queue` for the burying rules. Also what the library's
+        per-document due counts are built from, so a badge never promises
+        cards the session will hold back.
+        """
+        now = now or datetime.utcnow()
+        query = db.query(StudyCard).filter(StudyCard.due <= now)
+        if file_id is not None:
+            query = query.join(Annotation).filter(Annotation.file_id == file_id)
+        due = query.all()
+        if not due:
+            return []
+
+        # Every card reviewed inside the bury window, due or not: the sibling
+        # that was just on screen usually isn't due any more.
+        cutoff = now - timedelta(hours=review_queue.SIBLING_BURY_HOURS)
+        recent = (
+            db.query(StudyCard.annotation_id, StudyCard.id)
+            .filter(StudyCard.last_review >= cutoff)
+            .all()
+        )
+        return review_queue.select_deliverable(due, recent)
+
+    @staticmethod
     def get_due_cards(db: Session, limit: int = 50, file_id: Optional[int] = None) -> Dict[str, List[StudyCard]]:
-        """Get cards that are due for review, properly categorized by FSRS state.
+        """Get the cards for a review session, bucketed by FSRS state.
+
+        Buried siblings are left out, and the buckets are ordered so that
+        review → learning → new, concatenated, is the session's play order
+        with linked notes spaced apart (see `review_queue`).
 
         Args:
             db: Database session
             limit: Maximum number of cards to return
             file_id: Optional file ID to filter cards for a specific PDF file
         """
-        now = datetime.utcnow()
-
-        # Build query for cards that are due for review
-        query = db.query(StudyCard).filter(StudyCard.due <= now)
-
-        # Filter by file_id if provided
-        if file_id is not None:
-            query = query.join(Annotation).filter(Annotation.file_id == file_id)
-
-        all_due_cards = query.limit(limit).all()
-
-        # Load annotations for cards that have them
-        for card in all_due_cards:
-            if card.annotation_id:
-                try:
-                    annotation = (
-                        db.query(Annotation)
-                        .filter(Annotation.id == card.annotation_id)
-                        .first()
-                    )
-                    if annotation:
-                        card.annotation = annotation
-                except Exception:
-                    # If annotation loading fails, continue without it
-                    pass
-
-        # Categorize cards by FSRS state
-        new_cards = [card for card in all_due_cards if card.state == "New"]
-        learning_cards = [
-            card for card in all_due_cards
-            if card.state in ["Learning", "Relearning"]
+        cards = SpacedRepetitionService.deliverable_due_cards(db, file_id)
+        annotation_ids = {c.annotation_id for c in cards}
+        links = [
+            (a, b)
+            for a, b in db.query(NoteLink.a_id, NoteLink.b_id)
+            .filter(NoteLink.status == ACTIVE)
+            .all()
+            if a in annotation_ids and b in annotation_ids
         ]
-        review_cards = [
-            card for card in all_due_cards if card.state == "Review"
-        ]
+        queue = review_queue.build_queue(cards, links, limit)
 
         return {
-            "due_cards": review_cards,  # Review state cards
-            "new_cards": new_cards,  # New cards
-            "learning_cards": learning_cards,  # Learning/Relearning cards
+            "due_cards": queue["due_cards"],  # Review state cards
+            "new_cards": queue["new_cards"],  # New cards
+            "learning_cards": queue["learning_cards"],  # Learning/Relearning cards
         }
 
     @staticmethod

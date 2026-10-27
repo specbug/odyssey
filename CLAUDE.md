@@ -173,6 +173,17 @@ Backend side is `app/spaced_repetition.py:create_study_card` — idempotent;
 returns a list of cards, one per blank. Topping up after an edit that adds a
 new `[[x]]` is safe to call again.
 
+Because the other blanks render with their answers, sibling cards leak into
+each other. `app/review_queue.py` decides what a session holds: at most one
+card per annotation per queue, and New / Review siblings stay buried for
+`SIBLING_BURY_HOURS` (12) after any sibling is reviewed (Learning /
+Relearning cards are never buried). Linked notes, which show their text after
+reveal, are kept `LINK_SPACING` (3) positions apart. Review order is most
+overdue first; `limit` fills learning → review → new. The response buckets
+are ordered so clients' review → learning → new concatenation *is* the
+spaced queue. The library's `due_count` uses the same selection, so the
+badge matches the queue it opens.
+
 ### Image Storage
 
 Images are stored separately from annotation text:
