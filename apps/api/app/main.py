@@ -11,6 +11,7 @@ from datetime import datetime, timedelta
 from dotenv import load_dotenv
 from contextlib import asynccontextmanager
 import gzip
+from collections import Counter
 import io
 
 from .database import SessionLocal, engine, get_db
@@ -528,10 +529,17 @@ async def upload_file(
 async def list_files(skip: int = 0, limit: int = 100, db: Session = Depends(get_db)):
     """List all uploaded PDF files with annotation + due counts.
 
-    due_count is computed per file via the FK from StudyCard → Annotation.
+    due_count is what a review session of that file would hold right now —
+    due cards minus buried siblings (see `review_queue`).
     """
     now = datetime.utcnow()
     files = db.query(PDFFile).order_by(PDFFile.last_accessed.desc()).offset(skip).limit(limit).all()
+
+    # Count what a review session would actually show (buried siblings
+    # excluded), so the "N DUE" badge matches the queue it opens.
+    deliverable = SpacedRepetitionService.deliverable_due_cards(db, now=now)
+    file_of = dict(db.query(Annotation.id, Annotation.file_id).all()) if deliverable else {}
+    due_by_file = Counter(file_of.get(c.annotation_id) for c in deliverable)
 
     files_with_counts = []
     for file in files:
@@ -539,12 +547,7 @@ async def list_files(skip: int = 0, limit: int = 100, db: Session = Depends(get_
         resp.annotation_count = (
             db.query(Annotation).filter(Annotation.file_id == file.id).count()
         )
-        resp.due_count = (
-            db.query(StudyCard)
-            .join(Annotation, StudyCard.annotation_id == Annotation.id)
-            .filter(Annotation.file_id == file.id, StudyCard.due <= now)
-            .count()
-        )
+        resp.due_count = due_by_file[file.id]
         files_with_counts.append(resp)
 
     return files_with_counts
