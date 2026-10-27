@@ -7,7 +7,7 @@ COPY . .
 # PUBLIC_URL=/ serves assets at domain root, overriding the /odyssey homepage
 RUN PUBLIC_URL=/ bun run build
 
-FROM nginx:1.27-alpine
+FROM nginx:stable-alpine
 COPY --from=builder /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80
