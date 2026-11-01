@@ -1,13 +1,12 @@
 import React from 'react';
 
-// A one-shot flicker around the theme button when the theme changes: the
-// logo's own 15 spikes (public/logo.svg: same angles, same length and width
-// variation), scaled to shards that flick outward and fade in about half a
-// second, in the logo's orange. Purely ornamental, so it is hidden from
+// A one-shot flicker around the theme button when the theme changes: 15
+// shards (the geometry of the original Odyssey logo, before the bracket mark)
+// flick outward and fade in about half a second, in the logo's orange. Purely ornamental, so it is hidden from
 // assistive tech, ignores the pointer, and does not render at all under
 // prefers-reduced-motion (see .theme-burst in base.css).
 //
-// Each spike: [angle°, outer radius, tip width, base width] from logo.svg.
+// Each spike: [angle°, outer radius, tip width, base width], from the old logo.
 const SPIKES = [
   [0, 47.8, 11.8, 6.1], [24, 39.6, 6.2, 9.1], [48, 45.8, 7.9, 9.9],
   [72, 46.7, 6.1, 5.6], [96, 48.7, 10.3, 6.4], [120, 42.2, 6.2, 6.4],

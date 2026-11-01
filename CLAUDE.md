@@ -63,7 +63,7 @@ Capabilities:
 Layout (`src/`):
 - `App.js` — shell + routing
 - `screens/{Home,Library,Notes,Graph,Pdf,Review}Screen.js`
-- `components/{Icons,Mark,Rail,StickyNote,InlineCaptureDrawer}.js` — Mark is the logo, drawn from `public/logo.svg`'s geometry
+- `components/{Icons,Mark,Rail,StickyNote,InlineCaptureDrawer}.js` — Mark is the logo (`[_]`, brackets in ink around an orange blank), same geometry as `public/logo.svg`; `public/favicon.svg` is its 16px drawing and the PNG icons are exported from the two
 - `components/{Comb,Spiral,PageRule}.js` — the three instruments (review, home, reader)
 - `components/ErrorBoundary.js` — catches a screen that throws mid-render and
   offers a way home, so a crash can't blank the shell
@@ -504,7 +504,7 @@ One-paragraph summary so you don't reach for bad defaults:
 > highlights, blanks, graph nodes), `--data` (computed values: intervals),
 > `--you` (where the person is). Card edges carry the note type instead
 > (`--type-cloze` crimson, `--type-recall` violet, `--type-note` teal). The
-> orange logo in the rail is the one other exception. R Sans for running text, Google Sans Flex for small text
+> logo's orange blank (`--mark`) is the one other exception. R Sans for running text, Google Sans Flex for small text
 > and every number, R Mono for code only; sentence case, no letter-spaced
 > uppercase labels. Elevation is a sheet colour plus a 1px rule, never a
 > shadow. 8px grid, 0 radius. Instruments (Comb, Spiral, page Rule) draw real
