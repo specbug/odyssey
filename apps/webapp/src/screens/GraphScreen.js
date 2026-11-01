@@ -125,7 +125,7 @@ export default function GraphScreen({ focusId = null, onOpenDoc }) {
   if (error && !notes.length) {
     return (
       <div className="scroll" style={{ padding: '48px 64px' }}>
-        <div className="mono-sm" style={{ color: 'var(--ink-3)' }}>Couldn't reach the archive.</div>
+        <div className="mono-sm" style={{ color: 'var(--ink-3)' }}>Couldn't load the graph.</div>
         <div style={{ marginTop: 12, color: 'var(--ink-2)' }}>{error}</div>
       </div>
     );
@@ -142,7 +142,7 @@ export default function GraphScreen({ focusId = null, onOpenDoc }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
             <h1 style={{ fontSize: 44, fontWeight: 400, letterSpacing: '-0.03em', flex: 1 }}>
-              How your notes connect.
+              Connections
             </h1>
             <div className="tweak-seg" style={{ marginBottom: 8, whiteSpace: 'nowrap' }}>
               <button aria-pressed={!showAll} onClick={() => setShowAll(false)}>Linked</button>
@@ -473,7 +473,7 @@ function LinkerLine({ stats }) {
   let text;
   if (!stats.enabled) text = 'LINKER · OFF';
   else if (stats.last_error) text = `LINKER · RETRYING · ${stats.pending} PENDING`;
-  else if (stats.pending > 0) text = `LINKER · READING · ${stats.pending} PENDING`;
+  else if (stats.pending > 0) text = `LINKER · CHECKING · ${stats.pending} PENDING`;
   else text = 'LINKER · UP TO DATE';
   const last = stats.last_run ? ` · LAST PASS ${relativeDate(stats.last_run).toUpperCase()}` : '';
   return (
@@ -485,9 +485,9 @@ function LinkerLine({ stats }) {
 
 function EmptyGraph({ stats, hasNotes }) {
   let line;
-  if (!hasNotes) line = 'No notes yet. Mark a passage and the archive starts to connect.';
-  else if (stats && !stats.enabled) line = 'Linking is off. Set META_API_KEY on the server and the archive starts connecting itself.';
-  else line = 'No connections yet. New notes are read in the background — links appear here as they’re found.';
+  if (!hasNotes) line = 'No notes yet. Add notes to find connections between them.';
+  else if (stats && !stats.enabled) line = 'Automatic linking is off.';
+  else line = 'No connections found yet. Notes are checked in the background.';
   return (
     <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 48 }}>
       <div style={{ maxWidth: 420, textAlign: 'center', color: 'var(--ink-3)', fontStyle: 'italic', lineHeight: 1.6 }}>
@@ -509,9 +509,8 @@ function Overview({ stats, notes, degree, onSelect }) {
     <div className="enter">
       <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 14 }}>ABOUT THE LINKS</div>
       <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-2)', marginBottom: 28 }}>
-        Each link is proposed by the model, then checked again on its own. Only pairs that pass both
-        are drawn. Select a note to see why it connects — unlink anything that doesn’t earn its place,
-        and it won’t come back.
+        Connections are suggested by AI and checked a second time before appearing here.
+        Select a note to see the reason for each link. Links you remove won’t be suggested again.
       </p>
 
       {stats && stats.proposed > 0 && (

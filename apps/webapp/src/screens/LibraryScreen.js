@@ -114,7 +114,7 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
   if (error && !docs.length) {
     return (
       <div className="scroll" style={{ padding: '48px 64px' }}>
-        <div className="mono-sm" style={{ color: 'var(--ink-3)' }}>Couldn't reach the archive.</div>
+        <div className="mono-sm" style={{ color: 'var(--ink-3)' }}>Couldn't load your library.</div>
         <div style={{ marginTop: 12, color: 'var(--ink-2)' }}>{error}</div>
       </div>
     );
@@ -139,13 +139,13 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
           <div style={{ padding: '120px 40px', textAlign: 'center', border: '1px solid var(--rule)' }}>
             <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 12 }}>LIBRARY</div>
             <h1 style={{ fontSize: 36, fontWeight: 400, letterSpacing: '-0.03em', marginBottom: 16 }}>
-              An empty voyage.
+              No documents yet.
             </h1>
             <p style={{ color: 'var(--ink-3)', marginBottom: 24, fontStyle: 'italic' }}>
               Add a document to begin.
             </p>
             <button className="btn primary" onClick={() => inputRef.current?.click()} disabled={uploading}>
-              <Ic.Upload/> {uploading ? 'Reading…' : 'Add document'}
+              <Ic.Upload/> {uploading ? 'Adding…' : 'Add document'}
             </button>
           </div>
         ) : (
@@ -156,7 +156,7 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
                   LIBRARY · {docs.length} DOCUMENT{docs.length === 1 ? '' : 'S'}
                 </div>
                 <h1 style={{ fontSize: 44, fontWeight: 400, letterSpacing: '-0.03em' }}>
-                  An index of what you carry.
+                  Library
                 </h1>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
@@ -166,7 +166,7 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
                   ))}
                 </div>
                 <button className="btn" onClick={() => inputRef.current?.click()} disabled={uploading}>
-                  <Ic.Upload/> {uploading ? 'Reading…' : 'Add document'}
+                  <Ic.Upload/> {uploading ? 'Adding…' : 'Add document'}
                 </button>
               </div>
             </header>

@@ -116,7 +116,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
   if (error && !notes.length) {
     return (
       <div className="scroll" style={{ padding: '48px 64px' }}>
-        <div className="mono-sm" style={{ color: 'var(--ink-3)' }}>Couldn't reach the archive.</div>
+        <div className="mono-sm" style={{ color: 'var(--ink-3)' }}>Couldn't load your notes.</div>
         <div style={{ marginTop: 12, color: 'var(--ink-2)' }}>{error}</div>
       </div>
     );
@@ -181,12 +181,12 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
           </div>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
             <h1 style={{ fontSize: 44, fontWeight: 400, letterSpacing: '-0.03em', flex: 1 }}>
-              Everything you've marked.
+              Notes
             </h1>
             <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
               {notes.length > 0 && (
                 <button className="btn ghost xs" onClick={beginReviewForFilter}>
-                  <Ic.Review/> Begin session
+                  <Ic.Review/> Review cards
                 </button>
               )}
               <button className="btn xs" onClick={() => setModal({ kind: 'new' })}>
@@ -199,7 +199,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
             <input
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search passages…"
+              placeholder="Search notes…"
               style={{ flex: 1, border: 0, background: 'transparent', fontFamily: 'var(--sans)', fontSize: 16, color: 'var(--ink)', outline: 'none', padding: '6px 0' }}
             />
           </div>
@@ -208,8 +208,8 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
         {filtered.length === 0 ? (
           <div style={{ padding: '64px 24px', color: 'var(--ink-3)', textAlign: 'center', fontStyle: 'italic' }}>
             {notes.length === 0
-              ? "No notes yet. Start reading and mark a passage."
-              : <>Nothing here for <em>{String(filter)}</em>. <button className="btn ghost xs" onClick={() => setFilter('all')}>reset filter</button></>}
+              ? "No notes yet. Add a note or select text in a document."
+              : <>No notes match this search or filter. <button className="btn ghost xs" onClick={() => setFilter('all')}>Reset filter</button></>}
           </div>
         ) : (
           <div className="enter-stagger">

@@ -53,7 +53,7 @@ export default function HomeScreen({ onNav, onOpenDoc, onStartReview }) {
   if (error) {
     return (
       <div className="scroll" style={{ padding: '48px 64px' }}>
-        <div className="mono-sm" style={{ color: 'var(--ink-3)' }}>Couldn't reach the archive.</div>
+        <div className="mono-sm" style={{ color: 'var(--ink-3)' }}>Couldn't load your library.</div>
         <div style={{ marginTop: 12, color: 'var(--ink-2)' }}>{error}</div>
       </div>
     );
@@ -78,16 +78,16 @@ export default function HomeScreen({ onNav, onOpenDoc, onStartReview }) {
             {dueTotal > 0 ? (
               <>
                 <h1 style={{ fontSize: 56, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 1.02, marginBottom: 20 }}>
-                  Today, {dueTotal} prompt{dueTotal === 1 ? '' : 's'}
+                  {dueTotal} card{dueTotal === 1 ? '' : 's'}
                   <br/>
-                  <span style={{ color: 'var(--ink-3)' }}>return for review.</span>
+                  <span style={{ color: 'var(--ink-3)' }}>due for review.</span>
                 </h1>
                 <p style={{ fontSize: 16, color: 'var(--ink-2)', maxWidth: 480, marginBottom: 28, lineHeight: 1.55 }}>
-                  A quiet session — a handful of passages you've wanted to live with. Each answer carries them a little further along.
+                  You thought these worth remembering.
                 </p>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                   <button className="btn primary" onClick={() => onStartReview(null)} style={{ padding: '11px 22px', fontSize: 14 }}>
-                    Begin session <Ic.Right/>
+                    Review cards <Ic.Right/>
                   </button>
                   <div className="mono" style={{ color: 'var(--ink-3)', marginLeft: 8 }}>
                     ~ {Math.max(1, Math.ceil(dueTotal * 0.4))} min
@@ -98,12 +98,10 @@ export default function HomeScreen({ onNav, onOpenDoc, onStartReview }) {
             ) : (
               <>
                 <h1 style={{ fontSize: 56, fontWeight: 400, letterSpacing: '-0.03em', lineHeight: 1.02, marginBottom: 20 }}>
-                  Nothing due today.
-                  <br/>
-                  <span style={{ color: 'var(--ink-3)' }}>The queue will return.</span>
+                  No cards due now.
                 </h1>
                 <p style={{ fontSize: 16, color: 'var(--ink-2)', maxWidth: 480, marginBottom: 28, lineHeight: 1.55 }}>
-                  Keep reading — new highlights will surface here when they're ready.
+                  Scheduled cards appear here when they’re due.
                 </p>
                 <button className="btn" onClick={() => onNav('library')} style={{ padding: '11px 22px', fontSize: 14 }}>
                   Open library <Ic.Right/>
@@ -137,8 +135,8 @@ export default function HomeScreen({ onNav, onOpenDoc, onStartReview }) {
           {reading.length === 0 ? (
             <div style={{ padding: 24, border: '1px solid var(--rule)', color: 'var(--ink-3)', fontStyle: 'italic', textAlign: 'center' }}>
               {files.length === 0
-                ? 'No documents yet. Start your library.'
-                : 'Nothing in flight — open a document to begin.'}
+                ? 'No documents yet. Add a PDF to begin.'
+                : 'Choose where to begin.'}
             </div>
           ) : (
             <div
@@ -192,7 +190,7 @@ export default function HomeScreen({ onNav, onOpenDoc, onStartReview }) {
               Memory
             </h2>
             <span className="mono" style={{ color: 'var(--ink-3)' }}>
-              {view.cardsInLog} cards in the log
+              {view.cardsInLog} card{view.cardsInLog === 1 ? '' : 's'} total
             </span>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 0, border: '1px solid var(--rule)' }}>

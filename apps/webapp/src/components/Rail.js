@@ -21,7 +21,7 @@ export default function Rail({ route, onNav }) {
         <Mark size={26}/>
       </div>
       <div className="rail-group">
-        {btn('home', 'Ritual', Ic.Home)}
+        {btn('home', 'Home', Ic.Home)}
         {btn('library', 'Library', Ic.Book)}
         {btn('notes', 'Notes', Ic.Note)}
         {btn('graph', 'Graph', Ic.Graph)}

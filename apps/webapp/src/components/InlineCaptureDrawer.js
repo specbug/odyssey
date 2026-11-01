@@ -144,7 +144,7 @@ export default function InlineCaptureDrawer({
       <div onKeyDown={onKey} style={{ ...wrapper, ...style }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div className="mono-sm" style={{ color: 'var(--ink-4)', letterSpacing: '0.1em' }}>
-            {title || (isEdit ? 'EDITING NOTE' : 'NEW NOTE')}
+            {title || (isEdit ? 'EDIT NOTE' : 'NEW NOTE')}
           </div>
           <div className="tweak-seg" style={{ background: 'var(--paper-2)' }}>
             {['cloze', 'recall', 'note'].map((m) => (
@@ -263,7 +263,7 @@ export default function InlineCaptureDrawer({
             <div className="mono-sm" style={{ color: 'var(--ink-4)', marginRight: 4 }}>⌘⏎</div>
             <button className="btn ghost xs" onClick={onCancel}>Cancel</button>
             <button className="btn primary xs" onClick={commit} style={{ padding: '6px 12px' }}>
-              {isEdit ? 'Save' : 'Commit to memory'}
+              Save note
             </button>
           </div>
         </div>
