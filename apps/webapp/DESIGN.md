@@ -38,9 +38,17 @@ Four signals, one meaning each, everywhere:
 | Signal | Means | Where it appears |
 |---|---|---|
 | `--link` | something to follow or act on | links, "Review 3", "Open p. 4", "2 links", focus rings, text selection |
-| `--note` | the person's own marks | highlights, card edges, cloze underlines and blanks, graph nodes, note ticks on the Rule |
+| `--note` | the person's own marks | highlights, cloze underlines and blanks, graph nodes, note ticks on the Rule |
 | `--data` | computed values | the interval each grade would set, graded bars in the Comb |
 | `--you` | where the person is | current route in the rail, the current card's bar, the page Rule's position line, the selected graph node |
+
+One more code, on card edges only: the note's **type**. `--type-cloze`
+(crimson, kept off the you red), `--type-recall` (violet), `--type-note`
+(teal), set by `data-type` on `.card`. It lives on the 2px edge and nowhere
+else, so it never competes with the signals. The capture drawer's edge
+follows the selected mode. The old time-of-day accent was considered for
+this and rejected: four of its five hours land on the link blue or the you
+red.
 
 Signals stay small: an underline, a 2px edge, a numeral, a tick. Marks drawn
 on a PDF page use `--note-on-page` / `--link-on-page`, which keep their
@@ -116,8 +124,9 @@ the reader's only page display.
 
 Only for things the person made and can act on: notes in the Notes list,
 notes in the reader margin, the capture drawer. `.card`: `--sheet`, 1px
-rule on three sides, a 2px `--note` left edge, padding 12 / 14. Cards show
-the content only, no type label. In the reader margin they rest at 72%
+rule on three sides, a 2px left edge in the type colour (`--note` when a
+card has no type), padding 12 / 14. Cards show
+the content only, no type label; the edge colour carries the type. In the reader margin they rest at 72%
 opacity and come up to full on hover, focus or when their highlight is
 selected. Text that only extends content stays a borderless note.
 

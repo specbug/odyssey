@@ -526,7 +526,7 @@ function NotePanel({ note, entries, unlinked, onSelect, onUnlink, onRestore, onO
         </button>
       </div>
 
-      <div className="card graph-note-card">
+      <div className="card graph-note-card" data-type={note.type || 'note'}>
         <div className="graph-note-text">{renderRich(note.prompt || note.excerpt, { cloze: 'inline' })}</div>
         {note.answer && <div className="t-note graph-note-answer">{renderRich(note.answer)}</div>}
       </div>

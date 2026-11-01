@@ -198,6 +198,7 @@
 /* ── Capture drawer ─────────────────────────────────────────────────── */
 
 .drawer { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+.drawer .card-label { color: var(--ink-2); }
 .drawer-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 4px; }
 .drawer .field { font-size: 15px; }
 .drawer-hint { margin-top: -2px; }

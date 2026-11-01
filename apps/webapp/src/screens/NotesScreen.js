@@ -232,14 +232,14 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
 }
 
 // A note is something the person made and can act on, so it is a card: sheet,
-// rule on three sides, a 2px note-colour edge. Clicking opens it where it
+// rule on three sides, a 2px edge in its type colour. Clicking opens it where it
 // lives: its page in the PDF, or the drawer for a standalone note.
 function NoteCard({ note, onOpen, onEdit, onOpenGraph }) {
   const where = note.sourceTitle
     ? `${note.sourceTitle}${note.page ? ` · p.\u00a0${note.page}` : ''}`
     : 'Standalone';
   return (
-    <article className="card note-card hoverable">
+    <article className="card note-card hoverable" data-type={note.type || 'note'}>
       <div className="note-card-head">
         <span className="t-small ink-3 note-card-where">{where}</span>
         {note.source != null && (

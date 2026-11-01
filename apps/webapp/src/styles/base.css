@@ -228,9 +228,9 @@ a:hover, .link:hover { text-decoration-color: var(--link); }
 
 /* ── Cards ──────────────────────────────────────────────────────────── */
 
-/* Only for objects the person can pick up and act on. The left edge is
-   the signal colour that says what the card is: note, for things they made.
-   2px, the low end of the skill's 2–3px: 3px read heavy beside a page. */
+/* Only for objects the person can pick up and act on. The 2px left edge
+   says what the card is: its note type (cloze, recall, note), falling back
+   to the note signal. 2px, not 3px: 3px read heavy beside a page. */
 .card {
   display: block;
   width: 100%;
@@ -247,6 +247,9 @@ a:hover, .link:hover { text-decoration-color: var(--link); }
   font-weight: 450;
   color: var(--note);
 }
+.card[data-type="cloze"]  { border-left-color: var(--type-cloze); }
+.card[data-type="recall"] { border-left-color: var(--type-recall); }
+.card[data-type="note"]   { border-left-color: var(--type-note); }
 button.card:hover, .card.hoverable:hover { border-top-color: var(--ink-3); border-right-color: var(--ink-3); border-bottom-color: var(--ink-3); }
 .card[data-active="true"] { border-top-color: var(--ink-2); border-right-color: var(--ink-2); border-bottom-color: var(--ink-2); }
 

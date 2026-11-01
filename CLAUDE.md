@@ -500,9 +500,10 @@ One-paragraph summary so you don't reach for bad defaults:
 
 > Cool neutral ground, ink for everything. Colour only as four signals with
 > one meaning each: `--link` (followable), `--note` (the person's marks:
-> highlights, blanks, card edges, graph nodes), `--data` (computed values:
-> intervals), `--you` (where the person is). The orange logo in the rail is
-> the one exception. R Sans for running text, Google Sans Flex for small text
+> highlights, blanks, graph nodes), `--data` (computed values: intervals),
+> `--you` (where the person is). Card edges carry the note type instead
+> (`--type-cloze` crimson, `--type-recall` violet, `--type-note` teal). The
+> orange logo in the rail is the one other exception. R Sans for running text, Google Sans Flex for small text
 > and every number, R Mono for code only; sentence case, no letter-spaced
 > uppercase labels. Elevation is a sheet colour plus a 1px rule, never a
 > shadow. 8px grid, 0 radius. Instruments (Comb, Spiral, page Rule) draw real
