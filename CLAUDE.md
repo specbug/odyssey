@@ -49,7 +49,7 @@ Capabilities:
 - **PDF rendering**: react-pdf, lazily mounted page rows, a per-page notes column, and the page Rule (hidden until the pointer enters the left margin)
 - **Annotation**: selection → "Add note" bubble → inline capture drawer (cloze / recall / note)
 - **Cloze syntax**: `[[word]]` only; one `StudyCard` **per blank** — an annotation with N blanks produces N cards, each graded independently with the other blanks visible
-- **Review**: centred prompt, Space to reveal, 1–4 to grade in one grade strip (each cell shows the interval it would set), O opens the source page, Esc ends; the Comb in the left margin (one bar per card, length = interval, graded bars redrawn at the new interval) is hidden until hover; after reveal, up to 3 linked notes ("Linked", cloze blanks masked)
+- **Review**: centred prompt, Space to reveal, 1–4 to grade in one grade strip (each cell shows the interval it would set), O opens the source page, Esc ends; the Comb in the left margin (one bar per card, length = interval, graded bars redrawn at the new interval) is always shown; after reveal, up to 3 linked notes ("Linked", cloze blanks masked)
 - **Home**: due count, Review (R), documents in progress, and the due queue drawn on the time spiral
 - **Graph**: `GraphScreen` — d3-force layout (run to rest, then held still) in SVG, d3-zoom pan/zoom, side panel with each link's reason and Unlink / Undo; Note cards with links show "N links" → opens the graph on that note
 - **LaTeX + images**: KaTeX via `utils/render.js`; images via `[image:UUID]` markers + `/images/*`
@@ -508,7 +508,8 @@ One-paragraph summary so you don't reach for bad defaults:
 > and every number, R Mono for code only; sentence case, no letter-spaced
 > uppercase labels. Elevation is a sheet colour plus a 1px rule, never a
 > shadow. 8px grid, 0 radius. Instruments (Comb, Spiral, page Rule) draw real
-> data and stay hidden until asked. No load-in animation; motion
+> data; the reader's page Rule stays hidden until asked, the review Comb is
+> always shown. No load-in animation; motion
 > `cubic-bezier(.2,.7,.2,1)` at 200–400ms. Light and dark via
 > `prefers-color-scheme`, or pinned by the rail's theme toggle. Plain copy:
 > "No documents.", "Couldn’t load library. Server not responding." Cloze

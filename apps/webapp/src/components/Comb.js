@@ -18,7 +18,7 @@ export const reach = (d) => Math.min(1, Math.log1p(Math.max(0, d || 0)) / Math.l
 // because at 136px its label would touch the month's.
 const GRID = [[1, '1 d'], [7, null], [30, '1 mo'], [365, '1 yr']];
 
-export default function Comb({ items, index, orientation = 'v', length = 136, span = 288, labels = true, readout, strength = 'half' }) {
+export default function Comb({ items, index, orientation = 'v', length = 136, span = 288, labels = true, readout }) {
   const [hover, setHover] = useState(null);
   const n = items.length;
   if (!n) return null;
@@ -45,7 +45,7 @@ export default function Comb({ items, index, orientation = 'v', length = 136, sp
 
   return (
     <div
-      className={`comb comb-${orientation} comb-${strength}`}
+      className={`comb comb-${orientation}`}
       style={vertical ? { width: length } : { height: length }}
     >
       <div
@@ -54,7 +54,6 @@ export default function Comb({ items, index, orientation = 'v', length = 136, sp
         onPointerMove={onMove}
         onPointerLeave={() => setHover(null)}
         role="img"
-        tabIndex={strength === 'half' ? 0 : undefined}
         aria-label={`Session progress: card ${Math.min(index + 1, n)} of ${n}`}
       >
         {vertical && GRID.map(([d]) => (

@@ -8,7 +8,8 @@ layout and every responsive rule in `screens.css` and `pdf.css`.
 ## Principles, as they apply here
 
 - **Restraint.** A surface shows the content and what directly extends it.
-  Navigation aids, progress and metadata stay hidden until asked for.
+  Navigation aids, progress and metadata stay hidden until asked for, with
+  one exception: the review Comb is always shown (see below).
 - **Finish.** Real characters (× − ° ’ “ ” –), a no-break space between a
   number and its unit (`9 d`, `p. 4`), tabular figures wherever numbers
   update or sit in a column.
@@ -122,9 +123,9 @@ session reads as cards pushed out, or pulled back on Again. The spine is ink
 as far as the session has come; the current card's bar is `--you`. Pointing
 at a bar reads it out (`9 d → 27 d`). Readout below: `6 of 12`.
 
-In review it sits in the left margin, hidden (opacity 0) until the pointer
-enters the margin or it takes focus; on touch screens (no hover) it rests at
-half strength. Under 1100px it runs across the top instead, bars hanging
+In review it sits in the left margin, always shown at full strength: no
+fade and no hover reveal, by decision, since watching the bars move is part
+of the session. Under 1100px it runs across the top instead, bars hanging
 down. On the done screen it is shown at full strength as the session's
 summary.
 
