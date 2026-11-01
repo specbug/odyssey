@@ -9,8 +9,9 @@ import { hasCloze } from '../utils/cloze';
 import useReaderChrome from '../hooks/useReaderChrome';
 import StickyNote from '../components/StickyNote';
 import InlineCaptureDrawer from '../components/InlineCaptureDrawer';
-import DocGlyph from '../components/DocGlyph';
+import PageRule from '../components/PageRule';
 import { Ic } from '../components/Icons';
+import { failText } from '../utils/format';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL || ''}/pdf.worker.min.mjs`;
 
@@ -260,11 +261,10 @@ const PageRenderer = memo(function PageRenderer({
                   const isActive = h.id === activeHighlightId;
                   const hasNote = !!h.noteBackendId;
                   const isPulsing = h.id === focusPulseId;
-                  // Marginalia-style mark: a thin accent underline reads as
-                  // "a note lives here", with a gentle fill only when the
-                  // highlight is the user's active focus. Keeps the accent
-                  // rare per DESIGN.md §3 — the page reads as a page, not a
-                  // UI state.
+                  // The person's mark, so the note signal. A 1px underline says
+                  // "a note lives here"; the fill deepens only while the
+                  // highlight is selected. Light-mode values: the canvas stays
+                  // white in dark mode.
                   return (
                     <div
                       key={i}
@@ -293,14 +293,12 @@ const PageRenderer = memo(function PageRenderer({
                         // getting swallowed by the text spans.
                         zIndex: 3,
                         background: isActive
-                          ? 'color-mix(in oklab, var(--accent) 18%, transparent)'
-                          : hasNote
-                            ? 'color-mix(in oklab, var(--accent) 7%, transparent)'
-                            : 'color-mix(in oklab, var(--accent) 10%, transparent)',
+                          ? 'color-mix(in oklab, var(--note-on-page) 26%, transparent)'
+                          : 'color-mix(in oklab, var(--note-on-page) 12%, transparent)',
                         boxShadow: hasNote
                           ? isActive
-                            ? 'inset 0 -2px 0 color-mix(in oklab, var(--accent) 78%, transparent)'
-                            : 'inset 0 -1px 0 color-mix(in oklab, var(--accent) 45%, transparent)'
+                            ? 'inset 0 -2px 0 var(--note-on-page)'
+                            : 'inset 0 -1px 0 color-mix(in oklab, var(--note-on-page) 70%, transparent)'
                           : 'none',
                         transition: 'background 220ms cubic-bezier(.2,.7,.2,1), box-shadow 220ms cubic-bezier(.2,.7,.2,1)',
                         mixBlendMode: 'multiply',
@@ -322,7 +320,8 @@ const PageRenderer = memo(function PageRenderer({
               left: `${rect.left}px`,
               width: `${rect.width}px`,
               height: `${rect.height}px`,
-              background: 'color-mix(in oklab, var(--accent) 35%, transparent)',
+              // A selection, not yet a note: tinted like text selection.
+              background: 'color-mix(in oklab, var(--link-on-page) 22%, transparent)',
               mixBlendMode: 'multiply',
               zIndex: 3,
             }}
@@ -457,7 +456,8 @@ function DrawerFloater({ drawer, children }) {
       if (!pageEl) { setAnchor((prev) => (prev == null ? prev : null)); return; }
       const r = pageEl.getBoundingClientRect();
       const top = Math.max(80, Math.min(window.innerHeight - 320, r.top + 16));
-      const left = r.right + 24;
+      // Beside the page; on a narrow screen, over its right edge.
+      const left = Math.min(r.right + 24, window.innerWidth - Math.min(320, window.innerWidth - 32) - 16);
       // Skip setState if nothing meaningful changed — the 400ms interval
       // would otherwise thrash a re-render twice a second for no reason.
       setAnchor((prev) => {
@@ -492,10 +492,11 @@ function DrawerFloater({ drawer, children }) {
         top: anchor?.top ?? 100,
         left: anchor?.left ?? -9999,
         width: 320,
+        maxWidth: 'calc(100vw - 32px)',
         zIndex: 25,
         opacity: offscreen ? 0 : 1,
         pointerEvents: offscreen ? 'none' : 'auto',
-        transition: 'opacity 200ms ease',
+        transition: 'opacity 200ms var(--ease)',
       }}
     >
       {children}
@@ -610,8 +611,8 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
         setFileBlob(blob);
       } catch (e) {
         if (!alive) return;
-        if (timedOut) setError('Timed out fetching this document. Check your connection and try again.');
-        else if (e?.name !== 'AbortError') setError(e.message || String(e));
+        if (timedOut) setError('Couldn’t load document. No response after 45 s.');
+        else if (e?.name !== 'AbortError') setError(failText('load document', e));
       }
     })();
 
@@ -907,7 +908,7 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
       setActiveHighlightId(null);
     } catch (e) {
       console.error(e);
-      setError(e.message || String(e));
+      setError(failText('save note', e));
     }
   }, [drawer, docId, highlights, notes, scale]);
 
@@ -1068,12 +1069,18 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
     return by;
   }, [notes]);
 
+  // Pages carrying notes, 1-based, for the Rule's note ticks.
+  const notePages = useMemo(
+    () => [...notesByPage.keys()].filter((k) => Number.isInteger(k)).map((k) => k + 1),
+    [notesByPage],
+  );
+
   // Exits shared by the error and loading states. The rail is hidden on this
   // route, so these are the only visible way out until the viewer paints —
   // the case that used to strand users behind a hung download. Built on
   // demand: the loaded viewer re-renders on every scroll tick.
   const escapeHatch = () => (
-    <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+    <div className="overlay-actions">
       <button className="btn" onClick={retryLoad}>Retry</button>
       <button className="btn" onClick={onExit}>Library</button>
       <button className="btn" onClick={onGoHome}>Home</button>
@@ -1082,136 +1089,93 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
 
   if (error) {
     return (
-      <div style={{ position: 'fixed', inset: 0, display: 'grid', placeItems: 'center', background: 'var(--paper)' }}>
-        <div style={{ textAlign: 'center', maxWidth: 420, padding: 24 }}>
-          <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 16 }}>DOCUMENT ERROR</div>
-          <div style={{ color: 'var(--ink-2)', marginBottom: 24 }}>{error}</div>
-          {escapeHatch()}
-        </div>
+      <div className="overlay-message">
+        <p className="t-body">{error}</p>
+        {escapeHatch()}
       </div>
     );
   }
 
   if (!fileBlob) {
     return (
-      <div style={{ position: 'fixed', inset: 0, display: 'grid', placeItems: 'center', background: 'var(--paper)' }}>
-        <div style={{ textAlign: 'center', maxWidth: 420, padding: 24 }}>
-          <div className="mono-sm" style={{ color: 'var(--ink-4)' }}>Loading document…</div>
-          {slowLoad && (
-            <div className="enter" style={{ marginTop: 24 }}>
-              <div style={{ color: 'var(--ink-3)', marginBottom: 20, fontSize: 13 }}>
-                This is taking longer than usual — the connection may be slow.
-              </div>
-              {escapeHatch()}
-              <div className="mono-sm" style={{ color: 'var(--ink-4)', marginTop: 16 }}>ESC TO LEAVE</div>
-            </div>
-          )}
-        </div>
+      <div className="overlay-message">
+        {slowLoad ? (
+          <>
+            <p className="t-body">Still loading. The connection may be slow.</p>
+            {escapeHatch()}
+          </>
+        ) : (
+          <p className="t-small ink-3">Loading</p>
+        )}
       </div>
     );
   }
 
+  const title = doc?.title || 'Document';
+
   return (
-    <div className="pdf-screen" {...readerProps} style={{ position: 'fixed', inset: 0, background: 'var(--paper)', zIndex: 50, display: 'flex', flexDirection: 'column' }}>
-      {/* Top chrome */}
+    <div className="pdf-screen" {...readerProps}>
       <div
         {...chromeProps}
         className={`pdf-chrome${chromeVisible ? '' : ' pdf-chrome-hidden'}`}
         role="region"
         aria-label="Reader controls"
-        style={{
-          position: 'absolute',
-          top: 16, left: 16, right: 16,
-          zIndex: 10,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--paper)', border: '1px solid var(--rule)', padding: '8px 12px', borderRadius: 'var(--rad)' }}>
-          <button className="btn ghost xs" onClick={onExit}>
-            <Ic.Left/> Library
+        <div className="pdf-plate pdf-plate-title">
+          <button className="btn ghost sm quiet" onClick={onExit} aria-label="Library">
+            <Ic.Left size={16}/> Library
           </button>
-          <div style={{ width: 1, height: 18, background: 'var(--rule)' }}/>
-          {doc && <DocGlyph doc={doc} size={28}/>}
-          <div>
-            <div style={{ fontSize: 13, fontWeight: 500 }}>{doc?.title || 'Document'}</div>
-            <div className="mono-sm" style={{ color: 'var(--ink-4)' }}>{doc?.authors || '—'}</div>
-          </div>
+          <span className="pdf-title">
+            <span className="pdf-title-name">{title}</span>
+            {doc?.authors && <span className="t-small ink-2">{doc.authors}</span>}
+          </span>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--paper)', border: '1px solid var(--rule)', padding: '6px 10px', borderRadius: 'var(--rad)' }}>
+        <div className="pdf-plate">
+          <span className="t-small ink-2 pdf-page-readout">p.{'\u00a0'}{currentPage} of {numPages || '–'}</span>
+          <span className="pdf-zoom">
             <button
-              className="btn ghost xs"
-              onClick={() => scrollToPageIndex(Math.max(0, currentPage - 2), 'start')}
-              aria-label="Previous page"
-            >
-              <Ic.Left/>
-            </button>
-            <div style={{ width: 140, position: 'relative' }}>
-              <div style={{ height: 2, background: 'var(--rule)' }}/>
-              <div style={{ position: 'absolute', top: 0, left: 0, height: 2, width: `${(currentPage / Math.max(1, numPages)) * 100}%`, background: 'var(--ink)', transition: 'width 220ms' }}/>
-            </div>
-            <div className="mono-sm" style={{ color: 'var(--ink-2)', minWidth: 72, textAlign: 'center' }}>{currentPage} / {numPages || '—'}</div>
-            <button
-              className="btn ghost xs"
-              onClick={() => scrollToPageIndex(Math.min(numPages - 1, currentPage), 'start')}
-              aria-label="Next page"
-            >
-              <Ic.Right/>
-            </button>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2, background: 'var(--paper)', border: '1px solid var(--rule)', padding: '3px 4px', borderRadius: 'var(--rad)' }}>
-            <button
-              className="btn ghost xs"
-              onClick={() => setScale((s) => Math.max(0.5, Math.round((s - 0.1) * 100) / 100))}
+              className="btn ghost sm quiet"
+              onClick={() => setScale((x) => Math.max(0.5, Math.round((x - 0.1) * 100) / 100))}
               disabled={scale <= 0.5}
               aria-label="Zoom out"
-              style={{ padding: '4px 8px' }}
-            >
-              −
-            </button>
-            <button
-              className="btn ghost xs"
-              onClick={() => setScale(1.2)}
-              title="Reset zoom"
-              aria-label="Reset zoom"
-              style={{ padding: '4px 10px', fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--ink-2)', minWidth: 48, textAlign: 'center', justifyContent: 'center' }}
-            >
+            >−</button>
+            <button className="btn ghost sm quiet t-small" onClick={() => setScale(1.2)} title="Reset zoom" aria-label={`Zoom ${Math.round(scale * 100)}%, reset`}>
               {Math.round(scale * 100)}%
             </button>
             <button
-              className="btn ghost xs"
-              onClick={() => setScale((s) => Math.min(3.0, Math.round((s + 0.1) * 100) / 100))}
+              className="btn ghost sm quiet"
+              onClick={() => setScale((x) => Math.min(3.0, Math.round((x + 0.1) * 100) / 100))}
               disabled={scale >= 3.0}
               aria-label="Zoom in"
-              style={{ padding: '4px 8px' }}
-            >
-              +
-            </button>
-          </div>
-          <div className="mono-sm" style={{ background: 'var(--paper)', border: '1px solid var(--rule)', padding: '9px 12px', borderRadius: 'var(--rad)', color: 'var(--ink-2)', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Ic.Note color="var(--ink-3)"/> {notes.length}
-          </div>
+            >+</button>
+          </span>
           {dueCount > 0 && (
-            <button className="btn xs" onClick={() => onStartReview?.(docId)} title={`Review ${dueCount} due card${dueCount === 1 ? '' : 's'}`}>
-              <Ic.Review/> Review {dueCount}
+            <button className="btn ghost sm link" onClick={() => onStartReview?.(docId)}>
+              Review {dueCount}
             </button>
           )}
         </div>
       </div>
 
+      <PageRule
+        numPages={numPages}
+        current={currentPage}
+        notePages={notePages}
+        onJump={(p) => scrollToPageIndex(p - 1, 'start')}
+      />
+
       {/* Viewer — native-scroll container. This is the only thing that
           scrolls; each LazyPageRow lives in normal block flow inside. */}
       <div
         ref={(el) => { scrollerRef.current = el; viewerRef.current = el; }}
-        className="scroll"
-        style={{ flex: 1, padding: '80px 0' }}
+        className="scroll pdf-scroll"
         onMouseUp={onViewerMouseUp}
         onScroll={onScrollerScroll}
       >
         <Document
           file={fileBlob}
           onLoadSuccess={onDocLoad}
-          onLoadError={(e) => setError(e?.message || 'This PDF could not be opened.')}
+          onLoadError={(e) => setError(failText('open PDF', e))}
         >
           {numPages > 0 && (
             // Plain stacked list — no virtualizer. Each LazyPageRow mounts
@@ -1249,7 +1213,7 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
         <DrawerFloater drawer={drawer}>
           <InlineCaptureDrawer
             variant="rail"
-            title={drawer.kind === 'edit' ? 'EDITING NOTE' : 'NEW NOTE'}
+            title={drawer.kind === 'edit' ? 'Edit note' : 'New note'}
             initial={drawer.kind === 'edit' ? drawer.initial : null}
             seedText={drawer.kind === 'new' ? (drawer.seedText || '') : ''}
             onSave={handleSaveDrawer}
@@ -1262,50 +1226,15 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
       {/* Selection bubble */}
       {pendingHighlight && pendingHighlight.bubble && (
         <div
+          className="select-bubble"
           style={{
-            position: 'fixed',
-            left: pendingHighlight.bubble.x - 60,
+            left: Math.max(8, Math.min(window.innerWidth - 168, pendingHighlight.bubble.x)),
             top: pendingHighlight.bubble.y,
-            zIndex: 30,
-            background: 'var(--ink)',
-            color: 'var(--paper)',
-            borderRadius: 'var(--rad)',
-            padding: '4px',
-            display: 'flex',
-            gap: 2,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
           }}
         >
-          <button
-            onClick={beginNewFromSelection}
-            style={{
-              background: 'transparent',
-              border: 0,
-              color: 'var(--paper)',
-              padding: '6px 10px',
-              fontSize: 12,
-              cursor: 'pointer',
-              fontFamily: 'var(--sans)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-          >
-            <Ic.Plus/> Add note
-          </button>
-          <button
-            onClick={() => setPendingHighlight(null)}
-            style={{
-              background: 'transparent',
-              border: 0,
-              color: 'var(--paper)',
-              padding: '6px 10px',
-              fontSize: 12,
-              cursor: 'pointer',
-              opacity: 0.5,
-            }}
-          >
-            <Ic.Close/>
+          <button className="btn primary sm" onClick={beginNewFromSelection}>Add note</button>
+          <button className="btn sm select-bubble-close" onClick={() => setPendingHighlight(null)} aria-label="Dismiss">
+            <Ic.Close size={16}/>
           </button>
         </div>
       )}

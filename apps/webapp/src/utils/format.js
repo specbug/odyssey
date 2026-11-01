@@ -10,8 +10,7 @@ export function relativeDate(iso) {
   const then = new Date(iso).getTime();
   if (!Number.isFinite(then)) return '';
   const delta = Date.now() - then;
-  if (delta < 0) return 'just now';
-  if (delta < 60_000) return 'moments ago';
+  if (delta < 60_000) return 'just now';
   if (delta < 3_600_000) {
     const m = Math.floor(delta / 60_000);
     return m === 1 ? 'a minute ago' : `${m} minutes ago`;
@@ -29,24 +28,50 @@ export function relativeDate(iso) {
   return `${Math.floor(delta / YEAR)} years ago`;
 }
 
-// "2024·02·11" style — designed to sit quietly next to mono metadata.
+// "11 Feb 2024".
 export function formatDate(iso) {
   if (!iso) return '';
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}·${pad(d.getMonth() + 1)}·${pad(d.getDate())}`;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+const NBSP = '\u00a0';
+
+// An FSRS interval in days, as a short readout: "<1 d", "9 d", "4 mo", "1.6 yr".
+export function fmtInterval(days) {
+  const d = Number(days);
+  if (!Number.isFinite(d) || d < 1) return `<${NBSP}1${NBSP}d`;
+  if (d < 31) return `${Math.round(d)}${NBSP}d`;
+  if (d < 365) return `${Math.round(d / 30.44)}${NBSP}mo`;
+  const y = d / 365;
+  return `${y < 10 ? y.toFixed(1) : Math.round(y)}${NBSP}yr`;
+}
+
+// "1 card", "12 cards".
+export function plural(n, one, many = `${one}s`) {
+  return `${n}${NBSP}${n === 1 ? one : many}`;
+}
+
+// What failed, and why when known. A fetch that never reached the server
+// throws a TypeError; anything else carries the server's message.
+export function failText(what, err) {
+  const msg = err?.message || String(err || '');
+  const why = (err instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(msg))
+    ? 'Server not responding.'
+    : msg ? `${msg.replace(/\.$/, '')}.` : '';
+  return `Couldn’t ${what}.${why ? ` ${why}` : ''}`;
 }
 
 // Note text as one plain line: drawer HTML, cloze brackets and image markers
 // stripped. For labels and snippets where rich rendering would be noise.
-export function plainText(text, max = Infinity) {
+export function plainText(text, max = Infinity, { keepCloze = false } = {}) {
   if (!text) return '';
   // DOMParser builds an inert document: no scripts run, no images load.
   const html = String(text).replace(/<(br|div|p)[^>]*>/gi, ' ');
   const body = new DOMParser().parseFromString(html, 'text/html').body;
   const s = (body.textContent || '')
-    .replace(/\[\[([^\]]+)\]\]/g, '$1')
+    .replace(/\[\[([^\]]+)\]\]/g, keepCloze ? '[[$1]]' : '$1')
     .replace(/\[image:[^\]]+\]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
@@ -55,10 +80,10 @@ export function plainText(text, max = Infinity) {
 
 // Display names for the linker's relation types (app/linker.py:RELATIONS).
 export const RELATION_LABEL = {
-  same_concept: 'Same idea',
+  same_concept: 'Same concept',
   elaborates: 'Elaborates',
   example: 'Example',
   contrasts: 'Contrasts',
   prerequisite: 'Prerequisite',
-  cause_effect: 'Cause & effect',
+  cause_effect: 'Cause and effect',
 };

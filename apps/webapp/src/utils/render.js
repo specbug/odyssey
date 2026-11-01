@@ -66,14 +66,13 @@ function classify(s) {
   return 'html';
 }
 
-// Style tokens for code — match the design's paper/rule/mono vocabulary.
+// Code is the one place R Mono appears.
 const CODE_BLOCK_STYLE = {
   fontFamily: 'var(--mono)',
-  fontSize: 12.5,
+  fontSize: '0.8em',
   lineHeight: 1.55,
-  background: 'var(--paper-2)',
+  background: 'var(--ground)',
   border: '1px solid var(--rule)',
-  borderRadius: 'var(--rad)',
   padding: '12px 16px',
   margin: '8px 0',
   overflowX: 'auto',
@@ -82,12 +81,10 @@ const CODE_BLOCK_STYLE = {
 };
 const CODE_INLINE_STYLE = {
   fontFamily: 'var(--mono)',
-  fontSize: '0.92em',
-  background: 'var(--paper-2)',
+  fontSize: '0.86em',
+  background: 'var(--ground)',
   border: '1px solid var(--rule)',
-  padding: '1px 6px',
-  borderRadius: 'var(--rad)',
-  letterSpacing: 0,
+  padding: '0 4px',
   color: 'var(--ink)',
 };
 
@@ -106,53 +103,32 @@ function renderMath(value, kind, key) {
   }
 }
 
-// `isActive` is used during review: only the active blank is hidden until
-// revealed — the other blanks are shown with their answers so the grader can
-// focus on a single cloze at a time. (Each blank is its own StudyCard.)
+// Cloze rendering.
+//   'reveal' (ReviewScreen): only the blank at `activeIndex` hides until
+//            revealed; the other blanks show their answers, so each card
+//            tests one blank.
+//   'inline' (notes, sticky notes, graph): every answer shown, underlined.
+//   'mask'   (linked notes during review): every answer hidden as […], since
+//            a neighbour may be due later in the same session.
 function renderCloze(value, key, cloze, revealed, isActive) {
   const word = value.slice(2, -2);
   if (cloze === 'reveal') {
-    const showAnswer = isActive ? revealed : true;
-    return showAnswer ? (
-      <span key={key} style={{
-        background: 'color-mix(in oklab, var(--accent) 18%, transparent)',
-        padding: '0 6px',
-        borderRadius: 2,
-        color: 'var(--accent-deep)',
-        fontWeight: 500,
-      }}>{word}</span>
-    ) : (
-      <span key={key} style={{
-        display: 'inline-block',
-        background: 'var(--paper-3)',
-        color: 'var(--paper-3)',
-        borderRadius: 2,
-        padding: '0 6px',
-        minWidth: Math.max(40, word.length * 10),
-        letterSpacing: '0.1em',
-      }}>{'·'.repeat(word.length)}</span>
-    );
+    if (isActive && !revealed) {
+      // Width tracks the answer's length so the blank hints at its size.
+      const em = Math.max(2, Math.min(12, word.length * 0.5));
+      return <span key={key} className="cloze-blank" style={{ width: `${em}em` }} role="img" aria-label="blank"/>;
+    }
+    return <span key={key} className={isActive ? 'cloze active' : 'cloze'}>{word}</span>;
   }
-  if (cloze === 'inline') {
-    return (
-      <span key={key} style={{
-        display: 'inline-block',
-        padding: '0 10px',
-        margin: '0 2px',
-        background: 'color-mix(in oklab, var(--accent) 12%, var(--paper))',
-        border: '1px dashed color-mix(in oklab, var(--accent) 45%, var(--rule))',
-        borderRadius: 999,
-        color: 'var(--ink-2)',
-      }}>{word}</span>
-    );
-  }
+  if (cloze === 'inline') return <span key={key} className="cloze">{word}</span>;
+  if (cloze === 'mask') return <span key={key} className="cloze-mask">[…]</span>;
   return <span key={key}>{value}</span>;
 }
 
 /**
  * Render note content to React nodes.
  * @param {string} text
- * @param {{cloze?: 'none' | 'inline' | 'reveal', revealed?: boolean, activeIndex?: number}} opts
+ * @param {{cloze?: 'none' | 'inline' | 'reveal' | 'mask', revealed?: boolean, activeIndex?: number}} opts
  *   activeIndex picks which [[word]] blank is the target when cloze === 'reveal'.
  *   Blanks before/after it are shown with their answer, so each cloze is
  *   reviewed in isolation.
@@ -199,7 +175,7 @@ export function renderRich(text, opts = {}) {
             key={key}
             src={`${IMAGE_BASE}/images/${uuid}`}
             alt=""
-            style={{ maxWidth: '100%', display: 'block', margin: '8px 0', borderRadius: 'var(--rad)' }}
+            style={{ maxWidth: '100%', display: 'block', margin: '8px 0' }}
           />
         );
         return;

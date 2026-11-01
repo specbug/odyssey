@@ -1,6 +1,9 @@
 # Odyssey
 
-Odyssey is a PDF reader with spaced repetition built in. Annotations become FSRS-scheduled review cards.
+**A PDF reader with a long memory.**
+Spaced repetition for every highlight.
+
+Annotations become FSRS-scheduled review cards.
 
 Reading and remembering usually live in separate apps: PDFs in Preview, notes in Notion, flashcards in Anki. Odyssey is one place for all three.
 
@@ -9,7 +12,7 @@ Reading and remembering usually live in separate apps: PDFs in Preview, notes in
 ## Features
 
 - Annotations are cards. No separate authoring step.
-- Cloze deletions with `[[double brackets]]`. Multiple blanks on one card reveal and grade together.
+- Cloze deletions with `[[double brackets]]`. Each blank is its own card; review hides one blank at a time.
 - Images, diagrams, and LaTeX render inline in card bodies.
 - FSRS scheduling instead of SM-2. Fewer reviews for the same retention than Anki.
 - Local-first. PDFs, annotations, and review history stay on the machine. No account, no sync.

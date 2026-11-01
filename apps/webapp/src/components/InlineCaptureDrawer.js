@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Ic } from './Icons';
-import { hasCloze } from '../utils/cloze';
+import { countCloze, hasCloze } from '../utils/cloze';
 import apiService from '../api';
 
 // Inline capture drawer — cloze / recall / note modes. Reused in:
@@ -14,23 +13,7 @@ import apiService from '../api';
 //   onCancel  - () => void
 //   onDelete  - () => void  (optional; shown in edit mode only)
 //   variant   - 'rail' | 'modal'  (layout wrapper style)
-// All textareas use R Sans — authoring is structural UI, not a reading
-// surface. Serif is reserved for the review ritual.
-const drawerTextarea = (minH) => ({
-  width: '100%',
-  minHeight: minH,
-  border: '1px solid var(--rule)',
-  background: 'var(--paper-2)',
-  padding: 10,
-  fontFamily: 'var(--sans)',
-  fontSize: 13.5,
-  lineHeight: 1.5,
-  color: 'var(--ink)',
-  borderRadius: 'var(--rad)',
-  resize: 'vertical',
-  outline: 'none',
-});
-
+//   title     - the card label, e.g. "New note"
 export default function InlineCaptureDrawer({
   initial = null,
   seedText = '',
@@ -97,136 +80,92 @@ export default function InlineCaptureDrawer({
     setTagInput('');
   };
 
-  const wrapper =
-    variant === 'modal'
-      ? {
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: 520,
-          maxWidth: 'calc(100vw - 32px)',
-          zIndex: 1000,
-          background: 'var(--paper)',
-          border: '1px solid var(--rule-2)',
-          borderLeft: '3px solid var(--accent)',
-          borderRadius: 'var(--rad)',
-          boxShadow: '0 20px 60px -20px rgba(0,0,0,0.25), 0 4px 12px -4px rgba(0,0,0,0.1)',
-          padding: 22,
-          animation: 'fadeUp 240ms cubic-bezier(.2,.7,.2,1) forwards',
-        }
-      : {
-          position: 'relative',
-          background: 'var(--paper)',
-          border: '1px solid var(--rule-2)',
-          borderLeft: '3px solid var(--accent)',
-          borderRadius: 'var(--rad)',
-          boxShadow: '0 12px 40px -16px rgba(0,0,0,0.18)',
-          padding: 18,
-          animation: 'fadeUp 240ms cubic-bezier(.2,.7,.2,1) forwards',
-        };
+  const blanks = countCloze(prompt);
+  const modes = [['cloze', 'Cloze'], ['recall', 'Recall'], ['note', 'Note']];
 
   return (
     <>
-      {variant === 'modal' && (
-        <div
-          onClick={onCancel}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0,0,0,0.15)',
-            backdropFilter: 'blur(2px)',
-            zIndex: 999,
-            animation: 'fadeUp 200ms cubic-bezier(.2,.7,.2,1) both',
-          }}
-        />
-      )}
-      <div onKeyDown={onKey} style={{ ...wrapper, ...style }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div className="mono-sm" style={{ color: 'var(--ink-4)', letterSpacing: '0.1em' }}>
-            {title || (isEdit ? 'EDIT NOTE' : 'NEW NOTE')}
-          </div>
-          <div className="tweak-seg" style={{ background: 'var(--paper-2)' }}>
-            {['cloze', 'recall', 'note'].map((m) => (
-              <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)} style={{ padding: '3px 9px', fontSize: 10.5 }}>
-                {m}
-              </button>
+      {variant === 'modal' && <div className="scrim" onClick={onCancel}/>}
+      <div
+        className={`card drawer drawer-${variant}`}
+        data-type={mode}
+        onKeyDown={onKey}
+        style={style}
+        role={variant === 'modal' ? 'dialog' : 'group'}
+        aria-label={title || (isEdit ? 'Edit note' : 'New note')}
+      >
+        <div className="drawer-head">
+          <span className="card-label">{title || (isEdit ? 'Edit note' : 'New note')}</span>
+          <div className="tabs" role="group" aria-label="Type">
+            {modes.map(([m, label]) => (
+              <button key={m} aria-pressed={mode === m} onClick={() => setMode(m)}>{label}</button>
             ))}
           </div>
         </div>
 
         {mode === 'cloze' && (
           <>
-            <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 6 }}>
-              PASSAGE · wrap answer in [[brackets]]
-            </div>
             <textarea
               ref={promptRef}
+              className="field"
+              rows={4}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onPaste={onPaste(setPrompt)}
-              style={drawerTextarea(90)}
+              aria-label="Passage"
+              placeholder="Passage, with each answer in [[double brackets]]"
             />
-            <div className="mono-sm" style={{ color: 'var(--ink-4)', marginTop: 8 }}>
-              {(prompt.match(/\[\[[^\]]+\]\]/g) || []).length} cloze
-              {(prompt.match(/\[\[[^\]]+\]\]/g) || []).length !== 1 ? 's' : ''}
-            </div>
+            <p className="t-small ink-3 drawer-hint">
+              {blanks === 0 ? 'No blanks.' : `${blanks} blank${blanks === 1 ? '' : 's'}, ${blanks} card${blanks === 1 ? '' : 's'}.`}
+            </p>
           </>
         )}
 
         {mode === 'recall' && (
           <>
-            <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 6 }}>QUESTION</div>
             <textarea
               ref={promptRef}
+              className="field"
+              rows={2}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               onPaste={onPaste(setPrompt)}
-              style={drawerTextarea(54)}
+              aria-label="Question"
+              placeholder="Question"
             />
-            <div className="mono-sm" style={{ color: 'var(--ink-4)', marginTop: 10, marginBottom: 6 }}>ANSWER</div>
             <textarea
+              className="field drawer-answer"
+              rows={3}
               value={answer}
               onChange={(e) => setAnswer(e.target.value)}
               onPaste={onPaste(setAnswer)}
-              style={drawerTextarea(72)}
+              aria-label="Answer"
+              placeholder="Answer"
             />
           </>
         )}
 
         {mode === 'note' && (
-          <>
-            <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 6 }}>NOTE</div>
-            <textarea
-              ref={promptRef}
-              value={prompt}
-              onChange={(e) => setPrompt(e.target.value)}
-              onPaste={onPaste(setPrompt)}
-              style={drawerTextarea(140)}
-            />
-          </>
+          <textarea
+            ref={promptRef}
+            className="field"
+            rows={6}
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            onPaste={onPaste(setPrompt)}
+            aria-label="Note"
+            placeholder="Note"
+          />
         )}
 
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 12, flexWrap: 'wrap' }}>
+        <div className="drawer-tags">
           {tags.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTags(tags.filter((x) => x !== t))}
-              className="mono"
-              style={{
-                padding: '2px 7px',
-                background: 'var(--paper-2)',
-                border: '1px solid var(--rule)',
-                color: 'var(--ink-2)',
-                borderRadius: 'var(--rad)',
-                fontSize: 10.5,
-                cursor: 'pointer',
-              }}
-            >
-              {t} ×
+            <button key={t} className="tag t-small" onClick={() => setTags(tags.filter((x) => x !== t))} aria-label={`Remove tag ${t}`}>
+              {t} <span aria-hidden="true">×</span>
             </button>
           ))}
           <input
+            className="tag-input t-small"
             value={tagInput}
             onChange={(e) => setTagInput(e.target.value)}
             onKeyDown={(e) => {
@@ -237,35 +176,19 @@ export default function InlineCaptureDrawer({
               }
             }}
             onBlur={addTag}
-            placeholder="+ tag"
-            style={{
-              border: 0,
-              background: 'transparent',
-              outline: 'none',
-              fontFamily: 'var(--mono)',
-              fontSize: 10.5,
-              color: 'var(--ink-2)',
-              padding: '2px 4px',
-              width: 70,
-            }}
+            placeholder="Add tag"
+            aria-label="Add tag"
           />
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--rule)' }}>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {isEdit && onDelete && (
-              <button className="btn ghost xs" onClick={onDelete} style={{ color: 'var(--accent)' }}>
-                <Ic.Trash/> Delete
-              </button>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <div className="mono-sm" style={{ color: 'var(--ink-4)', marginRight: 4 }}>⌘⏎</div>
-            <button className="btn ghost xs" onClick={onCancel}>Cancel</button>
-            <button className="btn primary xs" onClick={commit} style={{ padding: '6px 12px' }}>
-              Save note
-            </button>
-          </div>
+        <div className="drawer-foot">
+          {isEdit && onDelete && (
+            <button className="btn ghost sm quiet" onClick={onDelete}>Delete</button>
+          )}
+          <span className="drawer-foot-end">
+            <button className="btn ghost sm quiet" onClick={onCancel}>Cancel <span className="key">Esc</span></button>
+            <button className="btn primary sm" onClick={commit}>Save <span className="key">⌘↵</span></button>
+          </span>
         </div>
       </div>
     </>

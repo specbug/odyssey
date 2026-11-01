@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import ErrorBoundary from './components/ErrorBoundary';
 import Rail from './components/Rail';
 import useRouteHistory from './hooks/useRouteHistory';
-import useTimeHue from './hooks/useTimeHue';
 import HomeScreen from './screens/HomeScreen';
 import LibraryScreen from './screens/LibraryScreen';
 import NotesScreen from './screens/NotesScreen';
@@ -46,8 +45,6 @@ function initialRoute() {
 }
 
 export default function App() {
-  useTimeHue();
-
   const [docId, setDocId] = useState(() => {
     const v = localStorage.getItem(LS_DOC);
     return v ? Number(v) : null;

@@ -1,221 +1,303 @@
-/* Odyssey base styles — shell, rail, buttons, type, animations. */
+/* Shell, type roles, controls. Per-screen layout lives in screens.css. */
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* Form controls inherit body type by default — browsers give buttons/inputs
-   their own UA font stack, which leaks system-ui into the UI and breaks our
-   R Sans / R Mono discipline on any <button> that forgets to set font-family. */
+/* Form controls inherit body type. Browsers otherwise give them their own
+   UA font stack, which leaks system-ui into the UI. */
 button, input, textarea, select {
   font-family: inherit;
   font-size: inherit;
+  font-weight: inherit;
   color: inherit;
+  letter-spacing: inherit;
 }
+button { background: none; border: 0; cursor: pointer; text-align: inherit; }
+button:disabled { cursor: default; }
 
 html, body {
   height: 100%;
-  background: var(--paper);
+  background: var(--ground);
   color: var(--ink);
   font-family: var(--sans);
+  font-feature-settings: "ss03" 1;
   font-optical-sizing: auto;
-  font-size: 15px;
+  font-weight: var(--body-weight);
+  font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  font-feature-settings: "ss01" 1, "ss02" 0;
 }
-
 body { overflow: hidden; }
 
-h1, h2, h3 { font-weight: 500; letter-spacing: -0.02em; }
+::selection { background: color-mix(in oklab, var(--link) 22%, transparent); }
 
-.mono    { font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.02em; }
-.mono-sm { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.04em; text-transform: uppercase; }
+p { text-wrap: pretty; hanging-punctuation: first; }
 
-/* App shell */
-#root, .app {
-  height: 100vh;
-  width: 100vw;
-  overflow: hidden;
-  background: var(--paper);
-  color: var(--ink);
-  display: flex;
+a, .link {
+  color: var(--link);
+  text-decoration: underline 1px;
+  text-decoration-color: color-mix(in oklab, var(--link) 45%, transparent);
+  text-underline-offset: 0.22em;
+  transition: text-decoration-color 200ms var(--ease);
+}
+a:hover, .link:hover { text-decoration-color: var(--link); }
+
+/* ── Type roles ─────────────────────────────────────────────────────── */
+
+/* Display: opsz 40, tight but never touching. */
+.t-display {
+  font-variation-settings: 'opsz' 40;
+  font-weight: 520;
+  letter-spacing: -0.02em;
+  line-height: 1.02;
+  text-wrap: balance;
+}
+.t-h {
+  font-size: 21px;
+  font-weight: 620;
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+}
+.t-body {
+  font-size: 18.5px;
+  line-height: 1.62;
+}
+.t-note {
+  font-size: 13.5px;
+  line-height: 1.48;
+  color: var(--ink-2);
+}
+/* Small text and every number: Google Sans Flex, sentence case, natural
+   tracking. Tabular figures because these sit in columns or update. */
+.t-small {
+  font-family: var(--small);
+  font-size: 12px;
+  font-weight: 450;
+  line-height: 1.4;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+.t-small.lg { font-size: 13px; }
+.t-small.xs { font-size: 11px; }
+.t-small strong, .t-fig { font-weight: 560; }
+
+.ink   { color: var(--ink); }
+.ink-2 { color: var(--ink-2); }
+.ink-3 { color: var(--ink-3); }
+.c-note { color: var(--note); }
+.c-data { color: var(--data); }
+.c-link { color: var(--link); }
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
 }
 
-/* Left rail */
+/* ── Shell ──────────────────────────────────────────────────────────── */
+
+#root, .app {
+  height: 100vh;
+  height: 100dvh;
+  width: 100vw;
+  overflow: hidden;
+  display: flex;
+  background: var(--ground);
+}
+
 .rail {
-  width: 72px;
+  width: 64px;
   flex-shrink: 0;
   border-right: 1px solid var(--rule);
-  background: var(--paper);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px 0;
+  padding: 16px 0;
+  gap: 8px;
   z-index: 20;
 }
-.rail-mark {
+.rail-btn {
   width: 40px; height: 40px;
   display: grid; place-items: center;
-  margin-bottom: 36px;
-  color: var(--ink);
-}
-.rail-group { display: flex; flex-direction: column; gap: 4px; align-items: center; }
-.rail-btn {
-  width: 44px; height: 44px;
-  border: 0; background: transparent;
   color: var(--ink-3);
-  border-radius: var(--rad);
-  display: grid; place-items: center;
-  cursor: pointer;
-  transition: color 180ms ease, background 180ms ease;
   position: relative;
+  transition: color 200ms var(--ease);
 }
-.rail-btn:hover { color: var(--ink); background: var(--paper-2); }
+.rail-btn:hover { color: var(--ink); }
 .rail-btn[aria-current="page"] { color: var(--ink); }
+/* Where you are: a 2px edge in the you signal. */
 .rail-btn[aria-current="page"]::before {
-  content: ""; position: absolute; left: -12px; top: 12px; bottom: 12px;
-  width: 2px; background: var(--ink);
+  content: "";
+  position: absolute;
+  left: -12px; top: 10px; bottom: 10px;
+  width: 2px;
+  background: var(--you);
 }
-.rail-btn svg { width: 20px; height: 20px; }
-.rail-spacer { flex: 1; }
+.rail-mark { margin-bottom: 16px; }
+.rail-mark svg { width: 28px; height: 28px; }
 
-/* Main column */
-.main { flex: 1; min-width: 0; height: 100vh; overflow: hidden; position: relative; display: flex; flex-direction: column; }
-
-/* Top meta strip */
-.meta-strip {
-  height: 40px;
-  border-bottom: 1px solid var(--rule);
-  display: flex; align-items: center;
-  padding: 0 24px;
-  gap: 20px;
-  color: var(--ink-3);
-  flex-shrink: 0;
+.main {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
 }
-.meta-strip .crumb { display: flex; align-items: center; gap: 8px; }
-.meta-strip .crumb .sep { color: var(--ink-4); }
-.meta-strip .right { margin-left: auto; display: flex; gap: 20px; align-items: center; }
 
 .scroll {
   flex: 1;
   overflow: auto;
-  scroll-behavior: smooth;
+  overscroll-behavior: contain;
 }
 .scroll::-webkit-scrollbar { width: 8px; height: 8px; }
 .scroll::-webkit-scrollbar-track { background: transparent; }
-.scroll::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 4px; }
+.scroll::-webkit-scrollbar-thumb { background: var(--rule); }
 
-/* Buttons */
+/* ── Controls ───────────────────────────────────────────────────────── */
+
 .btn {
   font-family: var(--sans);
-  font-size: 13px;
-  font-weight: 500;
-  padding: 9px 16px;
-  border-radius: var(--rad);
-  border: 1px solid var(--rule-2);
-  background: var(--paper);
-  color: var(--ink);
-  cursor: pointer;
-  transition: all 180ms cubic-bezier(.2,.7,.2,1);
-  letter-spacing: -0.005em;
-  display: inline-flex; align-items: center; gap: 8px;
-  user-select: none;
-}
-.btn:hover { background: var(--paper-2); border-color: var(--ink-4); }
-.btn:active { transform: translateY(0.5px); }
-.btn.primary { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-.btn.primary:hover { background: var(--ink-2); border-color: var(--ink-2); }
-.btn.ghost { border-color: transparent; background: transparent; color: var(--ink-2); }
-.btn.ghost:hover { background: var(--paper-2); color: var(--ink); }
-.btn.xs { font-size: 11.5px; padding: 5px 10px; }
-
-/* Segmented group (sort, mode switches) */
-.tweak-seg {
-  display: flex; gap: 1px;
-  background: var(--paper-3);
-  border-radius: 3px;
-  padding: 2px;
-}
-.tweak-seg button {
-  flex: 1;
-  padding: 6px 10px;
-  border: 0;
+  font-size: 15px;
+  font-weight: 540;
+  line-height: 20px;
+  padding: 9px 15px;
+  border: 1px solid var(--rule);
   background: transparent;
-  color: var(--ink-3);
-  font-family: var(--sans);
-  font-size: 12px;
-  cursor: pointer;
-  border-radius: 2px;
-  transition: background 160ms, color 160ms;
-}
-.tweak-seg button[aria-pressed="true"] {
-  background: var(--paper);
   color: var(--ink);
-  box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
+  white-space: nowrap;
+  user-select: none;
+  transition: border-color 200ms var(--ease), background-color 200ms var(--ease), color 200ms var(--ease);
 }
+.btn:hover { border-color: var(--ink-3); }
+.btn:disabled { color: var(--ink-3); border-color: var(--rule); }
+.btn.primary { background: var(--ink); border-color: var(--ink); color: var(--ground); }
+.btn.primary:hover { background: color-mix(in oklab, var(--ink) 86%, var(--ground)); }
+.btn.ghost { border-color: transparent; padding-left: 0; padding-right: 0; }
+.btn.ghost:hover { border-color: transparent; color: var(--ink); }
+.btn.ghost.quiet { color: var(--ink-2); }
+.btn.ghost.quiet:hover { color: var(--ink); }
+.btn.sm { font-size: 13.5px; padding: 5px 11px; gap: 8px; line-height: 20px; }
+.btn.ghost.sm { padding-left: 0; padding-right: 0; }
+.btn.link { color: var(--link); text-decoration: none; }
+.btn.link:hover { color: var(--link); }
 
-/* Starburst utility */
-.sb-glow {
-  filter: drop-shadow(0 0 16px color-mix(in oklab, var(--accent), transparent 72%));
+/* Shortcut inside its button. */
+.key {
+  font-family: var(--small);
+  font-size: 12px;
+  font-weight: 450;
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
 }
+.btn.primary .key { color: color-mix(in oklab, var(--ground) 62%, var(--ink)); }
 
-/* Fade keyframes */
-@keyframes fadeUp {
-  0%   { opacity: 0; transform: translateY(6px); }
-  100% { opacity: 1; transform: translateY(0); }
+/* Text tabs: sort orders, capture modes. Current choice in ink with a 1px
+   underline; the rest in ink-2. */
+.tabs { display: flex; gap: 16px; }
+.tabs button {
+  font-family: var(--small);
+  font-size: 13px;
+  color: var(--ink-2);
+  padding: 4px 0;
+  border-bottom: 1px solid transparent;
+  transition: color 200ms var(--ease), border-color 200ms var(--ease);
 }
-.enter { animation: fadeUp 420ms cubic-bezier(.2,.7,.2,1) both; }
-.enter-stagger > * { animation: fadeUp 540ms cubic-bezier(.2,.7,.2,1) both; }
-@media (prefers-reduced-motion: reduce) {
-  .enter, .enter-stagger > * { animation: none; opacity: 1; }
-}
-.enter-stagger > *:nth-child(1){animation-delay:0ms}
-.enter-stagger > *:nth-child(2){animation-delay:40ms}
-.enter-stagger > *:nth-child(3){animation-delay:80ms}
-.enter-stagger > *:nth-child(4){animation-delay:120ms}
-.enter-stagger > *:nth-child(5){animation-delay:160ms}
-.enter-stagger > *:nth-child(6){animation-delay:200ms}
-.enter-stagger > *:nth-child(7){animation-delay:240ms}
-.enter-stagger > *:nth-child(8){animation-delay:280ms}
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-pressed="true"] { color: var(--ink); border-bottom-color: var(--ink); }
 
-/* Focus ring — subtle, accent-tinted */
-button:focus-visible, input:focus-visible, textarea:focus-visible, [contenteditable]:focus-visible {
-  outline: 2px solid color-mix(in oklab, var(--accent) 50%, transparent);
+.field {
+  width: 100%;
+  border: 1px solid var(--rule);
+  background: var(--ground);
+  color: var(--ink);
+  padding: 8px 10px;
+  font-size: 15px;
+  line-height: 1.5;
+  outline: none;
+  resize: vertical;
+  transition: border-color 200ms var(--ease);
+}
+.field:focus { border-color: var(--ink-3); }
+.field:focus-visible { outline: none; }
+.field::placeholder { color: var(--ink-3); }
+
+/* ── Cards ──────────────────────────────────────────────────────────── */
+
+/* Only for objects the person can pick up and act on. The 2px left edge
+   says what the card is: its note type (cloze, recall, note), falling back
+   to the note signal. 2px, not 3px: 3px read heavy beside a page. */
+.card {
+  display: block;
+  width: 100%;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-left: 2px solid var(--note);
+  padding: 12px 14px;
+  text-align: left;
+  transition: border-color 200ms var(--ease);
+}
+.card-label {
+  font-family: var(--small);
+  font-size: 12px;
+  font-weight: 450;
+  color: var(--note);
+}
+.card[data-type="cloze"]  { border-left-color: var(--type-cloze); }
+.card[data-type="recall"] { border-left-color: var(--type-recall); }
+.card[data-type="note"]   { border-left-color: var(--type-note); }
+button.card:hover, .card.hoverable:hover { border-top-color: var(--ink-3); border-right-color: var(--ink-3); border-bottom-color: var(--ink-3); }
+.card[data-active="true"] { border-top-color: var(--ink-2); border-right-color: var(--ink-2); border-bottom-color: var(--ink-2); }
+
+/* ── Cloze marks ────────────────────────────────────────────────────── */
+
+/* A blank's answer, shown: the person's mark, so a note-colour underline. */
+.cloze {
+  text-decoration: underline 2px;
+  text-decoration-color: var(--note);
+  text-underline-offset: 0.2em;
+  text-decoration-skip-ink: none;
+}
+/* The hidden blank under review: an empty slot, width from the answer. */
+.cloze-blank {
+  display: inline-block;
+  height: 1em;
+  vertical-align: -0.1em;
+  border-bottom: 2px solid var(--note);
+}
+.cloze.active { font-weight: 600; }
+.cloze-mask { color: var(--ink-3); }
+
+/* ── Focus ──────────────────────────────────────────────────────────── */
+
+:focus { outline: none; }
+:focus-visible {
+  outline: 1.5px solid var(--link);
   outline-offset: 2px;
 }
 
-/* Review → Open source one-shot pulse on the landing highlight. Outline is
-   used instead of box-shadow because the highlight rect has
-   `mix-blend-mode: multiply` — shadows would render muddy through it, but
-   outline ignores the blend context. Animation curve + duration follow the
-   "ceremonial" slot in DESIGN.md §5. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0ms !important;
+    animation-duration: 0ms !important;
+  }
+}
+
+/* Review → Open source: a one-shot pulse on the landing highlight. Outline,
+   not box-shadow: the highlight uses mix-blend-mode, and outline ignores
+   the blend context. */
 @keyframes odyssey-focus-pulse {
-  0%   { outline-width: 0px; outline-color: color-mix(in oklab, var(--accent) 80%, transparent); }
-  40%  { outline-width: 4px; outline-color: color-mix(in oklab, var(--accent) 55%, transparent); }
-  100% { outline-width: 0px; outline-color: color-mix(in oklab, var(--accent) 0%,  transparent); }
+  0%   { outline-width: 0;   outline-color: color-mix(in oklab, var(--note-on-page) 90%, transparent); }
+  40%  { outline-width: 4px; outline-color: color-mix(in oklab, var(--note-on-page) 60%, transparent); }
+  100% { outline-width: 0;   outline-color: color-mix(in oklab, var(--note-on-page) 0%, transparent); }
 }
 .highlight-focus-pulse {
   outline-style: solid;
   outline-offset: 2px;
   outline-width: 0;
-  animation: odyssey-focus-pulse 520ms cubic-bezier(.2,.7,.2,1);
+  animation: odyssey-focus-pulse 600ms var(--ease);
 }
-@media (prefers-reduced-motion: reduce) {
-  .highlight-focus-pulse { animation: none; outline: none; }
-}
-
-/* Graph screen (screens/GraphScreen.js). Unlink stays out of the way until
-   the row is hovered or focused — the panel reads as a list of connections,
-   not a list of delete buttons. */
-.graph-row:hover > span:nth-child(2) { color: var(--ink); }
-.graph-unlink { opacity: 0; transition: opacity 180ms cubic-bezier(.2,.7,.2,1); }
-.graph-link:hover .graph-unlink,
-.graph-unlink:focus-visible { opacity: 1; }
-@media (hover: none) { .graph-unlink { opacity: 1; } }
-/* Graph nodes are focusable <g>s: drop the UA outline (a thick rounded box
-   around the node's bounding rect) and draw a hairline ring on keyboard
-   focus only. */
-.graph-node { outline: none; }
-.graph-node-focus { opacity: 0; transition: opacity 160ms cubic-bezier(.2,.7,.2,1); }
-.graph-node:focus-visible .graph-node-focus { opacity: 1; }

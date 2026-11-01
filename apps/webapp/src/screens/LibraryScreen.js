@@ -2,9 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { pdfjs } from 'react-pdf';
 import apiService from '../api';
 import { toLibraryDoc } from '../data/adapters';
-import { hashToHue } from '../utils/hue';
-import DocGlyph from '../components/DocGlyph';
-import { Ic } from '../components/Icons';
+import { failText, plural } from '../utils/format';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL || ''}/pdf.worker.min.mjs`;
 
@@ -55,7 +53,7 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
       setDocs(fs.map(toLibraryDoc).filter(Boolean));
       setError(null);
     } catch (e) {
-      setError(e.message || String(e));
+      setError(failText('load library', e));
     } finally {
       setLoading(false);
     }
@@ -71,10 +69,9 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
       const data = res?.file_data;
       if (data?.id) {
         const { author, excerpt, totalPages } = await extractPdfMetadata(data.id, data.file_hash);
-        const color_hue = hashToHue(data.file_hash);
         try {
           await apiService.updateFileMetadata(
-            data.id, { author, color_hue, excerpt }, { fillOnly: true },
+            data.id, { author, excerpt }, { fillOnly: true },
           );
         } catch (e) { console.warn('metadata patch failed', e); }
         if (totalPages && totalPages !== data.total_pages) {
@@ -84,7 +81,7 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
       }
       await refresh();
     } catch (e) {
-      setError(e.message || String(e));
+      setError(failText(`add ${file.name}`, e));
     } finally {
       setUploading(false);
     }
@@ -96,7 +93,7 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
       setConfirmDelete(null);
       await refresh();
     } catch (e) {
-      setError(e.message || String(e));
+      setError(failText('delete document', e));
     }
   };
 
@@ -111,179 +108,84 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
     return 0;
   });
 
-  if (error && !docs.length) {
-    return (
-      <div className="scroll" style={{ padding: '48px 64px' }}>
-        <div className="mono-sm" style={{ color: 'var(--ink-3)' }}>Couldn't load your library.</div>
-        <div style={{ marginTop: 12, color: 'var(--ink-2)' }}>{error}</div>
-      </div>
-    );
-  }
+  const addButton = (
+    <button className="btn" onClick={() => inputRef.current?.click()} disabled={uploading}>
+      {uploading ? 'Adding…' : 'Add PDF'}
+    </button>
+  );
 
   return (
-    <div className="scroll" style={{ padding: '48px 64px 96px' }}>
+    <div className="scroll">
       <input
         ref={inputRef}
         type="file"
         accept="application/pdf"
-        style={{ display: 'none' }}
+        hidden
         onChange={(e) => {
           const f = e.target.files?.[0];
           if (f) handleUpload(f);
           e.target.value = '';
         }}
       />
-
-      <div className="enter" style={{ maxWidth: 1100, margin: '0 auto' }}>
-        {docs.length === 0 && !loading ? (
-          <div style={{ padding: '120px 40px', textAlign: 'center', border: '1px solid var(--rule)' }}>
-            <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 12 }}>LIBRARY</div>
-            <h1 style={{ fontSize: 36, fontWeight: 400, letterSpacing: '-0.03em', marginBottom: 16 }}>
-              No documents yet.
-            </h1>
-            <p style={{ color: 'var(--ink-3)', marginBottom: 24, fontStyle: 'italic' }}>
-              Add a document to begin.
-            </p>
-            <button className="btn primary" onClick={() => inputRef.current?.click()} disabled={uploading}>
-              <Ic.Upload/> {uploading ? 'Adding…' : 'Add document'}
-            </button>
-          </div>
-        ) : (
-          <>
-            <header style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', paddingBottom: 28, borderBottom: '1px solid var(--rule)' }}>
-              <div>
-                <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 10 }}>
-                  LIBRARY · {docs.length} DOCUMENT{docs.length === 1 ? '' : 'S'}
-                </div>
-                <h1 style={{ fontSize: 44, fontWeight: 400, letterSpacing: '-0.03em' }}>
-                  Library
-                </h1>
-              </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <div className="tweak-seg" style={{ background: 'var(--paper-2)' }}>
-                  {['recent', 'progress', 'due'].map((s) => (
-                    <button key={s} aria-pressed={sort === s} onClick={() => setSort(s)}>{s}</button>
-                  ))}
-                </div>
-                <button className="btn" onClick={() => inputRef.current?.click()} disabled={uploading}>
-                  <Ic.Upload/> {uploading ? 'Adding…' : 'Add document'}
-                </button>
-              </div>
-            </header>
-
-            <div className="enter-stagger">
-              {sorted.map((doc) => {
-                const pct = doc.pages ? Math.round((doc.read / doc.pages) * 100) : 0;
-                return (
-                  <div
-                    key={doc.id}
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '80px 1fr 160px 200px',
-                      gap: 32,
-                      alignItems: 'center',
-                      padding: '28px 0',
-                      borderBottom: '1px solid var(--rule)',
-                      transition: 'padding 220ms, background 220ms',
-                      position: 'relative',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.background = 'var(--paper-2)';
-                      e.currentTarget.style.paddingLeft = '12px';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = 'transparent';
-                      e.currentTarget.style.paddingLeft = '0';
-                    }}
-                  >
-                    <button onClick={() => onOpenDoc(doc.id)} style={rowGlyphBtn}>
-                      <DocGlyph doc={doc} size={72}/>
-                    </button>
-                    <button onClick={() => onOpenDoc(doc.id)} style={rowTextBtn}>
-                      <div style={{ fontSize: 20, fontWeight: 500, letterSpacing: '-0.015em', marginBottom: 4 }}>
-                        {doc.title}
-                      </div>
-                      <div style={{ fontSize: 13, color: 'var(--ink-3)', marginBottom: 8 }}>{doc.authors}</div>
-                      {doc.sample && (
-                        <div
-                          style={{
-                            fontSize: 12.5,
-                            color: 'var(--ink-3)',
-                            fontStyle: 'italic',
-                            maxWidth: 500,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          "{doc.sample}"
-                        </div>
-                      )}
-                    </button>
-                    <button onClick={() => onOpenDoc(doc.id)} style={rowTextBtn}>
-                      <div className="mono" style={{ color: 'var(--ink-3)', marginBottom: 6 }}>
-                        p. {doc.read} / {doc.pages || '—'}
-                      </div>
-                      <div style={{ height: 1, background: 'var(--rule-2)', position: 'relative' }}>
-                        <div style={{ position: 'absolute', inset: 0, width: `${pct}%`, background: 'var(--ink)', height: 1 }}/>
-                      </div>
-                    </button>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end' }}>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 22, fontWeight: 300, letterSpacing: '-0.02em', lineHeight: 1 }}>{doc.cards}</div>
-                        <div className="mono-sm" style={{ color: 'var(--ink-4)', marginTop: 4 }}>
-                          {doc.due > 0 ? `${doc.due} DUE` : 'CARDS'}
-                        </div>
-                      </div>
-                      {doc.due > 0 && (
-                        <button
-                          className="btn xs"
-                          onClick={(e) => { e.stopPropagation(); onStartReview(doc.id); }}
-                          title={`Review ${doc.due} due card${doc.due === 1 ? '' : 's'}`}
-                        >
-                          <Ic.Review/>
-                        </button>
-                      )}
-                      {confirmDelete === doc.id ? (
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                          <button className="btn xs" onClick={() => setConfirmDelete(null)}>Cancel</button>
-                          <button className="btn xs" style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }} onClick={() => handleDelete(doc.id)}>
-                            Delete
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          className="btn ghost xs"
-                          onClick={(e) => { e.stopPropagation(); setConfirmDelete(doc.id); }}
-                          title="Delete document"
-                          style={{ color: 'var(--ink-4)' }}
-                        >
-                          <Ic.Trash/>
-                        </button>
-                      )}
-                      <Ic.Right color="var(--ink-4)"/>
-                    </div>
-                  </div>
-                );
-              })}
+      <div className="page">
+        <header className="page-head">
+          <h1 className="t-h">Library</h1>
+          {docs.length > 1 && (
+            <div className="tabs" role="group" aria-label="Sort">
+              {[['recent', 'Recent'], ['progress', 'Progress'], ['due', 'Due']].map(([k, label]) => (
+                <button key={k} aria-pressed={sort === k} onClick={() => setSort(k)}>{label}</button>
+              ))}
             </div>
-          </>
+          )}
+          <span className="page-head-end">{addButton}</span>
+        </header>
+
+        {error && (
+          <div className="notice">
+            <p>{error}</p>
+            {!docs.length && <button className="btn sm" onClick={refresh}>Retry</button>}
+          </div>
         )}
+
+        {!error && !loading && docs.length === 0 && <p className="empty">No documents.</p>}
+
+        <ul className="rows library-rows">
+          {sorted.map((doc) => (
+            <li key={doc.id} className="library-row">
+              <button className="row" onClick={() => onOpenDoc(doc.id)}>
+                <span className="row-main">
+                  <span className="row-title">{doc.title}</span>
+                  {doc.authors && <span className="t-small ink-2">{doc.authors}</span>}
+                  {doc.sample && <span className="t-note row-excerpt">{doc.sample}</span>}
+                </span>
+              </button>
+              <span className="library-end">
+                <span className="t-small ink-2">
+                  {doc.pages ? (doc.read > 0 ? `p.\u00a0${Math.min(doc.read + 1, doc.pages)} of ${doc.pages}` : plural(doc.pages, 'page')) : ''}
+                </span>
+                {doc.cards > 0 && <span className="t-small ink-3">{plural(doc.cards, 'note')}</span>}
+              <span className="library-actions">
+                {doc.due > 0 && (
+                  <button className="btn ghost sm link" onClick={() => onStartReview(doc.id)}>
+                    Review {doc.due}
+                  </button>
+                )}
+                {confirmDelete === doc.id ? (
+                  <>
+                    <button className="btn ghost sm quiet" onClick={() => setConfirmDelete(null)}>Cancel</button>
+                    <button className="btn ghost sm" onClick={() => handleDelete(doc.id)}>Delete</button>
+                  </>
+                ) : (
+                  <button className="btn ghost sm quiet library-delete" onClick={() => setConfirmDelete(doc.id)} aria-label={`Delete ${doc.title}`}>
+                    Delete
+                  </button>
+                )}
+              </span>
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
 }
-
-const rowGlyphBtn = {
-  background: 'transparent',
-  border: 0,
-  padding: 0,
-  cursor: 'pointer',
-};
-const rowTextBtn = {
-  background: 'transparent',
-  border: 0,
-  padding: 0,
-  textAlign: 'left',
-  cursor: 'pointer',
-};

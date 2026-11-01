@@ -1,33 +1,37 @@
 import React from 'react';
-import { Mark } from './Starburst';
+import Mark from './Mark';
 import { Ic } from './Icons';
 
-// Left navigation rail. Hidden on PDF and review routes (App decides).
+// Left navigation. The logo is the Home button. Hidden on the PDF and review
+// routes (App decides).
 export default function Rail({ route, onNav }) {
-  const btn = (target, title, Icon) => (
+  const btn = (target, label, Icon) => (
     <button
       className="rail-btn"
       aria-current={route === target ? 'page' : undefined}
+      aria-label={label}
+      title={label}
       onClick={() => onNav(target)}
-      title={title}
     >
       <Icon/>
     </button>
   );
 
   return (
-    <nav className="rail">
-      <div className="rail-mark" title="Odyssey">
-        <Mark size={26}/>
-      </div>
-      <div className="rail-group">
-        {btn('home', 'Home', Ic.Home)}
-        {btn('library', 'Library', Ic.Book)}
-        {btn('notes', 'Notes', Ic.Note)}
-        {btn('graph', 'Graph', Ic.Graph)}
-        {btn('review', 'Review', Ic.Review)}
-      </div>
-      <div className="rail-spacer"/>
+    <nav className="rail" aria-label="Main">
+      <button
+        className="rail-btn rail-mark"
+        aria-current={route === 'home' ? 'page' : undefined}
+        aria-label="Home"
+        title="Home"
+        onClick={() => onNav('home')}
+      >
+        <Mark/>
+      </button>
+      {btn('library', 'Library', Ic.Library)}
+      {btn('notes', 'Notes', Ic.Notes)}
+      {btn('graph', 'Graph', Ic.Graph)}
+      {btn('review', 'Review', Ic.Review)}
     </nav>
   );
 }

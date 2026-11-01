@@ -1,249 +1,187 @@
-# Odyssey Design Guide
+# Odyssey design contract
 
-A single-page contract for the web app's look, feel, and rhythm. Read this
-before making visual changes — every surface follows the rules below, and
-deviations are almost always accidents.
+The web app follows the rishit-design system. This file is the contract for
+anything the user can see: read it before a visual change. Values live in
+`src/styles/tokens.css`; type roles and controls in `base.css`; per-screen
+layout and every responsive rule in `screens.css` and `pdf.css`.
 
-## Thesis
+## Principles, as they apply here
 
-**Quiet paper, rare accent, information-dense glyphs. Reading is a ritual.**
+- **Restraint.** A surface shows the content and what directly extends it.
+  Navigation aids, progress and metadata stay hidden until asked for.
+- **Finish.** Real characters (× − ° ’ “ ” –), a no-break space between a
+  number and its unit (`9 d`, `p. 4`), tabular figures wherever numbers
+  update or sit in a column.
+- **Earn the space.** Cut from this redesign for failing the test: the home
+  memory tiles (retention, stability, sessions, streak), per-document glyphs
+  and colours, the note count in the reader chrome, the page progress bar
+  that duplicated the page number, and the date on each note card.
+- **Draw what is true.** The Comb, the spiral and the page Rule plot real
+  intervals and pages at real proportion.
+- **Never explain the design on the surface.** No colour keys, no legends.
 
-The app is a warm-bone newsroom, not a SaaS dashboard. Paper dominates; ink
-speaks in measured tones. The accent color is a reward, not a decoration —
-it only appears during review, on active highlights, and briefly on hover.
-Everything else is grayscale by design.
+## Colour
 
-Source of truth was the design zip in `/tmp/odyssey-design/`. This doc is the
-ongoing distillation so we don't rederive it every session.
+Cool neutral ground, ink for everything. Light and dark follow
+`prefers-color-scheme`.
 
-## 1. Design tokens
+| Token | Use |
+|---|---|
+| `--ground` | the app background |
+| `--sheet` | a card, plate or page sitting on the ground |
+| `--ink` / `--ink-2` / `--ink-3` | text, secondary text, folios and key hints |
+| `--rule` | 1px hairlines |
+| `--grid` | chart gridlines |
 
-All tokens live in `src/styles/tokens.css`. Don't hard-code color or type
-elsewhere — reach for a var.
+Four signals, one meaning each, everywhere:
 
-```
---paper   / paper-2 / paper-3  — oklch 96% → 88%
---rule    / rule-2              — dividers (82% / 72%)
---ink     / ink-2 / ink-3 / ink-4  — text hierarchy (14% → 64%)
---accent  / accent-soft / accent-deep  — driven by --accent-h
---grid  8px    (4 also works; 12 for display)
---rad   0px    (rams is sharp; leave radius at 0 unless there's a reason)
---sans  'R Sans'   --mono  'R Mono'
-```
-
-`--accent-h` is a runtime variable. `src/hooks/useTimeHue.js` sets it from
-the hour of day: morning 28, midday 225, dusk 295, night 250. Don't hard-code
-hues for accent — always derive from the var.
-
-## 2. Typography
-
-Two families, two roles. Mixing them is the voice of the app.
-
-| Family | When | Examples |
+| Signal | Means | Where it appears |
 |---|---|---|
-| **R Sans** (`--sans`) | All prose, UI controls, buttons, form elements, note bodies, review prompts + answers | Hero headlines, body copy, button labels, search input, drawer textareas, sticky note bodies, NotesScreen rows, review card prompt + answer |
-| **R Mono** (`--mono`) | Metadata, numerics, labels, dates, intervals | `p. 18 / 301`, `MORNING — TUE APR 21`, `INTERVAL — 9d · STABILITY 12d`, tag chips `#quantum`, `⌘⏎` hint |
+| `--link` | something to follow or act on | links, "Review 3", "Open p. 4", "2 links", focus rings, text selection |
+| `--note` | the person's own marks | highlights, cloze underlines and blanks, graph nodes, note ticks on the Rule |
+| `--data` | computed values | the interval each grade would set, graded bars in the Comb |
+| `--you` | where the person is | current route in the rail, the current card's bar, the page Rule's position line, the selected graph node |
 
-Rule of thumb: **mono marks what's scanned; sans carries what's read.**
-Anything counted, dated, or labeled — page numbers, intervals, session
-state, tag chips, keyboard hints — is mono so the eye parses it without
-reading it. Everything else, including note content and the review card
-itself, is sans.
+One more code, on card edges only: the note's **type**. `--type-cloze`
+(crimson, kept off the you red), `--type-recall` (violet), `--type-note`
+(teal), set by `data-type` on `.card`. It lives on the 2px edge and nowhere
+else, so it never competes with the signals. The capture drawer's edge
+follows the selected mode. The old time-of-day accent was considered for
+this and rejected: four of its five hours land on the link blue or the you
+red.
 
-No serif. The review's "reading ritual" is signaled by size + weight +
-paper treatment (centered card, soft top-to-bottom reveal, tick-rotating
-starburst), not by a font swap. Font swaps are noise when the voice of
-the author and the voice of the reviewer are the same person.
+Signals stay small: an underline, a 2px edge, a numeral, a tick. Marks drawn
+on a PDF page use `--note-on-page` / `--link-on-page`, which keep their
+light-mode values because the canvas stays white in dark mode.
 
-Utility classes for the mono role: `.mono` (11.5px) and `.mono-sm` (10.5px,
-uppercase, letter-spaced). Both in `src/styles/base.css`.
+**The logo** (`public/logo.svg`, the orange starburst) is kept as the
+favicon / app icon and drawn from its own geometry at the top of the rail
+(`components/Mark.js`), where it is the Home button. Its orange (`--mark`)
+is the one colour outside the four signals, by decision. It appears nowhere
+else: no starburst charts, no per-document glyphs.
 
-### Why buttons need explicit font
+## Type
 
-Browsers give form elements their own UA font stack. `src/styles/base.css`
-has a global `button, input, textarea, select { font-family: inherit; }`
-— if you add a new form control and you're seeing system-ui leak in, you
-probably clobbered inherit with an inline style. Check there first.
-
-## 3. Color discipline
-
-1. **Paper + ink handle everything non-active.** Library rows, home metrics,
-   note rails — all grayscale.
-2. **Accent emerges only at three moments:**
-   - Review cards (prompt context dots, cloze reveal, Again button)
-   - Active highlight (drawer open on it)
-   - Sticky note left border (because it's a live reference to a highlight)
-3. **Doc hues are decorative**, tied to `PDFFile.color_hue` (0–360) and
-   drawn from twelve named swatches (`SWATCHES` in `src/utils/hue.js`: red,
-   orange, brown, yellow, lime, green, turquoise, cyan, blue, violet,
-   purple, pink). That's Orbit's source-colour *system*, but the values are
-   our own, hand-tuned in OKLCH so every swatch sits at even weight on
-   paper. Stored hues snap to the nearest swatch; `hashToHue(file_hash)`
-   picks a swatch when the column is null. Always go through
-   `docColor(hue, 'dot' | 'ink' | 'wash')` — never build an
-   `oklch(... ${hue})` inline. Used on DocGlyph, source dots and graph
-   nodes. Never on text.
-4. Mixing with `color-mix(in oklab, var(--accent) X%, transparent)` keeps
-   accent tints on the same axis as the CSS var — use this pattern for
-   highlights and drawer borders. Don't compute your own `rgba(...)`.
-
-## 4. Layout rhythm
-
-- **Density is 8px.** Padding / gaps / offsets are all multiples (8 / 16 / 24 / 32 / 48).
-- **Sharp corners.** `--rad: 0`. Rounded-pill exceptions exist — cloze blanks
-  in NotesScreen, tag chips — and they use `border-radius: 999px`. Otherwise, no
-  radii.
-- **Dividers are 1px.** The "three-up divider" pattern (Reading strip, Memory
-  tiles) uses `background: var(--rule)` on the grid + `gap: 1` — that 1px
-  gap reveals the rule color between cards. When a row has <2 items, drop
-  the backdrop (see `HomeScreen.js` Reading strip).
-- **Meta strips are 40px tall.** Cards sit on paper with 1px rule borders or
-  `box-shadow: 0 0 0 1px var(--rule)` for subtlety. Never both.
-- **Side rails.** Left rail is fixed 72px (`.rail`). Right sticky-note rail
-  is 320–340px. The grid between them flexes.
-
-## 5. Motion
-
-- **Easing is always `cubic-bezier(.2,.7,.2,1)`.** That's the feel of the
-  app — quick lead-out, soft landing. Don't reach for `ease` or `ease-in-out`.
-- **Durations:**
-  - 160–220ms for small hover/press transitions (button backgrounds, icon colors)
-  - 280–420ms for mid-size reveals (drawer fade, card-change animations)
-  - 520ms for starburst tick rotations (slower = feels ceremonial)
-  - 2600ms idle-before-fade for PDF chrome
-- **`enter` + `enter-stagger`** in `src/styles/base.css` are the default
-  mount animations. Apply on screen-level wrappers; children get staggered
-  40ms delays for up to 8 items.
-- **`@media (prefers-reduced-motion: reduce)`** kills the above animations.
-  Honor it — the token file already handles it.
-
-## 6. Key components
-
-### Starburst (`src/components/Starburst.js`)
-
-The signature glyph. **Every stroke = one prompt.** Length encodes interval
-days on a log scale, opacity encodes state (new / learning / review / retired),
-accentColor marks completed. Used at three sizes:
-- 72 px in note rows (stability visualization)
-- 200–300 px in home hero + review progress
-- 16–48 px as inline micro (DocGlyph)
-
-`tickAngle` rotates the whole figure clockwise during review — this is the
-"session progressing" cue.
-
-### Mark (`Starburst.js` named export)
-
-The brand mark: 15 trapezoidal spikes on a central circle, same geometry
-as `public/logo.svg`. Used in the rail and `DocGlyph` implicitly. Parametric;
-call it with `size` and `color`.
-
-### DocGlyph (`src/components/DocGlyph.js`)
-
-Per-doc tapered mark with a tinted square wash. Hue comes from the doc's
-`color_hue` or hash fallback. Appears wherever a doc is represented (Library
-rows, Home reading cards, PdfScreen chrome).
-
-### StickyNote (`src/components/StickyNote.js`)
-
-Collapsed note preview in the right rail. Left border is always 3px accent;
-content is serif; metadata row on top is mono. Answer preview is clamped to
-2 lines with a dashed separator above it.
-
-### InlineCaptureDrawer (`src/components/InlineCaptureDrawer.js`)
-
-Two variants (`rail` in PdfScreen, `modal` in NotesScreen standalone notes).
-Three modes: `cloze` (with `[[brackets]]`), `recall` (Q/A), `note` (freeform).
-`cmd+Enter` commits, Esc cancels. Image paste → `/images/upload` →
-`[image:UUID]` marker in the prompt/answer.
-
-### GraphScreen (`src/screens/GraphScreen.js`)
-
-The note graph the backend linker writes. Rules that keep it from turning
-into an Obsidian hairball:
-- **Still, not alive.** The force layout runs to rest synchronously, then
-  holds. A poll only re-lays out when the set of nodes / links changes, and
-  seeds from the previous positions, so a new link nudges rather than
-  reshuffles. No physics on hover, no node dragging.
-- **Grayscale field.** Edges are 1px `--rule-2`. Nodes take the doc hue,
-  softened (`oklch(68% 0.09 h)`) since here they're the whole view; standalone
-  notes are `--ink-4`. Accent appears only on the focused node's ring and
-  its edges — that's the "active highlight" moment.
-- **Labels on demand.** Only the focused note and its neighbours, or hubs
-  once zoomed past 1.6×. Sans, with a paper halo.
-- **The reason is the content.** The side panel (340px) shows each link's
-  relation (mono) and reason (sans) — the Zettelkasten "link context".
-  Unlink appears on row hover; Undo replaces the row in place.
-
-## 7. Per-screen intent
-
-| Screen | File | One-line intent |
+| Face | Job | Notes |
 |---|---|---|
-| Home | `screens/HomeScreen.js` | The ritual — today's queue as a starburst, what you're reading, what you're retaining |
-| Library | `screens/LibraryScreen.js` | Editorial index of docs. Sort by recent/progress/due. Hover for review + delete. |
-| Notes | `screens/NotesScreen.js` | Cross-doc passage browser with source + tag filters + search |
-| Graph | `screens/GraphScreen.js` | How notes connect — still force layout, link reasons, unlink |
-| PDF | `screens/PdfScreen.js` | Immersive reader with top chrome (auto-hide 2.6s), per-page sticky rail, inline capture drawer |
-| Review | `screens/ReviewScreen.js` | Centered prompt, reveal on SPACE, grade 1–4, starburst ticks left |
+| R Sans | all running text | `ss03`, optical sizing on. Body weight 450, 425 in dark. |
+| Google Sans Flex | small text and every number | 11–13px, sentence case, natural tracking, `tabular-nums`. GRAD/ROND/slnt/wdth pinned at build. |
+| R Mono | code only | also supplies ⌘ and ↵, which the other two lack |
 
-## 8. Pitfalls learned (things that will burn again)
+Roles (`base.css`): `.t-display` (opsz 40, 520, −0.02em, 1.02, balanced),
+`.t-h` (21px, 620, −0.012em), `.t-body` (18.5 / 1.62), `.t-note`
+(13.5 / 1.48, ink-2), `.t-small` (Google Sans Flex 12px; `.lg` 13, `.xs` 11).
+No uppercase letter-spaced labels, no monospace for words.
 
-- **SQLite rowid reuse + immutable cache.** After a delete, a new upload can
-  reuse `id=1`. If the download response is `Cache-Control: immutable`, the
-  browser serves the previous file's bytes for the reused id. Current code
-  uses `max-age=3600, must-revalidate` on the backend *and* `?v=<hash>` on
-  the frontend URL. Don't restore `immutable` without also making the URL
-  contain the hash.
-- **Bare `<button>` loses R Sans.** Browsers give form elements their own
-  UA font stack. The global `font-family: inherit` in `base.css` handles
-  this — if you write a button with `font-family: ...` don't set it to a
-  literal; reach for `var(--sans)` / `var(--mono)`.
-- **react-pdf + react-window + a continuous right rail don't mix.** The
-  design mock shows one unbroken sticky rail beside a scroll column — real
-  PDFs are virtualized. PdfScreen renders the rail **per page** (inside
-  `PageRenderer`) so notes stay in their page's cell. It reads continuous
-  because pages stack. Do not try to lift the rail outside the virtualizer.
-- **Text anchoring is fragile.** Keep the fallback chain in
-  `resolveAnnotationLocation`: text_anchor → normalized_rects → pixel_rects.
-  Each method lives in PdfScreen; preserve all three when touching highlight
-  resolution.
-- **Cloze is `[[word]]`, one card per annotation.** Multi-blank prompts
-  reveal + grade together. The old Anki `{{c1::...}}` with per-index cards
-  is gone; don't reintroduce `cloze_index` on `StudyCard`.
+## Layout
 
-## 9. How to extend without breaking the voice
+8px grid: 8 / 16 / 24 / 32 / 48 / 64 / 96. Radius 0. Elevation is `--sheet`
+plus a 1px rule, never a shadow. Empty space stays empty.
 
-Before adding a new surface, check the doc for analogous patterns. If none
-exists, ask:
+- **Shell:** a 64px rail (logo/Home, Library, Notes, Graph, Review) and the
+  main column. Under 640px the rail moves to the bottom edge.
+- **App screens** have one focal object. Page frame: 880px max, 48px gutters.
+- **Reader:** page centred on the optical axis, a 216px notes column on the
+  right (balanced by an empty 216px column on the left), and the page Rule in
+  the 168px left margin. Under 1024px the notes column and the Rule go away
+  and the page readout moves into the chrome.
 
-1. **Is this reading or structure?** Picks your font family.
-2. **Does this earn accent?** If it's not review or an active highlight, no.
-3. **Does it need a divider or a shadow?** Pick one — never both at once.
-4. **Does the empty state speak in serif italics?** All three empty states
-   today do (Home, Library, Notes). Keep that pattern.
-5. **Is motion on the `.2,.7,.2,1` curve at a duration from §5?** If yes, it
-   will feel like the rest of the app.
+## Components
 
-New features that would need a deliberate aesthetic conversation before
-shipping:
-- Dark mode (design hints at "paper turns graphite, ink turns bone" — not
-  yet implemented; tokens.css is the only place to touch)
-- Voyage / Editorial variants (infra is there — `--accent-h`, `--rad`
-  vars — but we ship rams only)
-- A tweaks / settings panel (design has one; we dropped it for v1)
+### Comb (`components/Comb.js`) — the review instrument
 
-## 10. Don'ts
+One bar per card in queue order; bar length is the card's interval on a log
+scale from now to one year, with gridlines at a day, a week, a month and a
+year. A graded card's bar is redrawn at the new interval (from the API's
+`scheduled_days`) in `--data` over a dotted trace of the old length, so a
+session reads as cards pushed out, or pulled back on Again. The spine is ink
+as far as the session has come; the current card's bar is `--you`. Pointing
+at a bar reads it out (`9 d → 27 d`). Readout below: `6 of 12`.
 
-- Don't reach for `px` on colors — use oklch vars.
-- Don't set `font-family` to a literal string — always a var.
-- Don't animate layout (`width`, `height`, `padding`) without a reason.
-  Transforms and opacity only, per §5.
-- Don't mix font families within a single text run (sans + mono in one line
-  is fine as adjacent spans; serif + sans is not).
-- Don't add new routes without also persisting `odyssey:route` in
-  localStorage via `App.js` — the shell relies on round-tripping. If the new
-  route hides the rail, add it to `CHROMELESS_ROUTES` too, or a refresh will
-  restore the user into a screen with no visible way out.
-- Don't ship a full-screen loading or error state without a visible exit.
-  The rail isn't there to save you on `pdf` / `review`; `PdfScreen`'s
-  `escapeHatch` (Retry / Library / Home) is the pattern to copy.
-- Don't introduce external font CDNs. All type is bundled from `src/fonts/`.
+In review it sits in the left margin, hidden (opacity 0) until the pointer
+enters the margin or it takes focus; on touch screens (no hover) it rests at
+half strength. Under 1100px it runs across the top instead, bars hanging
+down. On the done screen it is shown at full strength as the session's
+summary.
+
+### Spiral (`components/Spiral.js`) — today's queue on Home
+
+The same log time axis wound into an Archimedean spiral: centre is now,
+the outer end one year. Each due card is a tick at its current interval, so
+new cards sit near the centre and well-learned ones far out. Scale labels
+(1 d, 1 wk, 1 mo, 1 yr) appear on hover; pointing at a tick reads the card.
+
+### Page Rule (`components/PageRule.js`) — the reader's instrument
+
+A vertical scale in the left margin: one tick per page (every tenth
+longer), note-colour ticks on the other side for pages with notes, ink for
+pages behind you, a 1.5px `--you` line at the current page and a readout
+(`p. 12 of 120`). Hidden until the pointer enters the margin or it takes
+keyboard focus; fades over 400ms. Click to jump; ↑ / ↓ when focused. It is
+the reader's only page display.
+
+### Cards
+
+Only for things the person made and can act on: notes in the Notes list,
+notes in the reader margin, the capture drawer. `.card`: `--sheet`, 1px
+rule on three sides, a 2px left edge in the type colour (`--note` when a
+card has no type), padding 12 / 14. Cards show
+the content only, no type label; the edge colour carries the type. In the reader margin they rest at 72%
+opacity and come up to full on hover, focus or when their highlight is
+selected. Text that only extends content stays a borderless note.
+
+### Controls
+
+- Buttons: `.btn` (1px rule), `.btn.primary` (solid ink), `.btn.ghost`
+  (text only), `.btn.link` (link colour). Shortcuts sit inside in `.key`:
+  `Reveal Space`, `Save ⌘↵`, `Review R`, `End session Esc`.
+- Grades: one bordered strip of four cells, each label, key and consequence
+  (`Good 3 / 13 d`, the interval in `--data`).
+- Choices (sort order, capture mode, graph filter): `.tabs`, text with the
+  current one underlined in ink.
+
+### Cloze
+
+`[[word]]`. One card per blank. In review only the active blank hides, as an
+empty slot with a 2px note underline sized to the answer; on reveal the
+answer appears, weight 600 with the same underline. Other blanks show their
+answers underlined. Linked notes shown after reveal mask every blank as
+`[…]`, since a neighbour may come up later in the session.
+
+## Motion
+
+One living element per surface, tied to real state: Comb bars easing to
+their new interval, the Rule's position line, a note settling level with its
+highlight. Curve `cubic-bezier(.2,.7,.2,1)` (`--ease`) at 200–400ms. No
+load-in choreography. `prefers-reduced-motion` turns transitions off.
+
+## Words
+
+Plain is the floor. Status lines are noun phrases (`12 cards due`,
+`No documents.`, `Linking off. Set META_API_KEY to enable.`). Errors say
+what failed and why (`failText` in `utils/format.js`: "Couldn’t load
+library. Server not responding." plus Retry). Buttons say what happens. One
+name per concept: library, document, note, card, cloze, link.
+
+The marquee line, in the README, meta description and manifest:
+**A PDF reader with a long memory.** / Spaced repetition for every
+highlight.
+
+Run the skill's last pass on every new string: delete words that carry
+nothing, use the term instead of a paraphrase, don't repeat a control, and
+scan for the bestiary (not / — / yet / quiet / just / simply).
+
+## Pitfalls that will burn again
+
+- **SQLite rowid reuse + immutable cache.** Never mark
+  `/files/{id}/download` immutable; the frontend also busts with
+  `?v=<file_hash>`.
+- **Bare `<button>` loses the type.** `base.css` sets `font-family: inherit`
+  on form controls; don't override it with a literal.
+- **The notes column is per page**, inside each lazily mounted row. Don't
+  lift it out.
+- **Text anchoring is fragile.** Keep the chain in PdfScreen:
+  text_anchor → normalized_rects → pixel_rects.
+- **Chrome-less routes** (`pdf`, `review`) need a visible way out in every
+  loading and error state; `escapeHatch` in PdfScreen is the pattern.
+- **No font CDNs.** All type is bundled from `src/fonts/`.

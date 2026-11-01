@@ -1,16 +1,16 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import apiService from '../api';
 import { toQueueCard } from '../data/adapters';
-import { extractAnswers, hasCloze } from '../utils/cloze';
+import { hasCloze } from '../utils/cloze';
 import { renderRich } from '../utils/render';
-import { plainText, RELATION_LABEL } from '../utils/format';
-import Starburst from '../components/Starburst';
-import { Ic } from '../components/Icons';
-import { docColor } from '../utils/hue';
+import { failText, fmtInterval, plainText, plural, RELATION_LABEL } from '../utils/format';
+import Comb from '../components/Comb';
 
-// The ritual. Centered prompt, starburst progress on the left, reveal on SPACE,
-// grade 1–4. Cloze prompts reveal all [[x]] blanks together. `O` jumps to the
-// source passage in the PDF (when the card is anchored to one).
+const GRADES = [['again', 'Again'], ['hard', 'Hard'], ['good', 'Good'], ['easy', 'Easy']];
+
+// Review. Centred prompt, the Comb in the left margin, Space reveals, 1–4
+// grade. A cloze card hides only its own blank; the others show their
+// answers. `O` opens the source page in the PDF when the card has one.
 export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -18,14 +18,25 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
   const [idx, setIdx] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [answered, setAnswered] = useState([]);
+  // New interval (days) per graded card, from the API's response.
+  const [nextDays, setNextDays] = useState([]);
   const [leaving, setLeaving] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [doc, setDoc] = useState(null);
+  // file id → title, for each card's source line.
+  const [titles, setTitles] = useState({});
   const cardStartRef = useRef(Date.now());
   const endedRef = useRef(false);
   // annotation id → linked notes, fetched as each card comes up and shown
   // only after reveal (a neighbour can contain the answer).
   const [linked, setLinked] = useState({});
+  // Phone layout draws the Comb across the top; it needs the width.
+  const [vw, setVw] = useState(() => window.innerWidth);
+  useEffect(() => {
+    const onResize = () => setVw(window.innerWidth);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   // Load session + queue
   useEffect(() => {
@@ -43,13 +54,15 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
           .filter(Boolean);
         setQueue(cards);
         setAnswered(Array(cards.length).fill(null));
+        setNextDays(Array(cards.length).fill(null));
         if (session?.id) setSessionId(session.id);
+        setTitles(Object.fromEntries((files || []).map((f) => [f.id, f.display_name || f.original_filename])));
         if (fileId != null) {
           const f = files.find((x) => x.id === fileId);
           if (f) setDoc(f);
         }
       } catch (e) {
-        if (alive) setError(e.message || String(e));
+        if (alive) setError(e);
       } finally {
         if (alive) setLoading(false);
       }
@@ -108,11 +121,15 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
     if (!rnum) return;
     setLeaving(true);
     const timeTaken = Math.round((Date.now() - cardStartRef.current) / 1000);
+    let days = card.nextIntervals?.[rnum - 1] ?? null;
     try {
-      await apiService.reviewCard(card.id, { rating: rnum, time_taken: timeTaken, session_id: sessionId });
+      const res = await apiService.reviewCard(card.id, { rating: rnum, time_taken: timeTaken, session_id: sessionId });
+      if (Number.isFinite(res?.card?.scheduled_days)) days = res.card.scheduled_days;
     } catch (e) {
       console.warn('review submit failed', e);
     }
+    const at = idx;
+    setNextDays((nd) => { const out = [...nd]; out[at] = days; return out; });
     setTimeout(() => {
       const next = [...answered];
       next[idx] = rating;
@@ -160,292 +177,134 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [revealed, grade, onExit, canJump, handleJump]);
 
-  // Progress starburst prompts
-  const progressPrompts = useMemo(() => queue.map((c, i) => ({
-    days: c.interval || c.stability || 7,
-    state: i < idx ? 'review' : i === idx ? 'learning' : 'new',
-    completed: answered[i] != null,
-    heavy: i === idx,
-  })), [queue, idx, answered]);
-
-  const tickAngle = total > 0 ? (idx / total) * 360 * 0.92 : 0;
+  const combItems = useMemo(
+    () => queue.map((c, i) => ({ id: c.id, days: c.interval, next: answered[i] != null ? nextDays[i] : null })),
+    [queue, answered, nextDays],
+  );
 
   if (error) {
     return (
-      <div style={{ position: 'fixed', inset: 0, display: 'grid', placeItems: 'center', background: 'var(--paper)' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 16 }}>SESSION ERROR</div>
-          <div style={{ color: 'var(--ink-2)', marginBottom: 24 }}>{error}</div>
-          <button className="btn" onClick={onExit}>Home</button>
-        </div>
+      <div className="review review-message">
+        <p className="t-body">{failText('load cards', error)}</p>
+        <button className="btn" onClick={onExit}>Home <span className="key">Esc</span></button>
       </div>
     );
   }
 
-  if (loading) {
-    return (
-      <div style={{ position: 'fixed', inset: 0, display: 'grid', placeItems: 'center', background: 'var(--paper)' }}>
-        <div className="mono-sm" style={{ color: 'var(--ink-4)' }}>Loading cards…</div>
-      </div>
-    );
-  }
+  if (loading) return <div className="review"/>;
 
   if (total === 0) {
     return (
-      <div className="enter" style={{ position: 'fixed', inset: 0, display: 'grid', placeItems: 'center', background: 'var(--paper)' }}>
-        <div style={{ textAlign: 'center', maxWidth: 420 }}>
-          <div style={{ display: 'grid', placeItems: 'center', marginBottom: 24 }}>
-            <Starburst
-              prompts={Array.from({ length: 12 }, () => ({ days: 14, state: 'review' }))}
-              size={160}
-              innerRadius={8}
-              color="var(--ink-3)"
-            />
-          </div>
-          <h1 style={{ fontFamily: 'var(--sans)', fontSize: 32, fontWeight: 400, letterSpacing: '-0.02em', marginBottom: 12 }}>
-            No cards due now.
-          </h1>
-          <p style={{ color: 'var(--ink-2)', marginBottom: 28 }}>
-            Scheduled cards appear here when they’re due.
-          </p>
-          <button className="btn primary" onClick={onExit}>Home <Ic.Right/></button>
+      <div className="review review-message">
+        <p className="t-body">No cards due.</p>
+        <button className="btn" onClick={onExit}>Home <span className="key">Esc</span></button>
+      </div>
+    );
+  }
+
+  if (done) {
+    const reviewed = answered.filter(Boolean).length;
+    return (
+      <div className="review review-done">
+        <div className="review-done-body">
+          <h1 className="t-display review-done-count">{plural(reviewed, 'card')} reviewed.</h1>
+          <Comb items={combItems} index={total} length={320} span={Math.min(320, total * 14)} strength="full"/>
+          <button className="btn primary" onClick={onExit}>Home <span className="key">Esc</span></button>
         </div>
       </div>
     );
   }
 
+  const isCloze = card?.type === 'cloze' || hasCloze(card?.prompt || '');
+  const ann = card?.raw?.annotation;
+  const sourceTitle = ann?.file_title || titles[card?.source] || doc?.display_name || doc?.original_filename;
+  const readout = `${idx + 1} of ${total}`;
+
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 60, background: 'var(--paper)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 32px' }}>
-        <button className="btn ghost xs" onClick={onExit}>
-          <Ic.Close/> End session
-        </button>
-        <div className="mono-sm" style={{ color: 'var(--ink-4)' }}>
-          {doc ? `${(doc.display_name || doc.original_filename || '').toUpperCase()} · ` : ''}
-          SESSION · {String(idx + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
-        </div>
-        <div className="mono-sm" style={{ color: 'var(--ink-4)' }}>
-          {Math.max(1, Math.ceil((total - idx) * 0.4))} MIN REMAINING
-        </div>
+    <div className="review">
+      <button className="btn ghost quiet review-exit" onClick={onExit}>
+        End session <span className="key">Esc</span>
+      </button>
+
+      <aside className="review-margin">
+        <Comb items={combItems} index={idx} readout={readout}/>
+      </aside>
+      <div className="review-strip">
+        <Comb items={combItems} index={idx} orientation="h" length={32} span={Math.max(0, Math.min(vw, 640) - 48)} readout={readout} labels={false}/>
       </div>
 
-      {done ? (
-        <DoneView answered={answered} queue={queue} onExit={onExit}/>
-      ) : (
-        <>
-          <div style={{ position: 'absolute', left: 48, top: '50%', transform: 'translateY(-50%)', opacity: 0.95 }}>
-            <Starburst
-              prompts={progressPrompts}
-              size={200}
-              innerRadius={10}
-              thickness={1.4}
-              color="var(--ink-3)"
-              accentColor="var(--accent)"
-              tickAngle={tickAngle}
-            />
-          </div>
+      <main className={`review-stage${revealed ? ' revealed' : ''}${leaving ? ' leaving' : ''}`}>
+        <div className="t-small ink-3 review-source">
+          {sourceTitle ? <>{sourceTitle}{annPageIndex != null && <>{' · '}p.{'\u00a0'}{annPageIndex + 1}</>}</> : 'Note'}
+        </div>
 
-          <div style={{ flex: 1, display: 'grid', placeItems: 'center', padding: '0 24px' }}>
-            <div style={{
-              width: 640,
-              maxWidth: '90vw',
-              opacity: leaving ? 0 : 1,
-              transform: leaving ? 'translateY(-20px)' : 'translateY(0)',
-              transition: 'opacity 280ms cubic-bezier(.2,.7,.2,1), transform 280ms cubic-bezier(.2,.7,.2,1)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 28 }}>
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: docColor(doc?.color_hue) }}/>
-                <div className="mono-sm" style={{ color: 'var(--ink-3)' }}>
-                  {(card?.raw?.annotation?.file_title || doc?.original_filename || 'NOTE').toUpperCase()}
-                </div>
-              </div>
+        <div className="review-prompt">
+          {renderRich(card?.prompt || '', {
+            cloze: isCloze ? 'reveal' : 'none',
+            revealed,
+            activeIndex: card?.clozeIndex ?? 0,
+          })}
+        </div>
 
-              <div
-                style={{
-                  fontFamily: 'var(--sans)',
-                  fontSize: 26,
-                  lineHeight: 1.45,
-                  color: 'var(--ink)',
-                  fontWeight: 400,
-                  letterSpacing: '-0.005em',
-                  minHeight: 140,
-                }}
-              >
-                {renderRich(card?.prompt || '', {
-                  cloze: (card?.type === 'cloze' || hasCloze(card?.prompt || '')) ? 'reveal' : 'none',
-                  revealed,
-                  activeIndex: card?.clozeIndex ?? 0,
-                })}
-              </div>
+        {!revealed ? (
+          <button className="btn review-reveal" onClick={() => setRevealed(true)}>
+            Reveal <span className="key">Space</span>
+          </button>
+        ) : (
+          <div className="review-after">
+            {!isCloze && card?.answer && (
+              <div className="review-answer t-body">{renderRich(card.answer)}</div>
+            )}
 
-              <div style={{
-                marginTop: 36,
-                paddingTop: 28,
-                borderTop: '1px solid var(--rule)',
-                opacity: revealed ? 1 : 0,
-                maxHeight: revealed ? 720 : 0,
-                overflow: 'hidden',
-                transition: 'opacity 420ms cubic-bezier(.2,.7,.2,1) 120ms, max-height 420ms cubic-bezier(.2,.7,.2,1)',
-              }}>
-                {card?.type === 'cloze' || hasCloze(card?.prompt || '') ? (
-                  <div className="mono" style={{ color: 'var(--accent-deep)', fontSize: 14 }}>
-                    — {extractAnswers(card?.prompt || '')[card?.clozeIndex ?? 0] || '—'}
-                  </div>
-                ) : (
-                  <div
-                    style={{ fontFamily: 'var(--sans)', fontSize: 17, lineHeight: 1.65, color: 'var(--ink-2)' }}
-                  >
-                    {renderRich(card?.answer || '')}
-                  </div>
-                )}
-
-                <div style={{ marginTop: 28, display: 'flex', gap: 0, border: '1px solid var(--rule)' }}>
-                  {['again', 'hard', 'good', 'easy'].map((g, i) => (
-                    <button
-                      key={g}
-                      onClick={() => grade(g)}
-                      style={{
-                        flex: 1,
-                        padding: '16px 12px',
-                        border: 0,
-                        background: 'transparent',
-                        borderRight: i < 3 ? '1px solid var(--rule)' : 'none',
-                        fontFamily: 'var(--sans)',
-                        cursor: 'pointer',
-                        transition: 'background 200ms',
-                        textAlign: 'left',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--paper-2)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
-                        <span style={{ fontSize: 14, fontWeight: 500, color: g === 'again' ? 'var(--accent)' : 'var(--ink)' }}>{g}</span>
-                        <span className="mono-sm" style={{ color: 'var(--ink-4)' }}>{i + 1}</span>
-                      </div>
-                      <div className="mono" style={{ fontSize: 11, color: 'var(--ink-3)' }}>
-                        {card?.nextIntervals?.[i] ?? 1}d
-                      </div>
-                    </button>
-                  ))}
-                </div>
-
-                {canJump && (
-                  <div style={{ marginTop: 16, display: 'flex', justifyContent: 'flex-end' }}>
-                    <button
-                      className="btn ghost xs"
-                      onClick={handleJump}
-                      style={{ color: 'var(--ink-3)' }}
-                      aria-label={`Open source PDF at page ${annPageIndex + 1}`}
-                    >
-                      <span className="mono-sm">Open source · p.{annPageIndex + 1}</span>
-                      <Ic.Right/>
-                      <span className="mono-sm" style={{ color: 'var(--ink-4)', marginLeft: 8 }}>O</span>
-                    </button>
-                  </div>
-                )}
-
-                {connections.length > 0 && <Connections rows={connections}/>}
-              </div>
-
-              {!revealed && (
-                <div style={{ marginTop: 64, display: 'flex', justifyContent: 'center' }}>
-                  <button className="btn" onClick={() => setRevealed(true)} style={{ padding: '11px 22px', fontSize: 13 }}>
-                    <Ic.Eye/> Reveal answer
-                    <span className="mono-sm" style={{ color: 'var(--ink-4)', marginLeft: 6 }}>SPACE</span>
-                  </button>
-                </div>
-              )}
+            <div className="grades" role="group" aria-label="Grade">
+              {GRADES.map(([g, label], i) => (
+                <button key={g} className="grade" onClick={() => grade(g)} disabled={leaving}>
+                  <span className="grade-head">
+                    <span className="grade-label">{label}</span>
+                    <span className="key">{i + 1}</span>
+                  </span>
+                  <span className="t-small lg c-data">{fmtInterval(card?.nextIntervals?.[i])}</span>
+                </button>
+              ))}
             </div>
-          </div>
 
-          <div style={{ padding: '20px 48px', display: 'flex', justifyContent: 'space-between', color: 'var(--ink-4)' }}>
-            <div className="mono-sm">INTERVAL — {card?.interval || 0}d · STABILITY {card?.stability || 0}d</div>
-            <div className="mono-sm">{(card?.type || 'note').toUpperCase()}</div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-// The card's neighbours in the note graph. Quiet on purpose: grading is the
-// task, this is context for after.
-function Connections({ rows }) {
-  return (
-    <div style={{ marginTop: 28 }}>
-      <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 4 }}>CONNECTED</div>
-      {rows.slice(0, 3).map(({ link, note }) => (
-        <div key={link.id} style={{ padding: '12px 0', borderBottom: '1px solid var(--rule)' }}>
-          <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 4 }}>
-            {RELATION_LABEL[link.relation] || 'Linked'}
-            {note.file_title ? ` · ${note.file_title.toUpperCase()}` : ''}
-          </div>
-          <div style={{ fontSize: 14.5, lineHeight: 1.5, color: 'var(--ink-2)', marginBottom: 4 }}>
-            {/* Blanks stay blank: a neighbour may be due later this session. */}
-            {plainText((note.question || note.highlighted_text || '').replace(/\[\[[^\]]+\]\]/g, '[…]'), 200)}
-          </div>
-          {link.reason && (
-            <div style={{ fontSize: 12.5, lineHeight: 1.5, color: 'var(--ink-3)' }}>{link.reason}</div>
-          )}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function DoneView({ answered, queue, onExit }) {
-  const counts = {
-    again: answered.filter((a) => a === 'again').length,
-    hard: answered.filter((a) => a === 'hard').length,
-    good: answered.filter((a) => a === 'good').length,
-    easy: answered.filter((a) => a === 'easy').length,
-  };
-  const total = answered.length;
-  const finalPrompts = answered.map((a, i) => {
-    const rIdx = ['again', 'hard', 'good', 'easy'].indexOf(a);
-    const q = queue[i];
-    return {
-      days: (q?.nextIntervals?.[rIdx] ?? 7) || 7,
-      state: 'review',
-      completed: true,
-      heavy: a === 'good' || a === 'easy',
-    };
-  });
-
-  return (
-    <div className="enter" style={{ flex: 1, display: 'grid', placeItems: 'center' }}>
-      <div style={{ textAlign: 'center', maxWidth: 560, padding: '0 24px' }}>
-        <div style={{ display: 'grid', placeItems: 'center', marginBottom: 32 }}>
-          <Starburst
-            prompts={finalPrompts.length ? finalPrompts : [{ days: 7, state: 'review', completed: true }]}
-            size={240}
-            innerRadius={14}
-            thickness={2.2}
-            color="var(--ink)"
-            accentColor="var(--accent)"
-            className="sb-glow"
-          />
-        </div>
-        <h1 style={{ fontFamily: 'var(--sans)', fontSize: 36, fontWeight: 400, letterSpacing: '-0.02em', marginBottom: 14 }}>
-          Session complete.
-        </h1>
-        <p style={{ color: 'var(--ink-2)', fontSize: 16, lineHeight: 1.55, marginBottom: 36 }}>
-          {total} card{total === 1 ? '' : 's'} reviewed.
-        </p>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, border: '1px solid var(--rule)', marginBottom: 36, textAlign: 'left' }}>
-          {Object.entries(counts).map(([k, v], i) => (
-            <div key={k} style={{ padding: '16px 20px', borderRight: i < 3 ? '1px solid var(--rule)' : 'none' }}>
-              <div className="mono-sm" style={{ color: k === 'again' ? 'var(--accent)' : 'var(--ink-4)', marginBottom: 4 }}>
-                {k.toUpperCase()}
+            {canJump && (
+              <div className="review-source-link">
+                <button className="btn ghost sm link" onClick={handleJump}>
+                  Open p.{'\u00a0'}{annPageIndex + 1} <span className="key">O</span>
+                </button>
               </div>
-              <div style={{ fontSize: 22, fontWeight: 300 }}>{v}</div>
-            </div>
-          ))}
-        </div>
-        <button className="btn primary" onClick={onExit} style={{ padding: '11px 22px', fontSize: 14 }}>
-          Home <Ic.Right/>
-        </button>
-      </div>
+            )}
+
+            {connections.length > 0 && <Linked rows={connections}/>}
+          </div>
+        )}
+      </main>
     </div>
   );
 }
+
+// The card's neighbours in the note graph, after reveal. Blanks stay masked:
+// a neighbour may come up later in the same session.
+function Linked({ rows }) {
+  return (
+    <section className="review-linked">
+      <h2 className="t-small ink-2">Linked</h2>
+      <ul>
+        {rows.slice(0, 3).map(({ link, note }) => (
+          <li key={link.id}>
+            <p className="review-linked-text">
+              {renderRich(escapeHtml(plainText(note.question || note.highlighted_text || '', 220, { keepCloze: true })), { cloze: 'mask' })}
+            </p>
+            <p className="t-small ink-3">
+              {RELATION_LABEL[link.relation] || 'Linked'}
+              {note.file_title ? ` · ${note.file_title}` : ''}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+const escapeHtml = (t) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');

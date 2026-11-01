@@ -1,6 +1,7 @@
 {
-  "short_name": "odyssey",
-  "name": "odyssey - PDF annotation and study tool",
+  "short_name": "Odyssey",
+  "name": "Odyssey",
+  "description": "A PDF reader with a long memory. Spaced repetition for every highlight.",
   "icons": [
     {
       "src": "favicon-16x16.png",
@@ -25,6 +26,6 @@
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#FF4D06",
-  "background_color": "#ffffff"
+  "theme_color": "#f5f6f7",
+  "background_color": "#f5f6f7"
 }
