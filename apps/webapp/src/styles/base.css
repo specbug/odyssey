@@ -137,10 +137,12 @@ a:hover, .link:hover { text-decoration-color: var(--link); }
 /* Theme sits at the foot of the rail, away from navigation. */
 .rail-theme { margin-top: auto; }
 
-/* The flicker when the theme changes (components/ThemeBurst.js): the logo's
-   spikes flick out from the icon and fade, and the icon flashes the logo's
-   orange before settling back to ink. One shot, 560ms. */
-.theme-burst {
+/* The flicker when the theme changes (components/ThemeEcho.js): two bracket
+   pairs spring outward from the icon, the second 110ms behind the first and
+   fainter, so mid-flight they read as [[ ]]; the orange blank flashes under
+   the icon, and the icon flashes the logo's orange before settling back to
+   ink. One shot, about 560ms. */
+.theme-echo {
   position: absolute;
   left: 50%; top: 50%;
   width: 56px; height: 56px;
@@ -148,26 +150,38 @@ a:hover, .link:hover { text-decoration-color: var(--link); }
   overflow: visible;
   pointer-events: none;
 }
-.theme-burst path {
-  fill: rgb(255 77 6);
+.theme-echo rect { fill: var(--mark); }
+.theme-echo .echo-l, .theme-echo .echo-r {
   opacity: 0;
   transform-box: view-box;
-  transform-origin: 0 0;
-  animation: theme-spike 520ms var(--ease) both;
+  animation: echo-l 520ms var(--ease) both;
 }
-@keyframes theme-spike {
-  0%   { opacity: 0;                         transform: rotate(var(--a)) translateY(-9px)  scaleY(0.3); }
-  30%  { opacity: var(--o);                  transform: rotate(var(--a)) translateY(-14px) scaleY(1); }
-  70%  { opacity: calc(var(--o) * 0.45);     transform: rotate(var(--a)) translateY(-19px) scaleY(0.9); }
-  100% { opacity: 0;                         transform: rotate(var(--a)) translateY(-22px) scaleY(0.6); }
+.theme-echo .echo-r { animation-name: echo-r; }
+.theme-echo .echo-2 .echo-l, .theme-echo .echo-2 .echo-r { animation-delay: 110ms; }
+.theme-echo .echo-2 rect { opacity: 0.55; }
+@keyframes echo-l {
+  0%   { opacity: 0; transform: translateX(2px); }
+  25%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-11px); }
+}
+@keyframes echo-r {
+  0%   { opacity: 0; transform: translateX(-2px); }
+  25%  { opacity: 1; }
+  100% { opacity: 0; transform: translateX(11px); }
+}
+.theme-echo .echo-blank { opacity: 0; animation: echo-blank 560ms var(--ease) both; }
+@keyframes echo-blank {
+  0%       { opacity: 0; }
+  20%, 55% { opacity: 1; }
+  100%     { opacity: 0; }
 }
 .theme-flash { animation: theme-flash 560ms var(--ease) both; }
 @keyframes theme-flash {
-  0%, 35% { color: rgb(255 77 6); }
+  0%, 35% { color: var(--mark); }
   100%    { color: currentColor; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .theme-burst { display: none; }
+  .theme-echo { display: none; }
   .theme-flash { animation: none; }
 }
 .rail-mark svg { width: 28px; height: 28px; }
