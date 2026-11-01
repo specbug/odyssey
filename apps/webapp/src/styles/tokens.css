@@ -91,8 +91,8 @@
   --note-on-page: oklch(0.64 0.17 52);
   --link-on-page: oklch(0.50 0.16 255);
 
-  /* The logo's own orange, used only for the mark in the rail. */
-  --mark: rgb(255 77 6 / 0.7);
+  /* The logo's own orange: the blank in the mark, and the theme flicker. */
+  --mark: rgb(255 77 6);
 
   --body-weight: 450;
 

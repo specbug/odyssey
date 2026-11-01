@@ -8,7 +8,8 @@ layout and every responsive rule in `screens.css` and `pdf.css`.
 ## Principles, as they apply here
 
 - **Restraint.** A surface shows the content and what directly extends it.
-  Navigation aids, progress and metadata stay hidden until asked for.
+  Navigation aids, progress and metadata stay hidden until asked for, with
+  one exception: the review Comb is always shown (see below).
 - **Finish.** Real characters (× − ° ’ “ ” –), a no-break space between a
   number and its unit (`9 d`, `p. 4`), tabular figures wherever numbers
   update or sit in a column.
@@ -31,8 +32,8 @@ Dark values live in `tokens.css` twice, once under the media query and once
 under `[data-theme="dark"]`; change both together.
 
 Changing the theme plays one flicker around the button
-(`components/ThemeBurst.js`): the logo's 15 spikes, from `logo.svg`'s own
-angles and proportions, flick outward and fade in about 520ms while the icon
+(`components/ThemeBurst.js`): 15 shards, kept from the original logo's
+geometry, flick outward and fade in about 520ms while the icon
 flashes the logo's orange and settles back to ink. It is the only other
 place the logo's orange appears, and it doesn't render under
 `prefers-reduced-motion`.
@@ -66,11 +67,23 @@ Signals stay small: an underline, a 2px edge, a numeral, a tick. Marks drawn
 on a PDF page use `--note-on-page` / `--link-on-page`, which keep their
 light-mode values because the canvas stays white in dark mode.
 
-**The logo** (`public/logo.svg`, the orange starburst) is kept as the
-favicon / app icon and drawn from its own geometry at the top of the rail
-(`components/Mark.js`), where it is the Home button. Its orange (`--mark`)
-is the one colour outside the four signals, by decision. It appears nowhere
-else: no starburst charts, no per-document glyphs.
+**The logo** is a cloze: square brackets in ink around one orange blank,
+`[_]`, the app's own syntax for the thing it does. `public/logo.svg` is the
+master (100-unit grid, 10-unit strokes, the blank sitting just above the
+bracket foot), and it follows light and dark through an embedded
+`prefers-color-scheme` rule. `public/favicon.svg` is the same mark redrawn on
+the 16px grid with 2px strokes so every edge lands on a pixel. The PNGs are
+exported from those two: `favicon-16x16` and `favicon-32x32` from the 16px
+drawing (32 is it doubled), and `apple-touch-icon` (180), `logo-192` and
+`logo` (512) from the master, centred on `--ground` with 18% padding so they
+survive maskable cropping; `favicon.ico` bundles 16 and 32. Re-export them
+whenever the SVGs change.
+
+In the app, `components/Mark.js` draws the master at the top of the rail as
+the Home button: the brackets take `--ink`, the blank takes `--mark`
+(`#ff4d06`), the one colour outside the four signals, by decision. It
+appears nowhere else but the theme flicker. The original starburst logo was
+retired because it sat too close to Claude's mark.
 
 ## Type
 
@@ -110,9 +123,9 @@ session reads as cards pushed out, or pulled back on Again. The spine is ink
 as far as the session has come; the current card's bar is `--you`. Pointing
 at a bar reads it out (`9 d → 27 d`). Readout below: `6 of 12`.
 
-In review it sits in the left margin, hidden (opacity 0) until the pointer
-enters the margin or it takes focus; on touch screens (no hover) it rests at
-half strength. Under 1100px it runs across the top instead, bars hanging
+In review it sits in the left margin, always shown at full strength: no
+fade and no hover reveal, by decision, since watching the bars move is part
+of the session. Under 1100px it runs across the top instead, bars hanging
 down. On the done screen it is shown at full strength as the session's
 summary.
 

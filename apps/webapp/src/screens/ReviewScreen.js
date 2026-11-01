@@ -208,7 +208,7 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
       <div className="review review-done">
         <div className="review-done-body">
           <h1 className="t-display review-done-count">{plural(reviewed, 'card')} reviewed.</h1>
-          <Comb items={combItems} index={total} length={320} span={Math.min(320, total * 14)} strength="full"/>
+          <Comb items={combItems} index={total} length={320} span={Math.min(320, total * 14)}/>
           <button className="btn primary" onClick={onExit}>Home <span className="key">Esc</span></button>
         </div>
       </div>
