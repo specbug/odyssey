@@ -68,6 +68,7 @@ Layout (`src/`):
 - `components/ErrorBoundary.js` — catches a screen that throws mid-render and
   offers a way home, so a crash can't blank the shell
 - `hooks/useRouteHistory.js` — mirrors the route onto the browser history stack
+- `hooks/useTheme.js` — system / light / dark, toggled from the rail's foot, remembered in localStorage `odyssey:theme`; `public/index.html` applies it before first paint
 - `utils/{cloze,format,render}.js` — `format.js` has `fmtInterval`, `plural`, `failText`
 - `data/adapters.js` — API shape → design shape
 - `styles/{tokens,base,screens,pdf}.css` — tokens; type roles + controls; per-screen layout (responsive rules live here, not inline); the reader
@@ -509,8 +510,9 @@ One-paragraph summary so you don't reach for bad defaults:
 > shadow. 8px grid, 0 radius. Instruments (Comb, Spiral, page Rule) draw real
 > data and stay hidden until asked. No load-in animation; motion
 > `cubic-bezier(.2,.7,.2,1)` at 200–400ms. Light and dark via
-> `prefers-color-scheme`. Plain copy: "No documents.", "Couldn’t load
-> library. Server not responding." Cloze syntax is `[[word]]`.
+> `prefers-color-scheme`, or pinned by the rail's theme toggle. Plain copy:
+> "No documents.", "Couldn’t load library. Server not responding." Cloze
+> syntax is `[[word]]`.
 
 Quick pitfall list for future sessions:
 - Bare `<button>` leaks the browser's UA font — global `font-family: inherit`
