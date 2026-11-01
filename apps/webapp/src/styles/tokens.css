@@ -3,7 +3,7 @@
    signals, each with one meaning across the whole app. */
 
 /* R Sans: running text. Variable, opsz 9–40, wght 100–1000.
-   Source: github.com/specbug/iconfig (fonts branch). */
+   Source: github.com/specbug/iconfig, fonts branch, r-sans/web-fonts (v3). */
 @font-face {
   font-family: 'R Sans';
   src: url('../fonts/RSans-Variable.woff2') format('woff2-variations');
