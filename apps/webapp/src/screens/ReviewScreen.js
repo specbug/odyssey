@@ -176,7 +176,7 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
         <div style={{ textAlign: 'center' }}>
           <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 16 }}>SESSION ERROR</div>
           <div style={{ color: 'var(--ink-2)', marginBottom: 24 }}>{error}</div>
-          <button className="btn" onClick={onExit}>Return home</button>
+          <button className="btn" onClick={onExit}>Home</button>
         </div>
       </div>
     );
@@ -185,7 +185,7 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
   if (loading) {
     return (
       <div style={{ position: 'fixed', inset: 0, display: 'grid', placeItems: 'center', background: 'var(--paper)' }}>
-        <div className="mono-sm" style={{ color: 'var(--ink-4)' }}>Loading session…</div>
+        <div className="mono-sm" style={{ color: 'var(--ink-4)' }}>Loading cards…</div>
       </div>
     );
   }
@@ -203,12 +203,12 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
             />
           </div>
           <h1 style={{ fontFamily: 'var(--sans)', fontSize: 32, fontWeight: 400, letterSpacing: '-0.02em', marginBottom: 12 }}>
-            Nothing due right now.
+            No cards due now.
           </h1>
           <p style={{ color: 'var(--ink-2)', marginBottom: 28 }}>
-            The queue will return when new cards are ready.
+            Scheduled cards appear here when they’re due.
           </p>
-          <button className="btn primary" onClick={onExit}>Return home <Ic.Right/></button>
+          <button className="btn primary" onClick={onExit}>Home <Ic.Right/></button>
         </div>
       </div>
     );
@@ -430,7 +430,7 @@ function DoneView({ answered, queue, onExit }) {
           Session complete.
         </h1>
         <p style={{ color: 'var(--ink-2)', fontSize: 16, lineHeight: 1.55, marginBottom: 36 }}>
-          {total} prompt{total === 1 ? '' : 's'} revisited.
+          {total} card{total === 1 ? '' : 's'} reviewed.
         </p>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 0, border: '1px solid var(--rule)', marginBottom: 36, textAlign: 'left' }}>
           {Object.entries(counts).map(([k, v], i) => (
@@ -443,7 +443,7 @@ function DoneView({ answered, queue, onExit }) {
           ))}
         </div>
         <button className="btn primary" onClick={onExit} style={{ padding: '11px 22px', fontSize: 14 }}>
-          Return home <Ic.Right/>
+          Home <Ic.Right/>
         </button>
       </div>
     </div>
