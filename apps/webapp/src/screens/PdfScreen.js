@@ -9,8 +9,8 @@ import { hasCloze } from '../utils/cloze';
 import useReaderChrome from '../hooks/useReaderChrome';
 import StickyNote from '../components/StickyNote';
 import InlineCaptureDrawer from '../components/InlineCaptureDrawer';
-import PageRule from '../components/PageRule';
 import { Ic } from '../components/Icons';
+import PageDial from '../components/PageDial';
 import { failText } from '../utils/format';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL || ''}/pdf.worker.min.mjs`;
@@ -1006,18 +1006,24 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
   // Native scroll handler on the scroller div. Tracks current page index
   // from pageHeights and debounces a read-position save. No react-window
   // machinery to coordinate with — just the real scrollTop of the real div.
+  const dialRef = useRef(null);
+
   const onScrollerScroll = useCallback((e) => {
     onChromeScroll(e.currentTarget);
     const scrollOffset = e.currentTarget.scrollTop;
     lastScrollY.current = scrollOffset;
 
-    let cum = 0, idx = 0;
+    let cum = 0, idx = 0, pos = null;
     for (let i = 0; i < numPages; i++) {
       const h = getPageHeight(i);
+      // Fractional page for the dial: page i + 1 plus how far into it the
+      // top of the view is. round(pos) agrees with the midpoint rule below.
+      if (pos == null && scrollOffset < cum + h) pos = 1 + i + (scrollOffset - cum) / h;
       if (cum + h / 2 > scrollOffset) { idx = i; break; }
       cum += h;
       idx = i;
     }
+    dialRef.current?.setPosition(pos ?? numPages);
     if (idx + 1 !== currentPage) setCurrentPage(idx + 1);
 
     if (!fileMetadata?.id) return;
@@ -1026,6 +1032,19 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
       apiService.updateReadPosition(fileMetadata.id, idx).catch(() => {});
     }, 750);
   }, [numPages, getPageHeight, currentPage, fileMetadata?.id, onChromeScroll]);
+
+  // Scrub from the dial: scroll so the top of the view sits `pos` pages in,
+  // using the same page heights as the scroll handler.
+  const scrollToPosition = useCallback((pos) => {
+    const scroller = scrollerRef.current;
+    if (!scroller || !numPages) return;
+    const i = Math.min(numPages - 1, Math.max(0, Math.floor(pos) - 1));
+    const frac = Math.min(1, Math.max(0, pos - (i + 1)));
+    let cum = 0;
+    for (let k = 0; k < i; k++) cum += getPageHeight(k);
+    onChromeNavigate();
+    scroller.scrollTop = cum + frac * getPageHeight(i);
+  }, [numPages, getPageHeight, onChromeNavigate]);
 
   // Keyboard: arrows, Esc, zoom
   useEffect(() => {
@@ -1068,12 +1087,6 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
     });
     return by;
   }, [notes]);
-
-  // Pages carrying notes, 1-based, for the Rule's note ticks.
-  const notePages = useMemo(
-    () => [...notesByPage.keys()].filter((k) => Number.isInteger(k)).map((k) => k + 1),
-    [notesByPage],
-  );
 
   // Exits shared by the error and loading states. The rail is hidden on this
   // route, so these are the only visible way out until the viewer paints —
@@ -1121,18 +1134,25 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
         role="region"
         aria-label="Reader controls"
       >
-        <div className="pdf-plate pdf-plate-title">
-          <button className="btn ghost sm quiet" onClick={onExit} aria-label="Library">
+        {/* One strip: way out on the left, the document in the middle, the
+            page readout and the reader's controls on the right. */}
+        <div className="pdf-bar-start">
+          <button className="btn ghost sm quiet pdf-back" onClick={onExit}>
             <Ic.Left size={16}/> Library
           </button>
-          <span className="pdf-title">
-            <span className="pdf-title-name">{title}</span>
-            {doc?.authors && <span className="t-small ink-2">{doc.authors}</span>}
-          </span>
         </div>
-        <div className="pdf-plate">
-          <span className="t-small ink-2 pdf-page-readout">p.{'\u00a0'}{currentPage} of {numPages || '–'}</span>
-          <span className="pdf-zoom">
+        <div className="pdf-title" title={doc?.authors ? `${title} · ${doc.authors}` : title}>
+          <span className="pdf-title-name">{title}</span>
+          {doc?.authors && <span className="t-small ink-2 pdf-title-author">{doc.authors}</span>}
+        </div>
+        <div className="pdf-bar-end">
+          <PageDial
+            ref={dialRef}
+            numPages={numPages}
+            onScrub={scrollToPosition}
+            onJump={(p) => scrollToPageIndex(p - 1, 'start')}
+          />
+          <span className="pdf-zoom" role="group" aria-label="Zoom">
             <button
               className="btn ghost sm quiet"
               onClick={() => setScale((x) => Math.max(0.5, Math.round((x - 0.1) * 100) / 100))}
@@ -1156,13 +1176,6 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
           )}
         </div>
       </div>
-
-      <PageRule
-        numPages={numPages}
-        current={currentPage}
-        notePages={notePages}
-        onJump={(p) => scrollToPageIndex(p - 1, 'start')}
-      />
 
       {/* Viewer — native-scroll container. This is the only thing that
           scrolls; each LazyPageRow lives in normal block flow inside. */}

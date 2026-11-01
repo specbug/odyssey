@@ -46,7 +46,7 @@ system: cool neutrals, ink, four colour signals, R Sans + Google Sans Flex.
 contract for type, the colour signals, the instruments, layout and motion.
 
 Capabilities:
-- **PDF rendering**: react-pdf, lazily mounted page rows, a per-page notes column, and the page Rule (hidden until the pointer enters the left margin)
+- **PDF rendering**: react-pdf, lazily mounted page rows, a per-page notes column, and one top bar (Library · title · page dial, zoom, Review) that hides while you read; the page dial (`components/PageDial.js`) is a sliding page tape you can drag to scrub
 - **Annotation**: selection → "Add note" bubble → inline capture drawer (cloze / recall / note)
 - **Cloze syntax**: `[[word]]` only; one `StudyCard` **per blank** — an annotation with N blanks produces N cards, each graded independently with the other blanks visible
 - **Review**: centred prompt, Space to reveal, 1–4 to grade in one grade strip (each cell shows the interval it would set), O opens the source page, Esc ends; the Comb in the left margin (one bar per card, length = interval, graded bars redrawn at the new interval) is always shown; after reveal, up to 3 linked notes ("Linked", cloze blanks masked)
@@ -64,7 +64,7 @@ Layout (`src/`):
 - `App.js` — shell + routing
 - `screens/{Home,Library,Notes,Graph,Pdf,Review}Screen.js`
 - `components/{Icons,Mark,Rail,StickyNote,InlineCaptureDrawer}.js` — Mark is the logo (`[_]`, brackets in ink around an orange blank), same geometry as `public/logo.svg`; `public/favicon.svg` is its 16px drawing and the PNG icons are exported from the two
-- `components/{Comb,Spiral,PageRule}.js` — the three instruments (review, home, reader)
+- `components/{Comb,Spiral}.js` — the instruments (review, home)
 - `components/ErrorBoundary.js` — catches a screen that throws mid-render and
   offers a way home, so a crash can't blank the shell
 - `hooks/useRouteHistory.js` — mirrors the route onto the browser history stack
@@ -507,9 +507,8 @@ One-paragraph summary so you don't reach for bad defaults:
 > logo's orange blank (`--mark`) is the one other exception. R Sans for running text, Google Sans Flex for small text
 > and every number, R Mono for code only; sentence case, no letter-spaced
 > uppercase labels. Elevation is a sheet colour plus a 1px rule, never a
-> shadow. 8px grid, 0 radius. Instruments (Comb, Spiral, page Rule) draw real
-> data; the reader's page Rule stays hidden until asked, the review Comb is
-> always shown. No load-in animation; motion
+> shadow. 8px grid, 0 radius. Instruments (the review Comb, the home Spiral) draw
+> real data; the Comb is always shown. No load-in animation; motion
 > `cubic-bezier(.2,.7,.2,1)` at 200–400ms. Light and dark via
 > `prefers-color-scheme`, or pinned by the rail's theme toggle. Plain copy:
 > "No documents.", "Couldn’t load library. Server not responding." Cloze
