@@ -16,9 +16,11 @@ layout and every responsive rule in `screens.css` and `pdf.css`.
 - **Earn the space.** Cut from this redesign for failing the test: the home
   memory tiles (retention, stability, sessions, streak), per-document glyphs
   and colours, the note count in the reader chrome, the page progress bar
-  that duplicated the page number, and the date on each note card.
-- **Draw what is true.** The Comb, the spiral and the page Rule plot real
-  intervals and pages at real proportion.
+  that duplicated the page number, the date on each note card, and later the
+  reader's page Rule (a hidden page scale in the left margin), which the
+  reader didn't need.
+- **Draw what is true.** The Comb and the spiral plot real intervals at real
+  proportion.
 - **Never explain the design on the surface.** No colour keys, no legends.
 
 ## Colour
@@ -52,9 +54,9 @@ Four signals, one meaning each, everywhere:
 | Signal | Means | Where it appears |
 |---|---|---|
 | `--link` | something to follow or act on | links, "Review 3", "Open p. 4", "2 links", focus rings, text selection |
-| `--note` | the person's own marks | highlights, cloze underlines and blanks, graph nodes, note ticks on the Rule |
+| `--note` | the person's own marks | highlights, cloze underlines and blanks, graph nodes |
 | `--data` | computed values | the interval each grade would set, graded bars in the Comb |
-| `--you` | where the person is | current route in the rail, the current card's bar, the page Rule's position line, the selected graph node |
+| `--you` | where the person is | current route in the rail, the current card's bar, the selected graph node |
 
 One more code, on card edges only: the note's **type**. `--type-cloze`
 (crimson, kept off the you red), `--type-recall` (violet), `--type-note`
@@ -107,10 +109,18 @@ plus a 1px rule, never a shadow. Empty space stays empty.
 - **Shell:** a 64px rail (logo/Home, Library, Notes, Graph, Review, and the
   theme button at its foot) and the main column. Under 640px the rail moves to the bottom edge.
 - **App screens** have one focal object. Page frame: 880px max, 48px gutters.
-- **Reader:** page centred on the optical axis, a 216px notes column on the
-  right (balanced by an empty 216px column on the left), and the page Rule in
-  the 168px left margin. Under 1024px the notes column and the Rule go away
-  and the page readout moves into the chrome.
+- **Reader:** a 48px bar across the top, then each page with its 216px notes
+  column 48px to the right, the pair centred together. Never add width beside
+  the page to balance it: a row wider than the window gives the reader a
+  horizontal scrollbar (a 216px balancing column did exactly that below
+  1310px). Under 1100px the notes column goes away, since at the default 120%
+  zoom a page and its notes need 1046px.
+- **Reader bar:** one full-width strip on `--ground` with a 1px rule under
+  it, in three columns: `Library` on the left; the title (15px / 540) and
+  author centred; the page readout (`p. 6 of 120`), zoom and `Review N` on
+  the right. It hides while you read (`hooks/useReaderChrome.js`): a 280ms
+  fade with a slide up out of the way, back on scroll up, pointer or focus.
+  On phones the title gives way.
 
 ## Components
 
@@ -136,15 +146,6 @@ The same log time axis wound into an Archimedean spiral: centre is now,
 the outer end one year. Each due card is a tick at its current interval, so
 new cards sit near the centre and well-learned ones far out. Scale labels
 (1 d, 1 wk, 1 mo, 1 yr) appear on hover; pointing at a tick reads the card.
-
-### Page Rule (`components/PageRule.js`) — the reader's instrument
-
-A vertical scale in the left margin: one tick per page (every tenth
-longer), note-colour ticks on the other side for pages with notes, ink for
-pages behind you, a 1.5px `--you` line at the current page and a readout
-(`p. 12 of 120`). Hidden until the pointer enters the margin or it takes
-keyboard focus; fades over 400ms. Click to jump; ↑ / ↓ when focused. It is
-the reader's only page display.
 
 ### Cards
 
@@ -177,8 +178,8 @@ answers underlined. Linked notes shown after reveal mask every blank as
 ## Motion
 
 One living element per surface, tied to real state: Comb bars easing to
-their new interval, the Rule's position line, a note settling level with its
-highlight. Curve `cubic-bezier(.2,.7,.2,1)` (`--ease`) at 200–400ms. No
+their new interval, the reader bar sliding away, a note settling level with
+its highlight. Curve `cubic-bezier(.2,.7,.2,1)` (`--ease`) at 200–400ms. No
 load-in choreography. `prefers-reduced-motion` turns transitions off.
 
 ## Words

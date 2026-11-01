@@ -11,54 +11,62 @@
   flex-direction: column;
 }
 
+/* 48px bar + 32px before the first page. */
 .pdf-scroll { padding: 80px 0; }
 
-/* ── Chrome: hides while you read, returns on pointer or focus ───────── */
+/* ── The bar: hides while you read, returns on scroll up, pointer or focus ── */
 
+/* One full-width strip on the ground colour with a hairline under it, so
+   pages scrolling beneath stay out of the controls. Three columns: the way
+   out, the document, the reader's controls. It slides up out of the way as
+   it fades, following the scroll that hid it. */
 .pdf-chrome {
   position: absolute;
-  top: 16px; left: 16px; right: 16px;
+  top: 0; left: 0; right: 0;
   z-index: 10;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  pointer-events: none;
-  opacity: 1;
-  transition: opacity 280ms var(--ease);
-}
-.pdf-chrome > * { pointer-events: auto; }
-.pdf-chrome-hidden { opacity: 0; }
-.pdf-chrome-hidden > * { pointer-events: none; }
-/* Hidden controls stay in the tab order and return at once on focus. */
-.pdf-chrome:has(:focus-visible) { opacity: 1; transition: none; }
-.pdf-chrome:has(:focus-visible) > * { pointer-events: auto; }
-
-.pdf-plate {
-  display: flex;
+  height: 48px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
   align-items: center;
-  gap: 16px;
-  min-height: 48px;
-  padding: 0 16px;
-  background: var(--sheet);
-  border: 1px solid var(--rule);
+  gap: 24px;
+  padding: 0 24px;
+  background: var(--ground);
+  border-bottom: 1px solid var(--rule);
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 280ms var(--ease), transform 280ms var(--ease);
 }
-.pdf-plate-title { min-width: 0; }
-.pdf-title { display: flex; flex-direction: column; min-width: 0; padding: 6px 0; border-left: 1px solid var(--rule); padding-left: 16px; }
+.pdf-chrome-hidden {
+  opacity: 0;
+  transform: translateY(-100%);
+  pointer-events: none;
+}
+/* Hidden controls stay in the tab order and return at once on focus. */
+.pdf-chrome:has(:focus-visible) { opacity: 1; transform: none; pointer-events: auto; transition: none; }
+
+.pdf-bar-start { display: flex; align-items: center; min-width: 0; }
+.pdf-back { gap: 4px; align-items: center; }
+.pdf-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+  white-space: nowrap;
+}
 .pdf-title-name {
   font-size: 15px;
   font-weight: 540;
   line-height: 20px;
-  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 44vw;
+  min-width: 0;
 }
+.pdf-title-author { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.pdf-bar-end { display: flex; align-items: baseline; justify-content: flex-end; gap: 24px; min-width: 0; }
+.pdf-page-readout { white-space: nowrap; }
 .pdf-zoom { display: flex; align-items: baseline; gap: 12px; }
 .pdf-zoom .t-small { min-width: 40px; justify-content: center; }
-/* The page readout lives on the Rule; it shows here only where the Rule
-   can't (no margin, no hover). */
-.pdf-page-readout { display: none; }
 
 /* ── Pages ──────────────────────────────────────────────────────────── */
 
@@ -105,11 +113,6 @@
   width: max-content;
   margin: 0 auto;
 }
-/* Balance the notes column so the page sits on the optical axis. */
-.page-and-notes-container::before {
-  content: "";
-  flex: 0 0 216px;
-}
 
 .page-wrapper { position: relative; flex: 0 0 auto; }
 
@@ -119,41 +122,6 @@
   position: relative;
   align-self: stretch;
   min-width: 0;
-}
-
-/* ── The Rule ───────────────────────────────────────────────────────── */
-
-.page-rule {
-  position: absolute;
-  left: 0; top: 96px; bottom: 96px;
-  width: 168px;
-  z-index: 9;
-  opacity: 0;
-  transition: opacity 400ms var(--ease);
-}
-.page-rule.shown { opacity: 1; }
-.page-rule-field {
-  position: absolute;
-  left: 40px; top: 0; bottom: 0;
-  width: 112px;
-  cursor: pointer;
-}
-.page-rule-field:focus-visible { outline-offset: 8px; }
-.page-rule-spine { position: absolute; left: 0; top: 0; bottom: 0; width: 1px; background: var(--rule); }
-.page-rule-spine.covered { bottom: auto; background: var(--ink); }
-.page-rule-tick { position: absolute; left: 1px; width: 4px; height: 1px; background: var(--ink-3); }
-.page-rule-tick.major { width: 10px; background: var(--ink-2); }
-/* Pages with notes: a short mark on the other side, in the note colour. */
-.page-rule-note { position: absolute; left: -7px; width: 5px; height: 2px; margin-top: -0.5px; background: var(--note); }
-.page-rule-you { position: absolute; left: -8px; width: 32px; height: 1.5px; margin-top: -0.25px; background: var(--you); }
-.page-rule-hover { position: absolute; left: 0; width: 24px; height: 1px; background: var(--ink); }
-.page-rule-readout {
-  position: absolute;
-  left: 32px;
-  transform: translateY(-50%);
-  white-space: nowrap;
-  background: var(--ground);
-  padding: 0 4px;
 }
 
 /* ── Selection bubble ───────────────────────────────────────────────── */
@@ -166,16 +134,17 @@
 }
 .select-bubble-close { background: var(--sheet); border-left: 0; padding-left: 7px; padding-right: 7px; align-self: stretch; align-items: center; }
 
-/* Narrow screens: no margins for the Rule or the notes column. */
-@media (max-width: 1024px) {
-  .notes-column, .page-and-notes-container::before { display: none; }
-  .page-rule { display: none; }
-  .pdf-page-readout { display: inline; }
+/* Narrow screens: no room for the notes column. At the default 120% zoom a
+   page plus its notes needs 1046px, so the column goes below 1100px. */
+@media (max-width: 1100px) {
+  .notes-column { display: none; }
+  .pdf-title-author { display: none; }
 }
+/* Phones: the way out and the controls; the title gives way. */
 @media (max-width: 640px) {
-  .pdf-chrome { top: 8px; left: 8px; right: 8px; flex-wrap: wrap; }
-  .pdf-title-name { max-width: 52vw; }
-  .pdf-plate { min-height: 40px; padding: 0 12px; gap: 12px; }
-  .pdf-scroll { padding: 104px 0 48px; }
+  .pdf-chrome { grid-template-columns: auto minmax(0, 1fr); padding: 0 16px; gap: 16px; }
+  .pdf-title { display: none; }
+  .pdf-bar-end { gap: 16px; }
+  .pdf-scroll { padding: 64px 0 48px; }
   .page-and-notes-container { padding: 0 8px 16px; }
 }
