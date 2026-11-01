@@ -30,6 +30,13 @@ and applied before first paint by an inline script in `public/index.html`.
 Dark values live in `tokens.css` twice, once under the media query and once
 under `[data-theme="dark"]`; change both together.
 
+Changing the theme plays one flicker around the button
+(`components/ThemeBurst.js`): the logo's 15 spikes, from `logo.svg`'s own
+angles and proportions, flick outward and fade in about 520ms while the icon
+flashes the logo's orange and settles back to ink. It is the only other
+place the logo's orange appears, and it doesn't render under
+`prefers-reduced-motion`.
+
 | Token | Use |
 |---|---|
 | `--ground` | the app background |

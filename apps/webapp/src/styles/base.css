@@ -136,6 +136,40 @@ a:hover, .link:hover { text-decoration-color: var(--link); }
 .rail-mark { margin-bottom: 16px; }
 /* Theme sits at the foot of the rail, away from navigation. */
 .rail-theme { margin-top: auto; }
+
+/* The flicker when the theme changes (components/ThemeBurst.js): the logo's
+   spikes flick out from the icon and fade, and the icon flashes the logo's
+   orange before settling back to ink. One shot, 560ms. */
+.theme-burst {
+  position: absolute;
+  left: 50%; top: 50%;
+  width: 56px; height: 56px;
+  margin: -28px 0 0 -28px;
+  overflow: visible;
+  pointer-events: none;
+}
+.theme-burst path {
+  fill: rgb(255 77 6);
+  opacity: 0;
+  transform-box: view-box;
+  transform-origin: 0 0;
+  animation: theme-spike 520ms var(--ease) both;
+}
+@keyframes theme-spike {
+  0%   { opacity: 0;                         transform: rotate(var(--a)) translateY(-9px)  scaleY(0.3); }
+  30%  { opacity: var(--o);                  transform: rotate(var(--a)) translateY(-14px) scaleY(1); }
+  70%  { opacity: calc(var(--o) * 0.45);     transform: rotate(var(--a)) translateY(-19px) scaleY(0.9); }
+  100% { opacity: 0;                         transform: rotate(var(--a)) translateY(-22px) scaleY(0.6); }
+}
+.theme-flash { animation: theme-flash 560ms var(--ease) both; }
+@keyframes theme-flash {
+  0%, 35% { color: rgb(255 77 6); }
+  100%    { color: currentColor; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .theme-burst { display: none; }
+  .theme-flash { animation: none; }
+}
 .rail-mark svg { width: 28px; height: 28px; }
 
 .main {
