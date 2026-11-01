@@ -5,9 +5,8 @@ import { zoom as d3zoom, zoomIdentity } from 'd3-zoom';
 import apiService from '../api';
 import { toNote } from '../data/adapters';
 import { renderRich } from '../utils/render';
-import { plainText, relativeDate, RELATION_LABEL } from '../utils/format';
+import { failText, plainText, plural, relativeDate, RELATION_LABEL } from '../utils/format';
 import { Ic } from '../components/Icons';
-import { docColor } from '../utils/hue';
 
 // The note graph. Links are written by the backend's background linker —
 // nothing here creates them; the reader only browses and unlinks. Layout is
@@ -18,7 +17,6 @@ const POLL_MS = 60_000;
 const EASE = 'cubic-bezier(.2,.7,.2,1)';
 
 const nodeRadius = (degree) => 2.5 + Math.sqrt(degree) * 1.3;
-const hueFill = (hue) => docColor(hue);
 
 export default function GraphScreen({ focusId = null, onOpenDoc }) {
   const [notes, setNotes] = useState([]);
@@ -44,7 +42,7 @@ export default function GraphScreen({ focusId = null, onOpenDoc }) {
       setStats(ls.stats || null);
       setError(null);
     } catch (e) {
-      setError(e.message || String(e));
+      setError(failText('load graph', e));
     } finally {
       setLoading(false);
     }
@@ -95,7 +93,7 @@ export default function GraphScreen({ focusId = null, onOpenDoc }) {
       await apiService.rejectLink(link.id);
     } catch (e) {
       setUnlinked((m) => { const n = new Map(m); n.delete(link.id); return n; });
-      setError(e.message || String(e));
+      setError(failText('unlink', e));
     }
   };
 
@@ -104,7 +102,7 @@ export default function GraphScreen({ focusId = null, onOpenDoc }) {
       await apiService.restoreLink(link.id);
       setUnlinked((m) => { const n = new Map(m); n.delete(link.id); return n; });
     } catch (e) {
-      setError(e.message || String(e));
+      setError(failText('restore link', e));
     }
   };
 
@@ -124,9 +122,10 @@ export default function GraphScreen({ focusId = null, onOpenDoc }) {
 
   if (error && !notes.length) {
     return (
-      <div className="scroll" style={{ padding: '48px 64px' }}>
-        <div className="mono-sm" style={{ color: 'var(--ink-3)' }}>Couldn't load the graph.</div>
-        <div style={{ marginTop: 12, color: 'var(--ink-2)' }}>{error}</div>
+      <div className="scroll">
+        <div className="page">
+          <div className="notice"><p>{error}</p><button className="btn sm" onClick={refresh}>Retry</button></div>
+        </div>
       </div>
     );
   }
@@ -134,25 +133,23 @@ export default function GraphScreen({ focusId = null, onOpenDoc }) {
   const linkedCount = degree.size;
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'grid', gridTemplateColumns: '1fr 340px' }}>
-      <section style={{ display: 'flex', flexDirection: 'column', minWidth: 0, minHeight: 0 }}>
-        <header style={{ padding: '48px 64px 20px', borderBottom: '1px solid var(--rule)' }}>
-          <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 10 }}>
-            GRAPH · {liveLinks.length} LINK{liveLinks.length === 1 ? '' : 'S'} ACROSS {linkedCount} OF {notes.length} NOTES
-          </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
-            <h1 style={{ fontSize: 44, fontWeight: 400, letterSpacing: '-0.03em', flex: 1 }}>
-              Connections
-            </h1>
-            <div className="tweak-seg" style={{ marginBottom: 8, whiteSpace: 'nowrap' }}>
+    <div className="graph">
+      <section className="graph-main">
+        <header className="graph-head">
+          <div className="page-head">
+            <h1 className="t-h">Graph</h1>
+            <div className="tabs" role="group" aria-label="Show">
               <button aria-pressed={!showAll} onClick={() => setShowAll(false)}>Linked</button>
               <button aria-pressed={showAll} onClick={() => setShowAll(true)}>All notes</button>
             </div>
           </div>
-          <LinkerLine stats={stats}/>
+          <p className="t-small ink-2 graph-readout">
+            {plural(liveLinks.length, 'link')} across {linkedCount} of {plural(notes.length, 'note')}
+            <LinkerLine stats={stats}/>
+          </p>
         </header>
 
-        <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+        <div className="graph-canvas">
           {visible.length === 0 && !loading ? (
             <EmptyGraph stats={stats} hasNotes={notes.length > 0}/>
           ) : (
@@ -174,7 +171,7 @@ export default function GraphScreen({ focusId = null, onOpenDoc }) {
         </div>
       </section>
 
-      <aside className="scroll" style={{ borderLeft: '1px solid var(--rule)', padding: '48px 28px 64px' }}>
+      <aside className="graph-panel scroll" aria-label={selectedNote ? 'Selected note' : 'About the links'}>
         {selectedNote ? (
           <NotePanel
             note={selectedNote}
@@ -295,7 +292,7 @@ function GraphCanvas({ nodes, links, positions, degree, selected, focus, neighbo
       ref={svgRef}
       width="100%"
       height="100%"
-      style={{ display: 'block', cursor: 'grab', background: 'var(--paper)' }}
+      style={{ display: 'block', cursor: 'grab' }}
       onClick={(e) => { if (e.target === svgRef.current) onSelect(null); }}
       role="img"
       aria-label="Graph of linked notes"
@@ -310,7 +307,7 @@ function GraphCanvas({ nodes, links, positions, degree, selected, focus, neighbo
             <g key={l.id}>
               <line
                 x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                stroke={hot ? 'var(--accent)' : 'var(--rule-2)'}
+                stroke={hot ? 'var(--ink-2)' : 'var(--rule)'}
                 strokeWidth={hot ? 1.25 : 1}
                 vectorEffect="non-scaling-stroke"
                 style={{ opacity: neighbours != null && !hot ? 0.25 : 1, transition: `opacity 220ms ${EASE}, stroke 220ms ${EASE}` }}
@@ -349,8 +346,10 @@ function GraphCanvas({ nodes, links, positions, degree, selected, focus, neighbo
             >
               {/* Keyboard focus ring; the UA outline is suppressed in base.css. */}
               <circle className="graph-node-focus" r={p.r + 4} fill="none" stroke="var(--ink-3)" strokeWidth={1} vectorEffect="non-scaling-stroke"/>
-              {active && <circle r={p.r + 4} fill="none" stroke="var(--accent)" strokeWidth={1} vectorEffect="non-scaling-stroke"/>}
-              <circle r={p.r} fill={hueFill(n.sourceHue)} stroke="var(--paper)" strokeWidth={1.5} vectorEffect="non-scaling-stroke"/>
+              {/* The selected note is where you are: a you-colour ring. */}
+              {active && <circle r={p.r + 4} fill="none" stroke="var(--you)" strokeWidth={1.5} vectorEffect="non-scaling-stroke"/>}
+              {/* Nodes are the person's notes, so the note colour. */}
+              <circle r={p.r} fill="var(--note)" stroke="var(--ground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke"/>
             </g>
           );
         })}
@@ -363,11 +362,11 @@ function GraphCanvas({ nodes, links, positions, degree, selected, focus, neighbo
               y={l.y + l.h / 2}
               dominantBaseline="central"
               style={{
-                fontFamily: 'var(--sans)',
+                fontFamily: 'var(--small)',
                 fontSize: l.fs,
                 fill: l.id === focus ? 'var(--ink)' : 'var(--ink-2)',
                 paintOrder: 'stroke',
-                stroke: 'var(--paper)',
+                stroke: 'var(--ground)',
                 strokeWidth: l.fs * 0.3,
                 strokeLinejoin: 'round',
               }}
@@ -387,7 +386,7 @@ let measureCtx = null;
 function textWidth(text, fs) {
   try {
     measureCtx = measureCtx || document.createElement('canvas').getContext('2d');
-    measureCtx.font = `${fs}px 'R Sans'`;
+    measureCtx.font = `${fs}px 'Google Sans Flex'`;
     return measureCtx.measureText(text).width;
   } catch {
     return text.length * fs * 0.55;
@@ -403,7 +402,8 @@ const overlaps = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h
 function placeLabels({ nodes, positions, degree, focus, neighbours, scale }) {
   const fs = 11 / Math.max(scale, 0.6);
   const h = fs * 1.3;
-  const gap = 6 / Math.max(scale, 0.6);
+  // Clear of the 4px selection ring.
+  const gap = 10 / Math.max(scale, 0.6);
   let ids;
   if (neighbours != null) {
     ids = [focus, ...[...neighbours].filter((id) => id !== focus)
@@ -447,23 +447,9 @@ function placeLabels({ nodes, positions, degree, focus, neighbours, scale }) {
 function LinkTooltip({ hover }) {
   const { link, x, y } = hover;
   return (
-    <div
-      style={{
-        position: 'fixed',
-        left: x + 14,
-        top: y + 14,
-        maxWidth: 280,
-        padding: '10px 12px',
-        background: 'var(--paper)',
-        boxShadow: '0 0 0 1px var(--rule-2), 0 8px 24px -8px rgba(0,0,0,0.16)',
-        pointerEvents: 'none',
-        zIndex: 40,
-      }}
-    >
-      <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 4 }}>
-        {RELATION_LABEL[link.relation] || 'Linked'}
-      </div>
-      <div style={{ fontSize: 13, lineHeight: 1.45, color: 'var(--ink-2)' }}>{link.reason}</div>
+    <div className="graph-tip" style={{ left: x + 14, top: y + 14 }}>
+      <p className="t-small ink-3">{RELATION_LABEL[link.relation] || 'Linked'}</p>
+      {link.reason && <p className="t-note">{link.reason}</p>}
     </div>
   );
 }
@@ -471,30 +457,19 @@ function LinkTooltip({ hover }) {
 function LinkerLine({ stats }) {
   if (!stats) return null;
   let text;
-  if (!stats.enabled) text = 'LINKER · OFF';
-  else if (stats.last_error) text = `LINKER · RETRYING · ${stats.pending} PENDING`;
-  else if (stats.pending > 0) text = `LINKER · CHECKING · ${stats.pending} PENDING`;
-  else text = 'LINKER · UP TO DATE';
-  const last = stats.last_run ? ` · LAST PASS ${relativeDate(stats.last_run).toUpperCase()}` : '';
-  return (
-    <div className="mono-sm" style={{ color: 'var(--ink-4)', marginTop: 14 }}>
-      {text}{stats.enabled ? last : ''}
-    </div>
-  );
+  if (!stats.enabled) text = 'Linking off. Set META_API_KEY to enable.';
+  else if (stats.last_error) text = `Linking failed, retrying. ${stats.pending} pending.`;
+  else if (stats.pending > 0) text = `Checking ${plural(stats.pending, 'note')}.`;
+  else text = `Up to date${stats.last_run ? `, checked ${relativeDate(stats.last_run)}` : ''}.`;
+  return <span className="ink-3"> · {text}</span>;
 }
 
 function EmptyGraph({ stats, hasNotes }) {
   let line;
-  if (!hasNotes) line = 'No notes yet. Add notes to find connections between them.';
-  else if (stats && !stats.enabled) line = 'Automatic linking is off.';
-  else line = 'No connections found yet. Notes are checked in the background.';
-  return (
-    <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', padding: 48 }}>
-      <div style={{ maxWidth: 420, textAlign: 'center', color: 'var(--ink-3)', fontStyle: 'italic', lineHeight: 1.6 }}>
-        {line}
-      </div>
-    </div>
-  );
+  if (!hasNotes) line = 'No notes.';
+  else if (stats && !stats.enabled) line = 'No links. Linking off.';
+  else line = 'No links. Notes are checked in the background.';
+  return <p className="empty graph-empty">{line}</p>;
 }
 
 function Overview({ stats, notes, degree, onSelect }) {
@@ -506,41 +481,34 @@ function Overview({ stats, notes, degree, onSelect }) {
     [notes, degree],
   );
   return (
-    <div className="enter">
-      <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 14 }}>ABOUT THE LINKS</div>
-      <p style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-2)', marginBottom: 28 }}>
-        Connections are suggested by AI and checked a second time before appearing here.
-        Select a note to see the reason for each link. Links you remove won’t be suggested again.
+    <div className="graph-overview">
+      <p className="t-note">
+        Links are model-proposed, then independently verified. Removed links stay removed.
       </p>
 
       {stats && stats.proposed > 0 && (
-        // The two numbers that say whether the links are any good, as a
-        // quiet ledger line rather than dashboard tiles.
-        <div className="mono" style={{ color: 'var(--ink-3)', lineHeight: 1.7, marginBottom: 32 }}>
-          {stats.accepted} of {stats.proposed} proposals passed the second check.
-          <br/>
-          {stats.rejected} of {stats.active + stats.rejected} links unlinked by you.
-        </div>
+        // Whether the links are any good: how often verification agrees with
+        // the proposal, and how often you remove what passed.
+        <p className="t-small ink-2 graph-stats">
+          {stats.accepted} of {stats.proposed} proposals passed verification.<br/>
+          {stats.rejected} of {stats.active + stats.rejected} links removed by you.
+        </p>
       )}
 
       {hubs.length > 0 && (
-        <>
-          <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 10 }}>MOST CONNECTED</div>
-          {hubs.map((n) => (
-            <button
-              key={n.id}
-              onClick={() => onSelect(n.id)}
-              className="graph-row"
-              style={rowBtn}
-            >
-              <span style={{ width: 4, height: 4, borderRadius: '50%', flexShrink: 0, marginTop: 8, background: hueFill(n.sourceHue) }}/>
-              <span style={{ flex: 1, minWidth: 0, ...clamp(2), fontSize: 13.5, lineHeight: 1.45 }}>
-                {plainText(n.prompt || n.excerpt, 140)}
-              </span>
-              <span className="mono" style={{ color: 'var(--ink-4)' }}>{degree.get(n.id)}</span>
-            </button>
-          ))}
-        </>
+        <section>
+          <h2 className="t-small ink-2 panel-h">Most linked</h2>
+          <ul className="panel-list">
+            {hubs.map((n) => (
+              <li key={n.id}>
+                <button className="panel-row" onClick={() => onSelect(n.id)}>
+                  <span className="panel-row-text">{plainText(n.prompt || n.excerpt, 140)}</span>
+                  <span className="t-small ink-3">{degree.get(n.id)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
     </div>
   );
@@ -548,51 +516,40 @@ function Overview({ stats, notes, degree, onSelect }) {
 
 function NotePanel({ note, entries, unlinked, onSelect, onUnlink, onRestore, onOpenDoc }) {
   const live = entries.filter((e) => !unlinked.has(e.link.id));
+  const where = note.sourceTitle ? `${note.sourceTitle}${note.page ? ` · p.\u00a0${note.page}` : ''}` : 'Standalone';
   return (
-    <div key={note.id} className="enter">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-        <span style={{ width: 4, height: 4, borderRadius: '50%', background: hueFill(note.sourceHue) }}/>
-        <span className="mono-sm" style={{ color: 'var(--ink-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {note.sourceTitle ? `${note.sourceTitle.toUpperCase()} · p. ${note.page ?? '—'}` : 'STANDALONE'}
-        </span>
-        <button className="btn ghost xs" style={{ marginLeft: 'auto', padding: '2px 6px' }} onClick={() => onSelect(null)} aria-label="Close">
-          <Ic.Close size={14}/>
+    <div key={note.id} className="graph-note">
+      <div className="graph-note-head">
+        <span className="t-small ink-3 graph-note-where">{where}</span>
+        <button className="btn ghost sm quiet" onClick={() => onSelect(null)} aria-label="Close">
+          <Ic.Close size={16}/>
         </button>
       </div>
 
-      <div style={{ fontSize: 16, lineHeight: 1.55, color: 'var(--ink)', borderLeft: '1px solid var(--ink-4)', paddingLeft: 16 }}>
-        {renderRich(note.prompt || note.excerpt, { cloze: 'inline' })}
+      <div className="card graph-note-card">
+        <div className="graph-note-text">{renderRich(note.prompt || note.excerpt, { cloze: 'inline' })}</div>
+        {note.answer && <div className="t-note graph-note-answer">{renderRich(note.answer)}</div>}
       </div>
-      {note.answer && (
-        <div style={{ fontSize: 14, lineHeight: 1.6, color: 'var(--ink-2)', borderLeft: '1px solid var(--rule)', paddingLeft: 16, marginTop: 12 }}>
-          {renderRich(note.answer)}
-        </div>
-      )}
       {note.source != null && (
-        <button className="btn ghost xs" style={{ marginTop: 16, color: 'var(--ink-3)' }} onClick={() => onOpenDoc(note.source, note.id)}>
-          <span className="mono-sm">Open in source</span> <Ic.Right size={14}/>
+        <button className="btn ghost sm link graph-open" onClick={() => onOpenDoc(note.source, note.id)}>
+          Open in document
         </button>
       )}
 
-      <div className="mono-sm" style={{ color: 'var(--ink-4)', marginTop: 36, marginBottom: 6 }}>
-        CONNECTED · {live.length}
-      </div>
-      {entries.length === 0 && (
-        <div style={{ color: 'var(--ink-3)', fontStyle: 'italic', fontSize: 14, padding: '12px 0' }}>
-          Not linked to anything yet.
-        </div>
-      )}
-      {entries.map(({ link, other }) => (
-        <LinkEntry
-          key={link.id}
-          link={link}
-          other={other}
-          isUnlinked={unlinked.has(link.id)}
-          onSelect={onSelect}
-          onUnlink={onUnlink}
-          onRestore={onRestore}
-        />
-      ))}
+      <h2 className="t-small ink-2 panel-h">{live.length ? plural(live.length, 'link') : 'No links'}</h2>
+      <ul className="panel-list">
+        {entries.map(({ link, other }) => (
+          <LinkEntry
+            key={link.id}
+            link={link}
+            other={other}
+            isUnlinked={unlinked.has(link.id)}
+            onSelect={onSelect}
+            onUnlink={onUnlink}
+            onRestore={onRestore}
+          />
+        ))}
+      </ul>
     </div>
   );
 }
@@ -600,51 +557,27 @@ function NotePanel({ note, entries, unlinked, onSelect, onUnlink, onRestore, onO
 function LinkEntry({ link, other, isUnlinked, onSelect, onUnlink, onRestore }) {
   if (isUnlinked) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', padding: '14px 0', borderTop: '1px solid var(--rule)', color: 'var(--ink-4)' }}>
-        <span style={{ fontSize: 13, fontStyle: 'italic', flex: 1 }}>Unlinked. It won’t be suggested again.</span>
-        <button className="btn ghost xs" onClick={() => onRestore(link)}>Undo</button>
-      </div>
+      <li className="graph-link unlinked">
+        <span className="t-note">Unlinked.</span>
+        <button className="btn ghost sm link" onClick={() => onRestore(link)}>Undo</button>
+      </li>
     );
   }
   return (
-    <div className="graph-link" style={{ padding: '14px 0', borderTop: '1px solid var(--rule)' }}>
-      <div style={{ display: 'flex', alignItems: 'center', marginBottom: 6 }}>
-        <span className="mono-sm" style={{ color: 'var(--ink-4)', flex: 1 }}>
+    <li className="graph-link">
+      <div className="graph-link-head">
+        <span className="t-small ink-3">
           {RELATION_LABEL[link.relation] || 'Linked'}
-          {other.sourceTitle ? ` · ${other.sourceTitle.toUpperCase()}` : ' · STANDALONE'}
+          {other.sourceTitle ? ` · ${other.sourceTitle}` : ' · Standalone'}
         </span>
-        <button className="btn ghost xs graph-unlink" onClick={() => onUnlink(link)} aria-label="Unlink these notes">
+        <button className="btn ghost sm quiet graph-unlink" onClick={() => onUnlink(link)} aria-label="Unlink these notes">
           Unlink
         </button>
       </div>
-      <button onClick={() => onSelect(other.id)} style={{ ...rowBtn, padding: 0, marginBottom: 6 }}>
-        <span style={{ ...clamp(3), fontSize: 14, lineHeight: 1.5, color: 'var(--ink)' }}>
-          {plainText(other.prompt || other.excerpt, 220)}
-        </span>
+      <button className="panel-row" onClick={() => onSelect(other.id)}>
+        <span className="panel-row-text">{plainText(other.prompt || other.excerpt, 220)}</span>
       </button>
-      {link.reason && (
-        <div style={{ fontSize: 12.5, lineHeight: 1.5, color: 'var(--ink-3)' }}>{link.reason}</div>
-      )}
-    </div>
+      {link.reason && <p className="t-note">{link.reason}</p>}
+    </li>
   );
 }
-
-const rowBtn = {
-  width: '100%',
-  display: 'flex',
-  alignItems: 'flex-start',
-  gap: 10,
-  padding: '8px 0',
-  border: 0,
-  background: 'transparent',
-  color: 'var(--ink-2)',
-  textAlign: 'left',
-  cursor: 'pointer',
-};
-
-const clamp = (lines) => ({
-  display: '-webkit-box',
-  WebkitLineClamp: lines,
-  WebkitBoxOrient: 'vertical',
-  overflow: 'hidden',
-});

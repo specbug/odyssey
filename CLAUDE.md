@@ -40,17 +40,18 @@ Key backend modules:
 
 ### Frontend (apps/webapp)
 
-React 19 SPA built with Create React App. Rams-variant redesign — quiet,
-typographic, warm-bone. **Read `apps/webapp/DESIGN.md` before making any
-visual change** — it's the contract for fonts, accent usage, layout rhythm,
-and motion.
+React 19 SPA built with Create React App, set in the `rishit-design`
+system: cool neutrals, ink, four colour signals, R Sans + Google Sans Flex.
+**Read `apps/webapp/DESIGN.md` before making any visual change** — it's the
+contract for type, the colour signals, the instruments, layout and motion.
 
 Capabilities:
-- **PDF rendering**: react-pdf + react-window, per-page sticky-note rail
+- **PDF rendering**: react-pdf, lazily mounted page rows, a per-page notes column, and the page Rule (hidden until the pointer enters the left margin)
 - **Annotation**: selection → "Add note" bubble → inline capture drawer (cloze / recall / note)
 - **Cloze syntax**: `[[word]]` only; one `StudyCard` **per blank** — an annotation with N blanks produces N cards, each graded independently with the other blanks visible
-- **Review**: centered prompt, SPACE to reveal, 1–4 to grade, starburst tick progress; after reveal, up to 3 linked notes ("Connected", cloze blanks masked)
-- **Graph**: `GraphScreen` — d3-force layout (run to rest, then held still) in SVG, d3-zoom pan/zoom, side panel with each link's reason and Unlink / Undo; Notes rows with links show "N linked" → opens the graph on that note
+- **Review**: centred prompt, Space to reveal, 1–4 to grade in one grade strip (each cell shows the interval it would set), O opens the source page, Esc ends; the Comb in the left margin (one bar per card, length = interval, graded bars redrawn at the new interval) is hidden until hover; after reveal, up to 3 linked notes ("Linked", cloze blanks masked)
+- **Home**: due count, Review (R), documents in progress, and the due queue drawn on the time spiral
+- **Graph**: `GraphScreen` — d3-force layout (run to rest, then held still) in SVG, d3-zoom pan/zoom, side panel with each link's reason and Unlink / Undo; Note cards with links show "N links" → opens the graph on that note
 - **LaTeX + images**: KaTeX via `utils/render.js`; images via `[image:UUID]` markers + `/images/*`
 - **Routing**: state-based, persisted in `localStorage` keys `odyssey:route` /
   `odyssey:docId`, and mirrored onto the browser history stack by
@@ -62,15 +63,15 @@ Capabilities:
 Layout (`src/`):
 - `App.js` — shell + routing
 - `screens/{Home,Library,Notes,Graph,Pdf,Review}Screen.js`
-- `components/{Icons,Starburst,DocGlyph,Metric,Rail,StickyNote,InlineCaptureDrawer}.js`
+- `components/{Icons,Mark,Rail,StickyNote,InlineCaptureDrawer}.js` — Mark is the logo, drawn from `public/logo.svg`'s geometry
+- `components/{Comb,Spiral,PageRule}.js` — the three instruments (review, home, reader)
 - `components/ErrorBoundary.js` — catches a screen that throws mid-render and
   offers a way home, so a crash can't blank the shell
-- `hooks/useTimeHue.js` — sets `--accent-h` from hour of day
 - `hooks/useRouteHistory.js` — mirrors the route onto the browser history stack
-- `utils/{cloze,hue,format,render}.js`
+- `utils/{cloze,format,render}.js` — `format.js` has `fmtInterval`, `plural`, `failText`
 - `data/adapters.js` — API shape → design shape
-- `styles/{tokens,base,pdf}.css` — CSS vars + global rules
-- `fonts/` — R Sans / R Mono (bundled via webpack)
+- `styles/{tokens,base,screens,pdf}.css` — tokens; type roles + controls; per-screen layout (responsive rules live here, not inline); the reader
+- `fonts/` — R Sans, Google Sans Flex (instanced: opsz + wght only), R Mono (bundled via webpack)
 
 ### Native Mac App (apps/mac)
 
@@ -161,13 +162,13 @@ retired. An annotation with N `[[x]]` marks produces N `StudyCard`s
 target blank is hidden; the other blanks render with their answers visible,
 so the grader focuses on one cloze at a time.
 
-Parsing / rendering helpers live in `apps/webapp/src/utils/cloze.js`:
-- `hasCloze(text)` — detects any `[[...]]`
-- `extractAnswers(text)` — returns each answer in order
-- `renderClozeInline(text)` — HTML string, pill-shaped blanks with answer visible (used in StickyNote / NotesScreen previews)
-- `renderClozeReveal(text, revealed)` — JSX variant; note ReviewScreen instead
-  uses `utils/render.js:renderRich(text, { cloze: 'reveal', revealed, activeIndex })`
-  so only the blank at `activeIndex` hides.
+Parsing helpers live in `apps/webapp/src/utils/cloze.js` (`hasCloze`,
+`countCloze`, `extractAnswers`, `stripCloze`). Rendering is
+`utils/render.js:renderRich`: `{ cloze: 'inline' }` shows every answer with a
+note-colour underline (note cards, margin notes, graph panel);
+`{ cloze: 'reveal', revealed, activeIndex }` is ReviewScreen, where only the
+blank at `activeIndex` hides; `{ cloze: 'mask' }` hides every blank as `[…]`
+(linked notes during review).
 
 Backend side is `app/spaced_repetition.py:create_study_card` — idempotent;
 returns a list of cards, one per blank. Topping up after an edit that adds a
@@ -212,7 +213,8 @@ Key relationships:
 CASCADE deletion: deleting annotation deletes its study card and reviews.
 
 `PDFFile` carries design-layer metadata — `title`, `author`, `color_hue`
-(0–360), `excerpt` — populated on upload by `LibraryScreen` via pdfjs and/or
+(0–360; no longer written or shown by the web app since the rishit-design
+redesign, kept for the Mac app and old rows), `excerpt` — populated on upload by `LibraryScreen` via pdfjs and/or
 by the LLM background task (see below). All nullable so an upload never
 fails if extraction does. Precedence: the LLM wins. The pdfjs pass is a
 fallback for when the LLM is off or fails — its excerpt is a raw first-page
@@ -343,8 +345,9 @@ All API endpoints are documented in OpenAPI format at `/docs` when the backend i
   scripts that need a live server and are excluded by `pytest.ini`. For
   other endpoints, smoke-test via `curl` against `/health`,
   `/stats/dashboard`, `/annotations`, `/files`.
-- Web frontend: Jest / RTL via `bun run test`. No tests currently under
-  `src/` — the old `App.test.js` was removed with the redesign.
+- Web frontend: Jest / RTL via `bun run test` (`CI=true` to run once).
+  Covers route history, reader chrome auto-hide, and the format helpers +
+  the Comb's log scale (`utils/format.test.js`).
 - Mac app: XCTest (`swift test`).
 
 ## Environment Variables
@@ -495,13 +498,18 @@ The webapp follows a strict visual contract. **The full guide is
 
 One-paragraph summary so you don't reach for bad defaults:
 
-> Quiet paper, rare accent, information-dense glyphs — reading as ritual.
-> R Sans for UI + prose, R Mono for metadata / numerics / dates, Editorial
-> Serif for card bodies + empty-state italics. Accent color only appears in
-> review + active highlights + sticky-note left borders — everything else is
-> grayscale. Hue shifts by time of day via `--accent-h`. Motion is
-> `cubic-bezier(.2,.7,.2,1)` at 160–520ms depending on scale. 8px grid, 0
-> radius, 1px dividers. Cloze syntax is `[[word]]`.
+> Cool neutral ground, ink for everything. Colour only as four signals with
+> one meaning each: `--link` (followable), `--note` (the person's marks:
+> highlights, blanks, card edges, graph nodes), `--data` (computed values:
+> intervals), `--you` (where the person is). The orange logo in the rail is
+> the one exception. R Sans for running text, Google Sans Flex for small text
+> and every number, R Mono for code only; sentence case, no letter-spaced
+> uppercase labels. Elevation is a sheet colour plus a 1px rule, never a
+> shadow. 8px grid, 0 radius. Instruments (Comb, Spiral, page Rule) draw real
+> data and stay hidden until asked. No load-in animation; motion
+> `cubic-bezier(.2,.7,.2,1)` at 200–400ms. Light and dark via
+> `prefers-color-scheme`. Plain copy: "No documents.", "Couldn’t load
+> library. Server not responding." Cloze syntax is `[[word]]`.
 
 Quick pitfall list for future sessions:
 - Bare `<button>` leaks the browser's UA font — global `font-family: inherit`
@@ -509,11 +517,14 @@ Quick pitfall list for future sessions:
 - SQLite reuses rowids after a delete; never mark `/files/{id}/download`
   as `Cache-Control: immutable`. The frontend also cache-busts with
   `?v=<file_hash>`.
-- The sticky-note rail is **per-page** (inside react-window's
-  `PageRenderer`) — don't try to lift it outside the virtualizer.
+- The notes column is **per-page** (inside each lazily mounted page row) —
+  don't try to lift it out.
+- Marks on a PDF page use `--note-on-page` / `--link-on-page`: the canvas
+  stays white in dark mode, so they keep their light values.
 - Preserve the text-anchor → normalized_rects → pixel_rects fallback chain
   in `resolveAnnotationLocation`. Each method has subtle callers.
 
 ## Current Feature Branch
 
-Branch: `redesign-rams` — full webapp redesign (PR open).
+None. The `redesign-rams` redesign merged; the `rishit-design` redesign
+replaced its visual language (see `apps/webapp/DESIGN.md`).

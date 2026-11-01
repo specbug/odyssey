@@ -2,13 +2,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import apiService from '../api';
 import { toNote } from '../data/adapters';
 import { renderRich } from '../utils/render';
-import Starburst from '../components/Starburst';
 import InlineCaptureDrawer from '../components/InlineCaptureDrawer';
 import { Ic } from '../components/Icons';
-import { docColor } from '../utils/hue';
+import { failText, plural } from '../utils/format';
 
-// All-notes browser. Filter by source or tag, search by substring, create
-// standalone notes via the inline capture drawer as a modal.
+// Every note, as cards. Filter by source or tag, search by substring, and
+// write standalone notes in the capture drawer.
 export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
   const [notes, setNotes] = useState([]);
   const [files, setFiles] = useState([]);
@@ -17,7 +16,6 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
   const [filter, setFilter] = useState('all');
   const [q, setQ] = useState('');
   const [modal, setModal] = useState(null); // null | {kind:'new'} | {kind:'edit', note}
-  const [menuId, setMenuId] = useState(null); // id of note with open row menu
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -30,7 +28,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
       setFiles(fs);
       setError(null);
     } catch (e) {
-      setError(e.message || String(e));
+      setError(failText('load notes', e));
     } finally {
       setLoading(false);
     }
@@ -51,9 +49,9 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
       counts.set(key, (counts.get(key) || 0) + 1);
     });
     return files
-      .map((f) => ({ id: f.id, title: f.display_name || f.original_filename, hue: f.color_hue, count: counts.get(String(f.id)) || 0 }))
+      .map((f) => ({ id: f.id, title: f.display_name || f.original_filename, count: counts.get(String(f.id)) || 0 }))
       .filter((s) => s.count > 0)
-      .concat(counts.get('standalone') ? [{ id: 'standalone', title: 'Standalone', hue: null, count: counts.get('standalone') }] : []);
+      .concat(counts.get('standalone') ? [{ id: 'standalone', title: 'Standalone', count: counts.get('standalone') }] : []);
   }, [files, notes]);
 
   const filtered = useMemo(() => {
@@ -80,7 +78,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
       setModal(null);
       await refresh();
     } catch (e) {
-      setError(e.message || String(e));
+      setError(failText('save note', e));
     }
   };
 
@@ -91,17 +89,17 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
       setModal(null);
       await refresh();
     } catch (e) {
-      setError(e.message || String(e));
+      setError(failText('save note', e));
     }
   };
 
   const handleDelete = async (id) => {
     try {
       await apiService.deleteAnnotation(id);
-      setMenuId(null);
+      setModal(null);
       await refresh();
     } catch (e) {
-      setError(e.message || String(e));
+      setError(failText('delete note', e));
     }
   };
 
@@ -113,126 +111,103 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
     }
   };
 
-  if (error && !notes.length) {
-    return (
-      <div className="scroll" style={{ padding: '48px 64px' }}>
-        <div className="mono-sm" style={{ color: 'var(--ink-3)' }}>Couldn't load your notes.</div>
-        <div style={{ marginTop: 12, color: 'var(--ink-2)' }}>{error}</div>
-      </div>
-    );
-  }
+  const isSource = (id) => filter === id || filter === Number(id);
+  const filterName = filter === 'all' ? null
+    : filter === 'standalone' ? 'Standalone'
+    : sources.find((x) => x.id === Number(filter))?.title || filter;
 
   return (
-    <div className="scroll" style={{ padding: '48px 0 96px', display: 'grid', gridTemplateColumns: '260px 1fr' }}>
-      {/* Sidebar filter */}
-      <aside style={{ padding: '8px 24px 0 64px', position: 'sticky', top: 0 }}>
-        <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 14 }}>FILTER</div>
-        <button onClick={() => setFilter('all')} style={filterBtn(filter === 'all')}>
-          All notes <span className="mono" style={{ marginLeft: 'auto', color: 'var(--ink-4)' }}>{notes.length}</span>
-        </button>
-
-        {sources.length > 0 && (
-          <>
-            <div className="mono-sm" style={{ color: 'var(--ink-4)', marginTop: 24, marginBottom: 10 }}>BY SOURCE</div>
-            {sources.map((s) => (
-              <button key={s.id} onClick={() => setFilter(s.id === 'standalone' ? 'standalone' : Number(s.id))} style={filterBtn(filter === s.id || filter === Number(s.id))}>
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
-                  <span style={{ width: 4, height: 4, borderRadius: '50%', background: docColor(s.hue) }}/>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
-                </span>
-                <span className="mono" style={{ color: 'var(--ink-4)' }}>{s.count}</span>
-              </button>
-            ))}
-          </>
-        )}
-
-        {tags.length > 0 && (
-          <>
-            <div className="mono-sm" style={{ color: 'var(--ink-4)', marginTop: 24, marginBottom: 10 }}>BY TAG</div>
-            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+    <div className="scroll">
+      <div className="notes">
+        <aside className="notes-filter" aria-label="Filter">
+          <button className="filter" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>
+            <span>All notes</span><span className="t-small ink-3">{notes.length}</span>
+          </button>
+          {sources.map((x) => (
+            <button
+              key={x.id}
+              className="filter"
+              aria-pressed={isSource(x.id)}
+              onClick={() => setFilter(x.id === 'standalone' ? 'standalone' : Number(x.id))}
+            >
+              <span className="filter-name">{x.title}</span><span className="t-small ink-3">{x.count}</span>
+            </button>
+          ))}
+          {tags.length > 0 && (
+            <div className="filter-tags">
               {tags.map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setFilter(t)}
-                  className="mono"
-                  style={{
-                    padding: '4px 8px',
-                    border: '1px solid var(--rule)',
-                    borderRadius: 'var(--rad)',
-                    background: filter === t ? 'var(--ink)' : 'transparent',
-                    color: filter === t ? 'var(--paper)' : 'var(--ink-2)',
-                    fontSize: 11,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {t}
-                </button>
+                <button key={t} className="filter-tag t-small" aria-pressed={filter === t} onClick={() => setFilter(t)}>{t}</button>
               ))}
             </div>
-          </>
-        )}
-      </aside>
+          )}
+        </aside>
 
-      {/* Main notes list */}
-      <div style={{ padding: '0 64px 0 24px' }}>
-        <header style={{ paddingBottom: 28, borderBottom: '1px solid var(--rule)' }}>
-          <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 10 }}>
-            NOTES · {filtered.length} OF {notes.length}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12 }}>
-            <h1 style={{ fontSize: 44, fontWeight: 400, letterSpacing: '-0.03em', flex: 1 }}>
-              Notes
-            </h1>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 6 }}>
+        <div className="notes-main">
+          <header className="page-head">
+            <h1 className="t-h">Notes</h1>
+            <span className="page-head-end">
               {notes.length > 0 && (
-                <button className="btn ghost xs" onClick={beginReviewForFilter}>
-                  <Ic.Review/> Review cards
-                </button>
+                <button className="btn ghost quiet" onClick={beginReviewForFilter}>Review</button>
               )}
-              <button className="btn xs" onClick={() => setModal({ kind: 'new' })}>
-                <Ic.Plus/> New note
-              </button>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 18 }}>
-            <Ic.Search color="var(--ink-3)"/>
+              <button className="btn" onClick={() => setModal({ kind: 'new' })}>New note</button>
+            </span>
+          </header>
+
+          <label className="search">
+            <Ic.Search/>
             <input
+              type="search"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              placeholder="Search notes…"
-              style={{ flex: 1, border: 0, background: 'transparent', fontFamily: 'var(--sans)', fontSize: 16, color: 'var(--ink)', outline: 'none', padding: '6px 0' }}
+              placeholder="Search"
+              aria-label="Search notes"
             />
-          </div>
-        </header>
+            {(q || filter !== 'all') && (
+              <span className="t-small ink-3">{filtered.length} of {notes.length}</span>
+            )}
+          </label>
 
-        {filtered.length === 0 ? (
-          <div style={{ padding: '64px 24px', color: 'var(--ink-3)', textAlign: 'center', fontStyle: 'italic' }}>
-            {notes.length === 0
-              ? "No notes yet. Add a note or select text in a document."
-              : <>No notes match this search or filter. <button className="btn ghost xs" onClick={() => setFilter('all')}>Reset filter</button></>}
-          </div>
-        ) : (
-          <div className="enter-stagger">
+          <select
+            className="field notes-filter-select"
+            aria-label="Filter"
+            value={String(filter)}
+            onChange={(e) => {
+              const v = e.target.value;
+              setFilter(/^\d+$/.test(v) ? Number(v) : v);
+            }}
+          >
+            <option value="all">All notes ({notes.length})</option>
+            {sources.map((x) => <option key={x.id} value={String(x.id)}>{x.title} ({x.count})</option>)}
+            {tags.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+
+          {error && <div className="notice"><p>{error}</p>{!notes.length && <button className="btn sm" onClick={refresh}>Retry</button>}</div>}
+
+          {!loading && !error && filtered.length === 0 && (
+            <p className="empty">
+              {notes.length === 0 ? 'No notes.' : <>No matching notes{filterName ? ` in ${filterName}` : ''}. <button className="btn ghost sm link" onClick={() => { setFilter('all'); setQ(''); }}>Clear filter</button></>}
+            </p>
+          )}
+
+          <ul className="note-list">
             {filtered.map((n) => (
-              <NoteRow
-                key={n.id}
-                note={n}
-                menuOpen={menuId === n.id}
-                onMenuToggle={() => setMenuId(menuId === n.id ? null : n.id)}
-                onEdit={() => { setMenuId(null); setModal({ kind: 'edit', note: n }); }}
-                onDelete={() => handleDelete(n.id)}
-                onOpen={() => (n.source ? onOpenDoc(n.source, n.id) : setModal({ kind: 'edit', note: n }))}
-                onOpenGraph={onOpenGraph ? () => onOpenGraph(n.id) : null}
-              />
+              <li key={n.id}>
+                <NoteCard
+                  note={n}
+                  onOpen={() => (n.source ? onOpenDoc(n.source, n.id) : setModal({ kind: 'edit', note: n }))}
+                  onEdit={() => setModal({ kind: 'edit', note: n })}
+                  onOpenGraph={onOpenGraph ? () => onOpenGraph(n.id) : null}
+                />
+              </li>
             ))}
-          </div>
-        )}
+          </ul>
+        </div>
       </div>
 
       {modal?.kind === 'new' && (
         <InlineCaptureDrawer
           variant="modal"
-          title="NEW STANDALONE NOTE"
+          title="New note"
           onSave={handleNewNote}
           onCancel={() => setModal(null)}
         />
@@ -240,7 +215,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
       {modal?.kind === 'edit' && modal.note && (
         <InlineCaptureDrawer
           variant="modal"
-          title={modal.note.source ? 'EDITING NOTE' : 'EDITING STANDALONE NOTE'}
+          title="Edit note"
           initial={{
             type: modal.note.type,
             prompt: modal.note.prompt,
@@ -252,201 +227,43 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
           onDelete={() => handleDelete(modal.note.id)}
         />
       )}
-
-      {loading && (
-        <div className="mono-sm" style={{ color: 'var(--ink-4)', marginTop: 32, textAlign: 'center' }}>
-          …
-        </div>
-      )}
     </div>
   );
 }
 
-function NoteRow({ note, onEdit, onDelete, onOpen, onOpenGraph, menuOpen, onMenuToggle }) {
+// A note is something the person made and can act on, so it is a card: sheet,
+// rule on three sides, a 2px note-colour edge. Clicking opens it where it
+// lives: its page in the PDF, or the drawer for a standalone note.
+function NoteCard({ note, onOpen, onEdit, onOpenGraph }) {
+  const where = note.sourceTitle
+    ? `${note.sourceTitle}${note.page ? ` · p.\u00a0${note.page}` : ''}`
+    : 'Standalone';
   return (
-    <article
-      style={{
-        padding: '28px 0',
-        borderBottom: '1px solid var(--rule)',
-        display: 'grid',
-        gridTemplateColumns: '1fr 160px',
-        gap: 32,
-        alignItems: 'flex-start',
-        cursor: 'pointer',
-        transition: 'padding 220ms, background 220ms',
-        position: 'relative',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = 'var(--paper-2)';
-        e.currentTarget.style.paddingLeft = '12px';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = 'transparent';
-        e.currentTarget.style.paddingLeft = '0';
-      }}
-      onClick={onOpen}
-    >
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <span style={{ width: 4, height: 4, borderRadius: '50%', background: docColor(note.sourceHue) }}/>
-          <span className="mono-sm" style={{ color: 'var(--ink-3)' }}>
-            {note.sourceTitle ? `${note.sourceTitle.toUpperCase()} · p. ${note.page ?? '—'}` : 'STANDALONE'}
-          </span>
-          <span className="mono-sm" style={{ color: 'var(--ink-3)', letterSpacing: '0.1em', padding: '1px 8px', border: '1px solid var(--rule)', borderRadius: 'var(--rad)', background: 'var(--paper)' }}>
-            {(note.type || 'note').toUpperCase()}
-          </span>
-          <span className="mono-sm" style={{ color: 'var(--ink-4)', marginLeft: 'auto' }}>
-            {note.date.toUpperCase()}
-          </span>
-          <button
-            className="btn ghost xs"
-            style={{ padding: '2px 6px' }}
-            onClick={(e) => { e.stopPropagation(); onMenuToggle(); }}
-          >
-            <Ic.Dots/>
-          </button>
-          {menuOpen && (
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                position: 'absolute',
-                top: 42,
-                right: 0,
-                zIndex: 50,
-                background: 'var(--paper)',
-                border: '1px solid var(--rule-2)',
-                borderRadius: 'var(--rad)',
-                boxShadow: '0 8px 24px -8px rgba(0,0,0,0.16)',
-                padding: 4,
-                display: 'flex',
-                flexDirection: 'column',
-                minWidth: 120,
-              }}
-            >
-              <button className="btn ghost xs" style={{ justifyContent: 'flex-start' }} onClick={(e) => { e.stopPropagation(); onEdit(); }}>
-                Edit
-              </button>
-              <button className="btn ghost xs" style={{ justifyContent: 'flex-start', color: 'var(--accent)' }} onClick={(e) => { e.stopPropagation(); onDelete(); }}>
-                Delete
-              </button>
-            </div>
-          )}
+    <article className="card note-card hoverable">
+      <div className="note-card-head">
+        <span className="t-small ink-3 note-card-where">{where}</span>
+        {note.source != null && (
+          <button className="btn ghost sm quiet note-card-edit" onClick={onEdit}>Edit</button>
+        )}
+      </div>
+      <button className="note-card-body" onClick={onOpen}>
+        <div className="note-card-prompt">
+          {renderRich(note.prompt || note.excerpt, { cloze: note.type === 'cloze' ? 'inline' : 'none' })}
         </div>
-
-        {note.type === 'cloze' ? (
-          <blockquote
-            style={{
-              fontFamily: 'var(--sans)',
-              fontSize: 17,
-              lineHeight: 1.55,
-              color: 'var(--ink)',
-              borderLeft: '1px solid var(--ink-4)',
-              paddingLeft: 20,
-            }}
-          >
-            {renderRich(note.prompt || note.excerpt, { cloze: 'inline' })}
-          </blockquote>
-        ) : note.type === 'recall' ? (
-          <>
-            <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 6, letterSpacing: '0.08em' }}>Q.</div>
-            <div
-              style={{
-                fontFamily: 'var(--sans)',
-                fontSize: 17,
-                lineHeight: 1.55,
-                color: 'var(--ink)',
-                marginBottom: 14,
-                borderLeft: '1px solid var(--ink-4)',
-                paddingLeft: 20,
-              }}
-            >
-              {renderRich(note.prompt || note.excerpt)}
-            </div>
-            {note.answer && (
-              <>
-                <div className="mono-sm" style={{ color: 'var(--ink-4)', marginBottom: 6, letterSpacing: '0.08em' }}>A.</div>
-                <div
-                  style={{
-                    fontFamily: 'var(--sans)',
-                    fontSize: 14.5,
-                    lineHeight: 1.65,
-                    color: 'var(--ink-2)',
-                    paddingLeft: 20,
-                    borderLeft: '1px solid var(--rule)',
-                  }}
-                >
-                  {renderRich(note.answer)}
-                </div>
-              </>
-            )}
-          </>
-        ) : (
-          <blockquote
-            style={{
-              fontFamily: 'var(--sans)',
-              fontSize: 17,
-              lineHeight: 1.55,
-              color: 'var(--ink)',
-              borderLeft: '1px solid var(--ink-4)',
-              paddingLeft: 20,
-            }}
-          >
-            {renderRich(note.prompt || note.excerpt)}
-          </blockquote>
+        {note.type === 'recall' && note.answer && (
+          <div className="t-note note-card-answer">{renderRich(note.answer)}</div>
         )}
-
-        {note.tags && note.tags.length > 0 && (
-          <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
-            {note.tags.map((t) => (
-              <span key={t} className="mono" style={{ fontSize: 10.5, color: 'var(--ink-3)', letterSpacing: '0.05em' }}>
-                #{t}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 10 }}>
-        <Starburst
-          prompts={Array.from({ length: Math.min(12, Math.max(3, Math.ceil((note.stability || 4) / 4))) }, () => ({ days: note.stability || 4, state: 'review' }))}
-          size={72}
-          innerRadius={4}
-          thickness={0.8}
-          color="var(--ink-3)"
-          maxLength={0.9}
-        />
-        {note.linkCount > 0 && onOpenGraph && (
-          <button
-            className="btn ghost xs"
-            style={{ padding: '2px 6px', color: 'var(--ink-3)' }}
-            onClick={(e) => { e.stopPropagation(); onOpenGraph(); }}
-            title="Show in graph"
-          >
-            <Ic.Graph size={14}/>
-            <span className="mono-sm">{note.linkCount} linked</span>
-          </button>
-        )}
-      </div>
+      </button>
+      {(note.tags?.length > 0 || (note.linkCount > 0 && onOpenGraph)) && (
+        <div className="note-card-foot">
+          {note.linkCount > 0 && onOpenGraph && (
+            <button className="btn ghost sm link" onClick={onOpenGraph}>{plural(note.linkCount, 'link')}</button>
+          )}
+          {note.tags?.length > 0 && <span className="t-small ink-3">{note.tags.join(', ')}</span>}
+        </div>
+      )}
     </article>
   );
-}
-
-function filterBtn(active) {
-  return {
-    width: '100%',
-    display: 'flex',
-    alignItems: 'center',
-    gap: 8,
-    padding: '7px 10px',
-    marginBottom: 2,
-    border: 0,
-    borderRadius: 'var(--rad)',
-    background: active ? 'var(--paper-2)' : 'transparent',
-    color: active ? 'var(--ink)' : 'var(--ink-2)',
-    fontFamily: 'var(--sans)',
-    fontSize: 13,
-    cursor: 'pointer',
-    textAlign: 'left',
-  };
 }
 
 // Used for POST /annotations (standalone create). `null` anchor fields are

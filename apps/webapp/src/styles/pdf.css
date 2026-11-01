@@ -1,53 +1,87 @@
-/* PdfScreen layout. Each react-window row renders one page on the left
-   and its sticky-note rail on the right — the rail reads as continuous
-   because pages stack, but each note lives inside its page's virtualized cell. */
+/* The reader. Each page row holds the page and, beside it, its notes column:
+   the column reads as one continuous margin because pages stack, but each
+   note lives inside its own page's lazily mounted row. */
+
+.pdf-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--ground);
+  display: flex;
+  flex-direction: column;
+}
+
+.pdf-scroll { padding: 80px 0; }
+
+/* ── Chrome: hides while you read, returns on pointer or focus ───────── */
 
 .pdf-chrome {
-  opacity: 1;
-  transition: opacity 280ms cubic-bezier(.2,.7,.2,1);
-}
-
-.pdf-chrome-hidden {
-  opacity: 0;
+  position: absolute;
+  top: 16px; left: 16px; right: 16px;
+  z-index: 10;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
   pointer-events: none;
-}
-
-/* Hidden controls remain in the tab order and reveal immediately on focus. */
-.pdf-chrome:has(:focus-visible) {
   opacity: 1;
-  pointer-events: auto;
-  transition: none;
+  transition: opacity 280ms var(--ease);
 }
+.pdf-chrome > * { pointer-events: auto; }
+.pdf-chrome-hidden { opacity: 0; }
+.pdf-chrome-hidden > * { pointer-events: none; }
+/* Hidden controls stay in the tab order and return at once on focus. */
+.pdf-chrome:has(:focus-visible) { opacity: 1; transition: none; }
+.pdf-chrome:has(:focus-visible) > * { pointer-events: auto; }
 
-@media (prefers-reduced-motion: reduce) {
-  .pdf-chrome { transition: none; }
+.pdf-plate {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 48px;
+  padding: 0 16px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
 }
+.pdf-plate-title { min-width: 0; }
+.pdf-title { display: flex; flex-direction: column; min-width: 0; padding: 6px 0; border-left: 1px solid var(--rule); padding-left: 16px; }
+.pdf-title-name {
+  font-size: 15px;
+  font-weight: 540;
+  line-height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 44vw;
+}
+.pdf-zoom { display: flex; align-items: baseline; gap: 12px; }
+.pdf-zoom .t-small { min-width: 40px; justify-content: center; }
+/* The page readout lives on the Rule; it shows here only where the Rule
+   can't (no margin, no hover). */
+.pdf-page-readout { display: none; }
+
+/* ── Pages ──────────────────────────────────────────────────────────── */
 
 .pdf-screen .react-pdf__Page {
   position: relative !important;
   margin: 0 !important;
-  /* A paper-2 placeholder so pages that haven't painted yet read as "paper
-     settling into place", not a hard white rectangle popping into view. */
-  background: var(--paper-2) !important;
-  box-shadow: 0 0 0 1px var(--rule), 0 30px 80px -40px rgba(0,0,0,0.12) !important;
+  /* Unpainted pages are a sheet with a rule, not a white flash. */
+  background: var(--sheet) !important;
+  box-shadow: 0 0 0 1px var(--rule) !important;
 }
-
 .pdf-screen .react-pdf__Page__canvas {
   display: block !important;
   margin: 0 auto !important;
-  /* No fade-in. Overscan (10 pages each side in PdfScreen) now means the
-     canvas is painted well before it enters the viewport; a 320ms opacity
-     ramp on top of an already-painted canvas just reads as "the page is
-     refreshing." Letting the canvas simply be visible when it's painted is
-     what makes this feel like a book, not a UI. */
 }
-
 .pdf-screen .react-pdf__Page__textContent {
   color: transparent !important;
   user-select: text;
 }
-
-/* PDF.js renders embedded link borders as CSS borders or SVG backgrounds. */
+.pdf-screen .react-pdf__Page__textContent ::selection {
+  background: color-mix(in oklab, var(--link-on-page) 28%, transparent);
+  color: inherit;
+}
+/* PDF.js draws embedded link borders as CSS borders or SVG backgrounds. */
 .pdf-screen .annotationLayer .linkAnnotation {
   border-color: transparent !important;
   background-image: none !important;
@@ -64,38 +98,84 @@
 .page-and-notes-container {
   display: flex;
   align-items: flex-start;
-  gap: 24px;
+  gap: 48px;
   padding: 0 24px 24px;
-  /* Center the whole page + rail when it fits. When zoom makes it wider
-     than the viewport, auto margins resolve to zero so the left gutter
-     stays reachable instead of overflowing into negative scroll space. */
+  /* Centre page + notes when they fit; when zoom makes them wider than the
+     viewport, auto margins resolve to zero so the left edge stays reachable. */
   width: max-content;
   margin: 0 auto;
-  box-sizing: border-box;
+}
+/* Balance the notes column so the page sits on the optical axis. */
+.page-and-notes-container::before {
+  content: "";
+  flex: 0 0 216px;
 }
 
-.page-wrapper {
-  position: relative;
-  flex: 0 0 auto;
-}
+.page-wrapper { position: relative; flex: 0 0 auto; }
 
-/* Notes column is a positioned ancestor so each sticky can absolute-position
-   itself next to its highlight's vertical position on the page. align-self
-   stretches the column to the row height (determined by the PDF page). */
+/* Notes column: positioned, so each note can sit level with its highlight. */
 .notes-column {
-  flex: 0 0 320px;
+  flex: 0 0 216px;
   position: relative;
   align-self: stretch;
   min-width: 0;
 }
 
-/* On narrow viewports, hide the rail to protect reading. */
-@media (max-width: 1024px) {
-  .notes-column { display: none; }
+/* ── The Rule ───────────────────────────────────────────────────────── */
+
+.page-rule {
+  position: absolute;
+  left: 0; top: 96px; bottom: 96px;
+  width: 168px;
+  z-index: 9;
+  opacity: 0;
+  transition: opacity 400ms var(--ease);
+}
+.page-rule.shown { opacity: 1; }
+.page-rule-field {
+  position: absolute;
+  left: 40px; top: 0; bottom: 0;
+  width: 112px;
+  cursor: pointer;
+}
+.page-rule-field:focus-visible { outline-offset: 8px; }
+.page-rule-spine { position: absolute; left: 0; top: 0; bottom: 0; width: 1px; background: var(--rule); }
+.page-rule-spine.covered { bottom: auto; background: var(--ink); }
+.page-rule-tick { position: absolute; left: 1px; width: 4px; height: 1px; background: var(--ink-3); }
+.page-rule-tick.major { width: 10px; background: var(--ink-2); }
+/* Pages with notes: a short mark on the other side, in the note colour. */
+.page-rule-note { position: absolute; left: -7px; width: 5px; height: 2px; margin-top: -0.5px; background: var(--note); }
+.page-rule-you { position: absolute; left: -8px; width: 32px; height: 1.5px; margin-top: -0.25px; background: var(--you); }
+.page-rule-hover { position: absolute; left: 0; width: 24px; height: 1px; background: var(--ink); }
+.page-rule-readout {
+  position: absolute;
+  left: 32px;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  background: var(--ground);
+  padding: 0 4px;
 }
 
-/* Selection caret on the text layer should still feel live */
-.pdf-screen .react-pdf__Page__textContent ::selection {
-  background: color-mix(in oklab, var(--accent) 35%, transparent);
-  color: inherit;
+/* ── Selection bubble ───────────────────────────────────────────────── */
+
+.select-bubble {
+  position: fixed;
+  z-index: 30;
+  display: flex;
+  gap: 0;
+}
+.select-bubble-close { background: var(--sheet); border-left: 0; padding-left: 7px; padding-right: 7px; align-self: stretch; align-items: center; }
+
+/* Narrow screens: no margins for the Rule or the notes column. */
+@media (max-width: 1024px) {
+  .notes-column, .page-and-notes-container::before { display: none; }
+  .page-rule { display: none; }
+  .pdf-page-readout { display: inline; }
+}
+@media (max-width: 640px) {
+  .pdf-chrome { top: 8px; left: 8px; right: 8px; flex-wrap: wrap; }
+  .pdf-title-name { max-width: 52vw; }
+  .pdf-plate { min-height: 40px; padding: 0 12px; gap: 12px; }
+  .pdf-scroll { padding: 104px 0 48px; }
+  .page-and-notes-container { padding: 0 8px 16px; }
 }

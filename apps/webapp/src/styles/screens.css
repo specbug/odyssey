@@ -1,0 +1,484 @@
+/* Per-screen layout. 8px grid: 8 / 16 / 24 / 32 / 48 / 64 / 96. Responsive
+   rules live here, not inline. */
+
+/* ── Shared page frame ──────────────────────────────────────────────── */
+
+.page {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 48px 48px 96px;
+}
+.page-head {
+  display: flex;
+  align-items: baseline;
+  gap: 32px;
+  min-height: 40px;
+  margin-bottom: 24px;
+}
+.page-head-end { margin-left: auto; display: flex; align-items: baseline; gap: 24px; }
+
+.empty { color: var(--ink-2); padding: 24px 0; }
+.notice {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 24px;
+}
+.notice p { flex: 1; }
+
+.overlay-message {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 24px;
+  background: var(--ground);
+  text-align: center;
+}
+.overlay-message .t-body { max-width: 480px; }
+.overlay-actions { display: flex; gap: 8px; justify-content: center; }
+
+/* Rows: documents in Home and Library. Hairlines separate; no cards. */
+.rows { list-style: none; border-top: 1px solid var(--rule); }
+.rows > li { border-bottom: 1px solid var(--rule); }
+.row {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 24px;
+  padding: 16px 0;
+  text-align: left;
+}
+.row-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.row-title {
+  font-size: 17px;
+  font-weight: 540;
+  line-height: 1.35;
+  transition: color 200ms var(--ease);
+}
+.row:hover .row-title { color: var(--link); }
+.row-end { white-space: nowrap; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.row-excerpt {
+  margin-top: 6px;
+  max-width: 560px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Home ───────────────────────────────────────────────────────────── */
+
+.home {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 96px 48px 96px;
+}
+.home-due {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 48px;
+  align-items: center;
+  min-height: 272px;
+}
+.home-count { font-size: 64px; }
+.home-review { margin-top: 32px; }
+.home-reading { margin-top: 64px; }
+.home-reading .t-h { margin-bottom: 16px; }
+.home-empty { margin-top: 48px; }
+
+/* Spiral */
+.spiral { margin: 0; display: flex; flex-direction: column; align-items: center; }
+.spiral svg { display: block; overflow: visible; }
+.spiral-label { font-family: var(--small); font-size: 11px; fill: var(--ink-3); font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 400ms var(--ease); }
+/* The scale's labels appear when you point at the figure. */
+.spiral:hover .spiral-label { opacity: 1; }
+.spiral-readout {
+  min-height: 20px;
+  max-width: 272px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Library ────────────────────────────────────────────────────────── */
+
+.library-row { display: grid; grid-template-columns: minmax(0, 1fr) 160px; gap: 24px; align-items: start; }
+.library-end {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 19px 0 16px;
+  text-align: right;
+}
+.library-actions { display: flex; gap: 16px; align-items: baseline; margin-top: 8px; }
+.library-delete { opacity: 0; transition: opacity 200ms var(--ease); }
+.library-row:hover .library-delete, .library-delete:focus-visible { opacity: 1; }
+@media (hover: none) { .library-delete { opacity: 1; } }
+
+/* ── Notes ──────────────────────────────────────────────────────────── */
+
+.notes {
+  display: grid;
+  grid-template-columns: 216px minmax(0, 640px);
+  gap: 48px;
+  justify-content: center;
+  padding: 48px 48px 96px;
+}
+.notes-filter {
+  position: sticky;
+  top: 48px;
+  align-self: start;
+  padding-top: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.filter {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 14px;
+  color: var(--ink-2);
+  text-align: left;
+  transition: color 200ms var(--ease);
+}
+.filter:hover { color: var(--ink); }
+.filter[aria-pressed="true"] { color: var(--ink); font-weight: 540; }
+.filter .t-small { margin-left: auto; }
+.filter-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.filter-tags { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 16px; }
+.filter-tag { color: var(--ink-2); }
+.filter-tag[aria-pressed="true"] { color: var(--ink); text-decoration: underline 1px; text-underline-offset: 0.22em; }
+.notes-filter-select { display: none; }
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-3);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 8px;
+  margin-bottom: 24px;
+}
+.search input {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font-size: 16px;
+  color: var(--ink);
+  padding: 4px 0;
+}
+.search input::placeholder { color: var(--ink-3); }
+.search input::-webkit-search-cancel-button { display: none; }
+
+.note-list { list-style: none; display: flex; flex-direction: column; gap: 16px; }
+.note-card { padding: 12px 14px; }
+.note-card-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.note-card-where { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-card-body { display: block; width: 100%; text-align: left; }
+.note-card-prompt { font-size: 16.5px; line-height: 1.55; }
+.note-card-answer { margin-top: 8px; }
+.note-card-foot { display: flex; align-items: baseline; gap: 16px; margin-top: 4px; }
+.note-card-edit { opacity: 0; transition: opacity 200ms var(--ease); padding-top: 0; padding-bottom: 0; line-height: inherit; }
+.note-card:hover .note-card-edit, .note-card-edit:focus-visible { opacity: 1; }
+@media (hover: none) { .note-card-edit { opacity: 1; } }
+
+/* ── Capture drawer ─────────────────────────────────────────────────── */
+
+.drawer { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; }
+.drawer-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 4px; }
+.drawer .field { font-size: 15px; }
+.drawer-hint { margin-top: -2px; }
+.drawer-tags { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.tag { color: var(--ink-2); border: 1px solid var(--rule); padding: 1px 6px; }
+.tag:hover { color: var(--ink); border-color: var(--ink-3); }
+.tag-input { border: 0; background: transparent; outline: none; color: var(--ink); width: 96px; padding: 2px 0; }
+.tag-input::placeholder { color: var(--ink-3); }
+.drawer-foot { display: flex; align-items: baseline; gap: 16px; margin-top: 4px; padding-top: 12px; border-top: 1px solid var(--rule); }
+.drawer-foot-end { margin-left: auto; display: flex; gap: 16px; align-items: baseline; }
+.drawer-modal {
+  position: fixed;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 560px;
+  max-width: calc(100vw - 32px);
+  z-index: 1000;
+}
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: color-mix(in oklab, var(--ground) 72%, transparent);
+}
+
+/* Sticky notes in the reader's margin */
+.sticky { display: flex; flex-direction: column; gap: 4px; opacity: 0.72; transition: opacity 200ms var(--ease), border-color 200ms var(--ease); }
+.sticky:hover, .sticky:focus-visible, .sticky[data-active="true"] { opacity: 1; }
+.sticky-body {
+  font-size: 13.5px;
+  line-height: 1.48;
+  color: var(--ink);
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sticky-answer {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  padding-top: 4px;
+  border-top: 1px solid var(--rule);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* ── Review ─────────────────────────────────────────────────────────── */
+
+.review {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--ground);
+  overflow: auto;
+}
+.review-message, .review-done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+}
+.review-exit { position: absolute; top: 16px; left: 32px; z-index: 2; }
+
+/* The Comb sits in the 168px instrument margin, on the prompt's axis. */
+.review-margin {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 200px;
+  padding: 30vh 0 0 32px;
+}
+/* The whole margin is the hover target, not just the Comb's box. */
+.review-margin:hover .comb-half { opacity: 1; }
+.review-strip { display: none; }
+
+.review-stage {
+  width: 640px;
+  max-width: calc(100vw - 48px);
+  margin: 0 auto;
+  padding: 30vh 0 96px;
+  transition: opacity 280ms var(--ease), transform 280ms var(--ease);
+}
+.review-stage.revealed { padding-top: 20vh; }
+.review-stage.leaving { opacity: 0; transform: translateY(-16px); }
+.review-source { margin-bottom: 16px; }
+.review-prompt {
+  font-size: 27px;
+  line-height: 1.42;
+  letter-spacing: -0.006em;
+  text-wrap: pretty;
+}
+.review-reveal { margin-top: 48px; }
+.review-after { margin-top: 32px; }
+.review-answer { padding-top: 24px; border-top: 1px solid var(--rule); margin-bottom: 32px; }
+
+/* Graded options: one bordered strip divided by hairlines. Each cell gives
+   the label, its key and its consequence. */
+.grades {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--rule);
+  background: var(--sheet);
+}
+.grade {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  text-align: left;
+  transition: background-color 200ms var(--ease);
+}
+.grade + .grade { border-left: 1px solid var(--rule); }
+.grade:hover { background: var(--ground); }
+.grade-head { display: flex; align-items: baseline; justify-content: space-between; }
+.grade-label { font-size: 15px; font-weight: 540; }
+
+.review-source-link { display: flex; justify-content: flex-end; margin-top: 8px; }
+.review-linked { margin-top: 48px; }
+.review-linked h2 { margin-bottom: 8px; }
+.review-linked ul { list-style: none; border-top: 1px solid var(--rule); }
+.review-linked li { padding: 12px 0; border-bottom: 1px solid var(--rule); }
+.review-linked-text { font-size: 15px; line-height: 1.5; color: var(--ink-2); margin-bottom: 4px; }
+
+.review-done-body { display: flex; flex-direction: column; align-items: flex-start; gap: 32px; width: 320px; }
+.review-done-count { font-size: 40px; }
+
+/* ── Comb ───────────────────────────────────────────────────────────── */
+
+.comb { position: relative; transition: opacity 400ms var(--ease); }
+/* In review the Comb is hidden until the pointer enters the margin or it
+   takes focus. Touch screens have no hover, so there it rests at half
+   strength. */
+.comb-half { opacity: 0; }
+.comb-half:hover, .comb-half:focus-within { opacity: 1; }
+@media (hover: none) { .comb-half { opacity: 0.55; } }
+.comb-field { position: relative; }
+.comb-v .comb-field { width: 100%; }
+.comb-grid { position: absolute; top: -4px; bottom: -4px; width: 1px; background: var(--grid); }
+.comb-spine { position: absolute; background: var(--rule); }
+.comb-v .comb-spine { left: 0; top: 0; bottom: 0; width: 1px; }
+.comb-h .comb-spine { top: 0; left: 0; right: 0; height: 1px; }
+.comb-spine.covered { background: var(--ink); }
+.comb-v .comb-spine.covered { bottom: auto; }
+.comb-h .comb-spine.covered { right: auto; }
+
+.comb-bar, .comb-trace {
+  position: absolute;
+  transition: transform 400ms var(--ease), background-color 400ms var(--ease);
+}
+.comb-v .comb-bar, .comb-v .comb-trace { left: 0; width: 100%; transform-origin: 0 50%; }
+.comb-h .comb-bar, .comb-h .comb-trace { top: 0; height: 100%; transform-origin: 50% 0; }
+.comb-v .comb-bar { height: 1px; }
+.comb-h .comb-bar { width: 1px; }
+.comb-bar.pending { background: var(--ink); }
+.comb-v .comb-bar.current, .comb-v .comb-bar.graded { height: 2px; margin-top: -0.5px; }
+.comb-h .comb-bar.current, .comb-h .comb-bar.graded { width: 2px; margin-left: -0.5px; }
+.comb-bar.current { background: var(--you); }
+.comb-bar.graded { background: var(--data); }
+.comb-bar.hover { background: var(--ink); }
+/* The interval before grading: a dotted trace under the new bar. */
+.comb-v .comb-trace { height: 1px; background-image: linear-gradient(90deg, var(--ink-3) 50%, transparent 50%); background-size: 3px 1px; }
+.comb-h .comb-trace { width: 1px; background-image: linear-gradient(180deg, var(--ink-3) 50%, transparent 50%); background-size: 1px 3px; }
+
+.comb-scale { position: relative; height: 16px; margin-top: 8px; }
+.comb-scale span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.comb-readout { margin-top: 16px; min-height: 17px; white-space: nowrap; }
+.comb-h .comb-readout { margin-top: 8px; }
+
+/* ── Graph ──────────────────────────────────────────────────────────── */
+
+.graph { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 336px; }
+.graph-main { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+.graph-head { padding: 48px 48px 16px; border-bottom: 1px solid var(--rule); }
+.graph-head .page-head { margin-bottom: 4px; }
+.graph-canvas { position: relative; flex: 1; min-height: 0; }
+.graph-empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 48px; }
+.graph-panel { border-left: 1px solid var(--rule); padding: 48px 24px 64px; }
+.graph-tip {
+  position: fixed;
+  max-width: 280px;
+  padding: 8px 12px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  pointer-events: none;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.graph-stats { margin-top: 24px; }
+.panel-h { margin: 32px 0 8px; }
+.panel-list { list-style: none; border-top: 1px solid var(--rule); }
+.panel-list > li { border-bottom: 1px solid var(--rule); }
+.panel-row {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  text-align: left;
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.panel-row:hover .panel-row-text { color: var(--link); }
+.panel-row-text {
+  flex: 1;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  transition: color 200ms var(--ease);
+}
+.panel-row .t-small { margin-left: auto; }
+.graph-note-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.graph-note-where { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.graph-note-text { font-size: 15px; line-height: 1.5; }
+.graph-note-answer { margin-top: 8px; }
+.graph-open { margin-top: 8px; }
+.graph-link { padding: 12px 0; }
+.graph-link .panel-row { padding: 4px 0; }
+.graph-link.unlinked { display: flex; align-items: baseline; justify-content: space-between; }
+.graph-link-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.graph-unlink { opacity: 0; transition: opacity 200ms var(--ease); }
+.graph-link:hover .graph-unlink, .graph-unlink:focus-visible { opacity: 1; }
+@media (hover: none) { .graph-unlink { opacity: 1; } }
+/* Graph nodes are focusable <g>s: no UA outline, a hairline ring on
+   keyboard focus only. */
+.graph-node { outline: none; }
+.graph-node-focus { opacity: 0; transition: opacity 160ms var(--ease); }
+.graph-node:focus-visible .graph-node-focus { opacity: 1; }
+
+/* ── Narrow ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 1100px) {
+  .review-margin { display: none; }
+  .review-strip { display: block; position: absolute; top: 72px; left: 24px; right: 24px; }
+  .review-stage { padding-top: 22vh; }
+}
+
+@media (max-width: 960px) {
+  .notes { grid-template-columns: minmax(0, 1fr); padding: 32px 24px 96px; }
+  .notes-filter { display: none; }
+  .notes-filter-select { display: block; margin-bottom: 24px; }
+  .graph { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; }
+  .graph-panel { border-left: 0; border-top: 1px solid var(--rule); max-height: 40vh; padding: 24px; }
+}
+
+@media (max-width: 640px) {
+  .app { flex-direction: column-reverse; }
+  .rail {
+    width: 100%;
+    flex-direction: row;
+    justify-content: space-around;
+    border-right: 0;
+    border-top: 1px solid var(--rule);
+    padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
+  }
+  .rail-mark { margin-bottom: 0; }
+  .rail-btn[aria-current="page"]::before { left: 10px; right: 10px; top: -5px; bottom: auto; width: auto; height: 2px; }
+  .page, .home { padding: 32px 24px 64px; }
+  .home-due { grid-template-columns: minmax(0, 1fr); gap: 32px; min-height: 0; }
+  .home-count { font-size: 44px; }
+  .home .spiral { align-items: flex-start; }
+  .page-head { flex-wrap: wrap; gap: 16px; }
+  .library-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .library-row .row { padding-bottom: 8px; }
+  .library-end { flex-direction: row; align-items: baseline; justify-content: flex-start; gap: 16px; padding: 0 0 16px; }
+  .library-actions { margin-top: 0; margin-left: auto; }
+  .graph-head { padding: 24px 24px 12px; }
+  .review-exit { left: 16px; }
+  .review-strip { left: 16px; right: 16px; top: 64px; }
+  .review-prompt { font-size: 22px; }
+  .review-stage { padding-top: 160px; max-width: calc(100vw - 32px); }
+  .review-stage.revealed { padding-top: 140px; }
+  .grade { padding: 12px 10px; }
+  .review-done-body { width: calc(100vw - 48px); }
+}
