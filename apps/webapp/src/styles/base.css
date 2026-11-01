@@ -134,6 +134,8 @@ a:hover, .link:hover { text-decoration-color: var(--link); }
   background: var(--you);
 }
 .rail-mark { margin-bottom: 16px; }
+/* Theme sits at the foot of the rail, away from navigation. */
+.rail-theme { margin-top: auto; }
 .rail-mark svg { width: 28px; height: 28px; }
 
 .main {

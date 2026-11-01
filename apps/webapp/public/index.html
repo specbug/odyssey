@@ -40,6 +40,13 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>Odyssey</title>
+    <!-- Apply a pinned theme before first paint (see src/hooks/useTheme.js). -->
+    <script>
+      try {
+        var t = localStorage.getItem('odyssey:theme');
+        if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>

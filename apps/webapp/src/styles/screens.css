@@ -464,6 +464,7 @@
     padding: 4px 8px calc(4px + env(safe-area-inset-bottom));
   }
   .rail-mark { margin-bottom: 0; }
+  .rail-theme { margin-top: 0; }
   .rail-btn[aria-current="page"]::before { left: 10px; right: 10px; top: -5px; bottom: auto; width: auto; height: 2px; }
   .page, .home { padding: 32px 24px 64px; }
   .home-due { grid-template-columns: minmax(0, 1fr); gap: 32px; min-height: 0; }

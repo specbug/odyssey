@@ -1,10 +1,17 @@
 import React from 'react';
 import Mark from './Mark';
 import { Ic } from './Icons';
+import useTheme from '../hooks/useTheme';
+
+// The label names the current setting; clicking moves to the next.
+const THEME_LABEL = { system: 'Theme: system', light: 'Theme: light', dark: 'Theme: dark' };
+const THEME_ICON = { system: Ic.System, light: Ic.Sun, dark: Ic.Moon };
 
 // Left navigation. The logo is the Home button. Hidden on the PDF and review
 // routes (App decides).
 export default function Rail({ route, onNav }) {
+  const { theme, cycle } = useTheme();
+  const ThemeIcon = THEME_ICON[theme];
   const btn = (target, label, Icon) => (
     <button
       className="rail-btn"
@@ -32,6 +39,14 @@ export default function Rail({ route, onNav }) {
       {btn('notes', 'Notes', Ic.Notes)}
       {btn('graph', 'Graph', Ic.Graph)}
       {btn('review', 'Review', Ic.Review)}
+      <button
+        className="rail-btn rail-theme"
+        aria-label={`${THEME_LABEL[theme]}. Change theme`}
+        title={THEME_LABEL[theme]}
+        onClick={cycle}
+      >
+        <ThemeIcon/>
+      </button>
     </nav>
   );
 }

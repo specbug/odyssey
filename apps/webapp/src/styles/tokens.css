@@ -103,8 +103,13 @@
   --ease: cubic-bezier(.2, .7, .2, 1);
 }
 
+/* Dark values. They apply when the system is dark and the person hasn't
+   chosen light, or when they've chosen dark. The choice is `data-theme` on
+   <html>, set by hooks/useTheme.js (and before first paint by the inline
+   script in public/index.html). The block is repeated because a media query
+   and an attribute selector can't share one rule. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --ground: oklch(0.175 0.004 250);
     --sheet:  oklch(0.205 0.004 250);
     --ink:    oklch(0.925 0.003 250);
@@ -126,3 +131,26 @@
     --body-weight: 425;
   }
 }
+:root[data-theme="dark"] {
+  --ground: oklch(0.175 0.004 250);
+  --sheet:  oklch(0.205 0.004 250);
+  --ink:    oklch(0.925 0.003 250);
+  --ink-2:  oklch(0.70 0.004 250);
+  --ink-3:  oklch(0.55 0.004 250);
+  --rule:   oklch(0.30 0.004 250);
+  --grid:   oklch(0.245 0.004 250);
+
+  --link: oklch(0.74 0.12 250);
+  --note: oklch(0.78 0.14 62);
+  --data: oklch(0.76 0.13 152);
+  --you:  oklch(0.70 0.17 30);
+
+  --type-cloze:  oklch(0.70 0.15 15);
+  --type-recall: oklch(0.72 0.12 292);
+  --type-note:   oklch(0.76 0.08 200);
+
+  /* Light text on a dark ground blooms. */
+  --body-weight: 425;
+}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }

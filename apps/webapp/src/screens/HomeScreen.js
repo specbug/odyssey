@@ -54,7 +54,7 @@ export default function HomeScreen({ onOpenDoc, onStartReview }) {
   if (loading) return <div className="scroll"/>;
 
   const reading = files
-    .filter((d) => d.read > 0 && d.pages && d.read < d.pages)
+    .filter((d) => d.read > 0 && d.pages && d.read < d.pages - 1) // read is 0-based; last page = done
     .sort((a, b) => (b.raw?.last_accessed || '').localeCompare(a.raw?.last_accessed || ''))
     .slice(0, 4);
 

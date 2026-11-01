@@ -23,7 +23,12 @@ layout and every responsive rule in `screens.css` and `pdf.css`.
 ## Colour
 
 Cool neutral ground, ink for everything. Light and dark follow
-`prefers-color-scheme`.
+`prefers-color-scheme` unless the person pins one with the theme button at
+the foot of the rail (system → light → dark). The choice is `data-theme` on
+`<html>`, remembered in localStorage `odyssey:theme` by `hooks/useTheme.js`
+and applied before first paint by an inline script in `public/index.html`.
+Dark values live in `tokens.css` twice, once under the media query and once
+under `[data-theme="dark"]`; change both together.
 
 | Token | Use |
 |---|---|
@@ -78,8 +83,8 @@ No uppercase letter-spaced labels, no monospace for words.
 8px grid: 8 / 16 / 24 / 32 / 48 / 64 / 96. Radius 0. Elevation is `--sheet`
 plus a 1px rule, never a shadow. Empty space stays empty.
 
-- **Shell:** a 64px rail (logo/Home, Library, Notes, Graph, Review) and the
-  main column. Under 640px the rail moves to the bottom edge.
+- **Shell:** a 64px rail (logo/Home, Library, Notes, Graph, Review, and the
+  theme button at its foot) and the main column. Under 640px the rail moves to the bottom edge.
 - **App screens** have one focal object. Page frame: 880px max, 48px gutters.
 - **Reader:** page centred on the optical axis, a 216px notes column on the
   right (balanced by an empty 216px column on the left), and the page Rule in
