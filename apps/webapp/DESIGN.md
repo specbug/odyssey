@@ -32,9 +32,10 @@ Dark values live in `tokens.css` twice, once under the media query and once
 under `[data-theme="dark"]`; change both together.
 
 Changing the theme plays one flicker around the button
-(`components/ThemeBurst.js`): 15 shards, kept from the original logo's
-geometry, flick outward and fade in about 520ms while the icon
-flashes the logo's orange and settles back to ink. It is the only other
+(`components/ThemeEcho.js`), drawn from the logo: two pairs of brackets
+spring outward from the icon one after the other, reading as `[[ ]]` for a
+moment, while the orange blank flashes under it and the icon flashes the
+logo's orange before settling back to ink. About 560ms. It is the only other
 place the logo's orange appears, and it doesn't render under
 `prefers-reduced-motion`.
 
