@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import apiService from '../api';
 import { toLibraryDoc, toQueueCard, toStats, queueToStarburstPrompts } from '../data/adapters';
-import Starburst from '../components/Starburst';
+import Starburst, { Mark } from '../components/Starburst';
 import DocGlyph from '../components/DocGlyph';
 import Metric from '../components/Metric';
 import { Ic } from '../components/Icons';
@@ -111,11 +111,15 @@ export default function HomeScreen({ onNav, onOpenDoc, onStartReview }) {
           </div>
 
           <div style={{ position: 'relative', display: 'grid', placeItems: 'center', width: 300, height: 300, justifySelf: 'end' }}>
-            <Starburst
-              prompts={ritualPrompts.length ? ritualPrompts : [{ days: 3, state: 'new' }, { days: 7, state: 'new' }, { days: 14, state: 'new' }, { days: 30, state: 'new' }]}
-              size={300} innerRadius={22} maxLength={0.92} thickness={1.6}
-              color="var(--ink)"
-            />
+            {dueTotal > 0 ? (
+              <Starburst
+                prompts={ritualPrompts}
+                size={300} innerRadius={22} maxLength={0.92} thickness={1.6}
+                color="var(--ink)"
+              />
+            ) : (
+              <Mark size={240}/>
+            )}
             <div className="mono-sm" style={{ position: 'absolute', bottom: -4, left: '50%', transform: 'translateX(-50%)', color: 'var(--ink-4)', letterSpacing: '0.14em', whiteSpace: 'nowrap' }}>
               {dueTotal} DUE · {queue.filter((c) => c.state === 'Learning' || c.state === 'Relearning').length} LEARNING · {queue.filter((c) => c.state === 'Review').length} REVIEW
             </div>
