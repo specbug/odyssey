@@ -46,7 +46,7 @@ system: cool neutrals, ink, four colour signals, R Sans + Google Sans Flex.
 contract for type, the colour signals, the instruments, layout and motion.
 
 Capabilities:
-- **PDF rendering**: react-pdf, lazily mounted page rows, a per-page notes column, and one top bar (Library · title · page, zoom, Review) that hides while you read
+- **PDF rendering**: react-pdf, lazily mounted page rows, a per-page notes column, and one top bar (Library · title · page dial, zoom, Review) that hides while you read; the page dial (`components/PageDial.js`) is a sliding page tape you can drag to scrub
 - **Annotation**: selection → "Add note" bubble → inline capture drawer (cloze / recall / note)
 - **Cloze syntax**: `[[word]]` only; one `StudyCard` **per blank** — an annotation with N blanks produces N cards, each graded independently with the other blanks visible
 - **Review**: centred prompt, Space to reveal, 1–4 to grade in one grade strip (each cell shows the interval it would set), O opens the source page, Esc ends; the Comb in the left margin (one bar per card, length = interval, graded bars redrawn at the new interval) is always shown; after reveal, up to 3 linked notes ("Linked", cloze blanks masked)

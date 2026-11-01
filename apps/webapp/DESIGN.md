@@ -117,8 +117,7 @@ plus a 1px rule, never a shadow. Empty space stays empty.
   zoom a page and its notes need 1046px.
 - **Reader bar:** one full-width strip on `--ground` with a 1px rule under
   it, in three columns: `Library` on the left; the title (15px / 540) and
-  author centred; the page readout (`p. 6 of 120`), zoom and `Review N` on
-  the right. It hides while you read (`hooks/useReaderChrome.js`): a 280ms
+  author centred; the page dial, zoom and `Review N` on the right. It hides while you read (`hooks/useReaderChrome.js`): a 280ms
   fade with a slide up out of the way, back on scroll up, pointer or focus.
   On phones the title gives way.
 
@@ -146,6 +145,19 @@ The same log time axis wound into an Archimedean spiral: centre is now,
 the outer end one year. Each due card is a tick at its current interval, so
 new cards sit near the centre and well-learned ones far out. Scale labels
 (1 d, 1 wk, 1 mo, 1 yr) appear on hover; pointing at a tick reads the card.
+
+### Page dial (`components/PageDial.js`) — the reader's page readout
+
+In the reader bar, a 112 × 32 window onto a tape of pages that slides
+under a fixed index, like the scale on a lens: a tick per page, longer every
+5, numbered every 10, edges faded. The index is 1.5px in `--you`; the
+current page sits above it as a figure (Google Sans Flex 11 / 560, ink),
+and numbered ticks fade out as they near it. The tape follows the scroll
+continuously: PdfScreen hands it a fractional page from the scroll handler
+(`ref.setPosition`) and the dial moves its own DOM, so scrolling never
+re-renders the reader. `round(pos)` is the same page as the reader's
+midpoint counter. Drag the tape to scrub (4px a page); click a tick to jump
+there. It's a `role="slider"`; ←/→ already turn pages.
 
 ### Cards
 
