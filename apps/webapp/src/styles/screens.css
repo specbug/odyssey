@@ -95,6 +95,8 @@
 .home-empty { margin-top: 48px; }
 
 /* Spiral */
+/* No cards due: the logo sits where the spiral would, in the same 272px box. */
+.home-mark { width: 272px; height: 272px; display: grid; place-items: center; }
 .spiral { margin: 0; display: flex; flex-direction: column; align-items: center; }
 .spiral svg { display: block; overflow: visible; }
 .spiral-label { font-family: var(--small); font-size: 11px; fill: var(--ink-3); font-variant-numeric: tabular-nums; opacity: 0; transition: opacity 400ms var(--ease); }
@@ -463,6 +465,8 @@
   .home-due { grid-template-columns: minmax(0, 1fr); gap: 32px; min-height: 0; }
   .home-count { font-size: 44px; }
   .home .spiral { align-items: flex-start; }
+  .home-mark { width: auto; height: auto; place-items: start; }
+  .home-mark svg { width: 112px; height: 112px; }
   .page-head { flex-wrap: wrap; gap: 16px; }
   .library-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .library-row .row { padding-bottom: 8px; }

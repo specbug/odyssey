@@ -145,6 +145,8 @@ The same log time axis wound into an Archimedean spiral: centre is now,
 the outer end one year. Each due card is a tick at its current interval, so
 new cards sit near the centre and well-learned ones far out. Scale labels
 (1 d, 1 wk, 1 mo, 1 yr) appear on hover; pointing at a tick reads the card.
+With no cards due there is nothing to plot, so the logo (176px, 112px on a
+phone) takes the spiral's 272px box and the page keeps its shape.
 
 ### Page dial (`components/PageDial.js`) — the reader's page readout
 
