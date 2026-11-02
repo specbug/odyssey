@@ -3,14 +3,16 @@
   <head>
     <meta charset="utf-8" />
     <!-- Favicon for all browsers and contexts -->
-    <!-- SVG first: crisp at any size and follows light / dark. PNG / ICO for the rest. -->
-    <link rel="icon" href="%PUBLIC_URL%/favicon.svg" type="image/svg+xml" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" sizes="32x32" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon-16x16.png" sizes="16x16" type="image/png" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon-32x32.png" sizes="32x32" type="image/png" />
+    <!-- SVG first: crisp at any size. PNG / ICO for the rest. The ?v= query is a
+         cache-buster: browsers keep favicons long after the file changes, so
+         bump it whenever the logo files change. -->
+    <link rel="icon" href="%PUBLIC_URL%/favicon.svg?v=2" type="image/svg+xml" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico?v=2" sizes="32x32" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon-16x16.png?v=2" sizes="16x16" type="image/png" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon-32x32.png?v=2" sizes="32x32" type="image/png" />
 
     <!-- Apple devices -->
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/apple-touch-icon.png?v=2" />
     
     <!-- Android and PWA -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -22,7 +24,7 @@
     <meta name="description" content="A PDF reader with a long memory. Spaced repetition for every highlight." />
     <meta property="og:title" content="Odyssey" />
     <meta property="og:description" content="A PDF reader with a long memory. Spaced repetition for every highlight." />
-    <meta property="og:image" content="%PUBLIC_URL%/logo.png" />
+    <meta property="og:image" content="%PUBLIC_URL%/logo.png?v=2" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Odyssey" />

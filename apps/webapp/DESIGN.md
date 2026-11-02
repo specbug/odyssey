@@ -81,7 +81,9 @@ exported from those two: `favicon-16x16` and `favicon-32x32` from the 16px
 drawing (32 is it doubled), and `apple-touch-icon` (180), `logo-192` and
 `logo` (512) from the master, centred on `--ground` with 18% padding so they
 survive maskable cropping; `favicon.ico` bundles 16 and 32. Re-export them
-whenever the SVGs change.
+whenever the SVGs change, and bump the `?v=` on every icon link in
+`index.html` and `manifest.json`: browsers keep a favicon long after the
+file behind it changes.
 
 In the app, `components/Mark.js` draws the master at the top of the rail as
 the Home button: the brackets take `--ink`, the blank takes `--mark`
