@@ -73,8 +73,9 @@ light-mode values because the canvas stays white in dark mode.
 **The logo** is a cloze: square brackets in ink around one orange blank,
 `[_]`, the app's own syntax for the thing it does. `public/logo.svg` is the
 master (100-unit grid, 10-unit strokes, the blank sitting just above the
-bracket foot), and it follows light and dark through an embedded
-`prefers-color-scheme` rule. `public/favicon.svg` is the same mark redrawn on
+bracket foot). The logo is always black brackets (`#1f2124`) with the
+orange blank (`#ff4d06`), whatever the system or app theme: no dark variant in
+the files. `public/favicon.svg` is the same mark redrawn on
 the 16px grid with 2px strokes so every edge lands on a pixel. The PNGs are
 exported from those two: `favicon-16x16` and `favicon-32x32` from the 16px
 drawing (32 is it doubled), and `apple-touch-icon` (180), `logo-192` and
@@ -84,7 +85,10 @@ whenever the SVGs change.
 
 In the app, `components/Mark.js` draws the master at the top of the rail as
 the Home button: the brackets take `--ink`, the blank takes `--mark`
-(`#ff4d06`), the one colour outside the four signals, by decision. It
+(`#ff4d06`), the one colour outside the four signals, by decision. Inside
+the app the brackets go light only when the app itself is dark, because
+black brackets would vanish on the dark rail; everywhere else (favicon, app
+icon, link previews) the logo is black. It
 appears nowhere else but the theme flicker. The original starburst logo was
 retired because it sat too close to Claude's mark.
 
@@ -145,6 +149,8 @@ The same log time axis wound into an Archimedean spiral: centre is now,
 the outer end one year. Each due card is a tick at its current interval, so
 new cards sit near the centre and well-learned ones far out. Scale labels
 (1 d, 1 wk, 1 mo, 1 yr) appear on hover; pointing at a tick reads the card.
+With no cards due there is nothing to plot, so the logo (176px, 112px on a
+phone) takes the spiral's 272px box and the page keeps its shape.
 
 ### Page dial (`components/PageDial.js`) — the reader's page readout
 

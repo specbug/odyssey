@@ -50,7 +50,7 @@ Capabilities:
 - **Annotation**: selection → "Add note" bubble → inline capture drawer (cloze / recall / note)
 - **Cloze syntax**: `[[word]]` only; one `StudyCard` **per blank** — an annotation with N blanks produces N cards, each graded independently with the other blanks visible
 - **Review**: centred prompt, Space to reveal, 1–4 to grade in one grade strip (each cell shows the interval it would set), O opens the source page, Esc ends; the Comb in the left margin (one bar per card, length = interval, graded bars redrawn at the new interval) is always shown; after reveal, up to 3 linked notes ("Linked", cloze blanks masked)
-- **Home**: due count, Review (R), documents in progress, and the due queue drawn on the time spiral
+- **Home**: due count, Review (R), documents in progress, and the due queue drawn on the time spiral (the logo in its place when nothing is due)
 - **Graph**: `GraphScreen` — d3-force layout (run to rest, then held still) in SVG, d3-zoom pan/zoom, side panel with each link's reason and Unlink / Undo; Note cards with links show "N links" → opens the graph on that note
 - **LaTeX + images**: KaTeX via `utils/render.js`; images via `[image:UUID]` markers + `/images/*`
 - **Routing**: state-based, persisted in `localStorage` keys `odyssey:route` /

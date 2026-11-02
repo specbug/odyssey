@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import apiService from '../api';
 import { toLibraryDoc, toQueueCard } from '../data/adapters';
 import Spiral from '../components/Spiral';
+import Mark from '../components/Mark';
 import { failText, plainText, plural } from '../utils/format';
 
 // Home: what is due, what you are partway through, and today's queue drawn
@@ -70,8 +71,12 @@ export default function HomeScreen({ onOpenDoc, onStartReview }) {
               </button>
             )}
           </div>
-          {due > 0 && (
+          {due > 0 ? (
             <Spiral items={queue.map((c) => ({ id: c.id, days: c.interval, label: plainText(c.prompt, 64) }))}/>
+          ) : (
+            // Nothing to draw on the spiral: the mark holds its place, so the
+            // page keeps its shape between a due day and a quiet one.
+            <div className="home-mark" aria-hidden="true"><Mark size={176}/></div>
           )}
         </section>
 
