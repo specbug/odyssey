@@ -1,29 +1,18 @@
 # @odyssey/ui-foundation
 
-Centralized design tokens for Odyssey clients (web, macOS, future surfaces). Tokens mirror the values in `apps/webapp/src/App.css` and are meant to stay source-of-truth for colors, typography, spacing, and radii.
+Design tokens for the macOS app: colours, type, spacing and radii, in
+[`tokens.json`](tokens.json), with a JavaScript export in `index.js`.
 
-## Usage
+These are the tokens of Odyssey's earlier design. The web app has since moved
+to the system in [`apps/webapp/DESIGN.md`](../../apps/webapp/DESIGN.md), whose
+tokens live in `apps/webapp/src/styles/tokens.css`. Bringing the macOS app
+across is open work.
+
+## Sync into the macOS app
 
 ```bash
-npm install --save-dev @odyssey/ui-foundation
+./scripts/sync-design-tokens.sh
 ```
 
-```ts
-import { colors, spacing } from "@odyssey/ui-foundation";
-
-const toolbarStyle = {
-  background: `linear-gradient(135deg, ${colors.background}, ${colors.secondaryBackground})`,
-  padding: spacing.lg,
-};
-```
-
-## Swift Integration
-
-- A build step will export `tokens.json` into the macOS app bundle.
-- `DesignTokens.swift` can decode the JSON for runtime updates (currently hard-coded with the same values until the pipeline lands).
-
-## Updating Tokens
-
-1. Modify `tokens.json`.
-2. Update any Swift constants (`DesignTokens.swift`) and CSS variables if new tokens are introduced.
-3. Bump the package version if publishing outside the monorepo.
+This copies `tokens.json` into the app's resources. Update
+`DesignTokens.swift` by hand when you add a token.

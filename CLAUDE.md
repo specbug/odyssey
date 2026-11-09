@@ -16,6 +16,15 @@ The project is organized as a monorepo with three main applications:
 - **apps/webapp**: React web frontend (JavaScript)
 - **apps/mac**: Native macOS app (Swift/SwiftUI)
 
+Open-source housekeeping at the root: `LICENSE` (Apache-2.0),
+`CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1),
+`SECURITY.md` (private advisories), and `.github/` (issue and PR templates,
+`workflows/ci.yml`). `docs/` holds the README screenshots, a sample PDF
+(`docs/samples/`, written for the project) and `docs/archive/` (old
+implementation notes, history only). Keep the README and the per-app READMEs
+in step with behaviour: they are the public face; this file is the deep
+reference.
+
 ### Backend (apps/api)
 
 The FastAPI backend implements:
@@ -72,7 +81,7 @@ Layout (`src/`):
 - `utils/{cloze,format,render}.js` — `format.js` has `fmtInterval`, `plural`, `failText`
 - `data/adapters.js` — API shape → design shape
 - `styles/{tokens,base,screens,pdf}.css` — tokens; type roles + controls; per-screen layout (responsive rules live here, not inline); the reader
-- `fonts/` — R Sans, Google Sans Flex (instanced: opsz + wght only), R Mono (bundled via webpack)
+- `fonts/` — R Sans, Google Sans Flex (instanced: opsz + wght only), R Mono (bundled via webpack). All OFL 1.1: a new font needs its copyright line in `fonts/OFL.txt` and a row in `fonts/README.md`
 
 ### Native Mac App (apps/mac)
 
@@ -350,6 +359,10 @@ All API endpoints are documented in OpenAPI format at `/docs` when the backend i
   Covers route history, reader chrome auto-hide, and the format helpers +
   the Comb's log scale (`utils/format.test.js`).
 - Mac app: XCTest (`swift test`).
+- CI (`.github/workflows/ci.yml`) runs pytest on Python 3.11, and in
+  `apps/webapp` `bun install --frozen-lockfile`, the Jest suite and
+  `bun run build`, all with `CI=true` (lint warnings fail the build). The
+  Mac app isn't in CI.
 
 ## Environment Variables
 

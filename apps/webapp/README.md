@@ -1,37 +1,49 @@
-# Odyssey Web App
+# Odyssey web app
 
-This is the frontend web application for Odyssey, a PDF annotation and spaced repetition learning system.
+The React front end: a library, a PDF reader with notes in the margin, a
+review screen, and a graph of related notes. It talks to the
+[API](../api/README.md).
 
-## What is this about?
+## Run
 
-This React-based web application provides an intuitive interface for:
-- Uploading and viewing PDF documents
-- Creating highlights and annotations
-- Managing flashcards with spaced repetition
-- Tracking learning progress with timeline visualization
-- Creating cloze deletion flashcards
-
-## Demo
-
-![Odyssey Demo](demo.gif)
-
-## Local Setup
-
-**1. Start the Backend API (in a separate terminal):**
-
-See the instructions in `apps/api/README.md`.
-
-**2. Start the Frontend Web App:**
+Start the API first, then:
 
 ```bash
-cd apps/webapp
 bun install
 bun run start
 ```
 
-The app will open automatically at `http://localhost:3000`. The production
-build is `bun run build`; tests run via `bun run test`.
+The app opens at <http://localhost:3000/odyssey> and calls the API at
+`http://localhost:8000`. A production build (`bun run build`) calls `/api`
+on its own origin instead; the [Dockerfile](Dockerfile) and
+[nginx.conf](nginx.conf) serve it that way.
 
-## Credits
+Use bun, not npm. The lockfile is `bun.lock`.
 
-This project is inspired by the work of [Andy Matuschak](https://andymatuschak.org/) on [Orbit](https://github.com/andymatuschak/orbit).
+## Test
+
+```bash
+CI=true bun run test --watchAll=false
+CI=true bun run build
+```
+
+With `CI=true`, lint warnings fail the build, as they do in CI.
+
+## Design
+
+Every visual change follows [`DESIGN.md`](DESIGN.md): the type roles, the four
+colour signals, layout, motion and copy. Read it before changing anything you
+can see.
+
+## Layout
+
+| Path | What it is |
+| --- | --- |
+| `src/App.js` | Shell and routing |
+| `src/screens/` | Home, Library, Notes, Graph, Pdf (the reader), Review |
+| `src/components/` | Shared pieces, including the Comb and the Spiral, the two instruments that draw review data |
+| `src/hooks/` | Route history and the theme toggle |
+| `src/utils/` | Cloze parsing, formatting, rich-text rendering |
+| `src/data/adapters.js` | API responses to the shapes the screens use |
+| `src/styles/` | Tokens, type and controls, screen layout, the reader |
+| `src/fonts/` | R Sans, Google Sans Flex, R Mono. See [its README](src/fonts/README.md) |
