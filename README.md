@@ -12,7 +12,7 @@ a note written in the margin is also a flashcard. Select a passage, write a
 cloze or a question beside it, and the scheduler brings it back on the day
 your predicted recall of it falls to 90%.
 
-![The reader: a page with three highlights, each with its note in the margin](docs/screenshots/reader.png)
+![The reader: a page with three highlights in its document's colour, each with its note in the margin](docs/screenshots/reader.png)
 
 ## Reading and writing
 
@@ -26,9 +26,14 @@ three tabs:
 - **Note.** Text with neither. It comes back for rereading, graded like any
   other card.
 
-Notes render LaTeX (`$…$` inline, `$$…$$` on a line of its own) and images.
-Each note stays anchored to the passage it was written against, and during
-review `O` opens that page.
+Notes render LaTeX (`$…$` inline, `$$…$$` on a line of its own), set in TeX
+Gyre Pagella, and images. Each note stays anchored to the passage it was
+written against, and during review `O` opens that page.
+
+Every document is given its own colour when you add it, and keeps it. Its
+highlights, the edges of its notes, its ticks on the home spiral and its
+review screen all use it, so a card tells you where it came from before you
+read a word.
 
 ## Scheduling
 
@@ -67,7 +72,7 @@ the session.
 
 | Home | Review |
 | --- | --- |
-| ![Home: nine cards due, with the queue drawn on a spiral of intervals](docs/screenshots/home.png) | ![Review: a cloze card with both blanks revealed, above the four grades and their intervals](docs/screenshots/review.png) |
+| ![Home: cards due, with the queue drawn on a spiral of intervals, each tick in its document's colour](docs/screenshots/home.png) | ![Review: a recall card on its document's colour, its answer revealed above the four grades and their intervals](docs/screenshots/review.png) |
 
 Home draws the due queue on a spiral: a logarithmic time axis wound outward
 from today to one year, with a tick for each card at its current interval.

@@ -2,8 +2,8 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
-import 'katex/dist/katex.min.css';
 import apiService from '../api';
+import { inkProps } from '../data/inks';
 import { toLibraryDoc } from '../data/adapters';
 import { hasCloze } from '../utils/cloze';
 import useReaderChrome from '../hooks/useReaderChrome';
@@ -261,10 +261,8 @@ const PageRenderer = memo(function PageRenderer({
                   const isActive = h.id === activeHighlightId;
                   const hasNote = !!h.noteBackendId;
                   const isPulsing = h.id === focusPulseId;
-                  // The person's mark, so the note signal. A 1px underline says
-                  // "a note lives here"; the fill deepens only while the
-                  // highlight is selected. Light-mode values: the canvas stays
-                  // white in dark mode.
+                  // The person's mark, in the document's ink. Light-mode
+                  // values: the canvas stays white in dark mode.
                   return (
                     <div
                       key={i}
@@ -292,14 +290,13 @@ const PageRenderer = memo(function PageRenderer({
                         // above so clicks reach this handler rather than
                         // getting swallowed by the text spans.
                         zIndex: 3,
+                        // A marker stroke in the document's ink, multiplied
+                        // into the page so the text stays crisp; deeper while
+                        // selected, and a 2px rule under it then.
                         background: isActive
-                          ? 'color-mix(in oklab, var(--note-on-page) 26%, transparent)'
-                          : 'color-mix(in oklab, var(--note-on-page) 12%, transparent)',
-                        boxShadow: hasNote
-                          ? isActive
-                            ? 'inset 0 -2px 0 var(--note-on-page)'
-                            : 'inset 0 -1px 0 color-mix(in oklab, var(--note-on-page) 70%, transparent)'
-                          : 'none',
+                          ? 'color-mix(in oklab, var(--note-on-page) 52%, transparent)'
+                          : `color-mix(in oklab, var(--note-on-page) ${hasNote ? 36 : 22}%, transparent)`,
+                        boxShadow: isActive ? 'inset 0 -2px 0 var(--note-on-page)' : 'none',
                         transition: 'background 220ms cubic-bezier(.2,.7,.2,1), box-shadow 220ms cubic-bezier(.2,.7,.2,1)',
                         mixBlendMode: 'multiply',
                       }}
@@ -1127,7 +1124,7 @@ export default function PdfScreen({ docId, targetNoteId, targetNoteMode = 'edit'
   const title = doc?.title || 'Document';
 
   return (
-    <div className="pdf-screen" {...readerProps}>
+    <div className="pdf-screen" {...readerProps} {...inkProps(doc?.ink)}>
       <div
         {...chromeProps}
         className={`pdf-chrome${chromeVisible ? '' : ' pdf-chrome-hidden'}`}

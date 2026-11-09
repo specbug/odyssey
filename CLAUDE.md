@@ -46,13 +46,16 @@ Key backend modules:
 - `app/utils.py`: File handling utilities (hashing, validation, storage)
 - `app/meta_ai.py`: Thin Meta Model API client — `extract_pdf_metadata(bytes)` and the generic `complete_json(...)`, no-op without `META_API_KEY`
 - `app/linker.py`: Background note linker — keeps the Zettelkasten-style graph of related annotations (`NoteLink`, `NoteLinkState`)
+- `app/inks.py`: Document ink assignment — each PDF's colour index, chosen once on upload
 
 ### Frontend (apps/webapp)
 
 React 19 SPA built with Create React App, set in the `rishit-design`
-system: cool neutrals, ink, four colour signals, R Sans + Google Sans Flex.
+system: a warm proof ground, ink for running text, colour as inks (one per
+document, three for roles), R Sans + Google Sans Flex, JetBrains Mono for
+code, Pagella for maths.
 **Read `apps/webapp/DESIGN.md` before making any visual change** — it's the
-contract for type, the colour signals, the instruments, layout and motion.
+contract for type, the inks, the instruments, layout and motion.
 
 Capabilities:
 - **PDF rendering**: react-pdf, lazily mounted page rows, a per-page notes column, and one top bar (Library · title · page dial, zoom, Review) that hides while you read; the page dial (`components/PageDial.js`) is a sliding page tape you can drag to scrub
@@ -61,7 +64,8 @@ Capabilities:
 - **Review**: centred prompt, Space to reveal, 1–4 to grade in one grade strip (each cell shows the interval it would set), O opens the source page, Esc ends; the Comb in the left margin (one bar per card, length = interval, graded bars redrawn at the new interval) is always shown; after reveal, up to 3 linked notes ("Linked", cloze blanks masked)
 - **Home**: due count, Review (R), documents in progress, and the due queue drawn on the time spiral (the logo in its place when nothing is due)
 - **Graph**: `GraphScreen` — d3-force layout (run to rest, then held still) in SVG, d3-zoom pan/zoom, side panel with each link's reason and Unlink / Undo; Note cards with links show "N links" → opens the graph on that note
-- **LaTeX + images**: KaTeX via `utils/render.js`; images via `[image:UUID]` markers + `/images/*`
+- **LaTeX + images**: KaTeX renders MathML (`utils/math.js`, called from `utils/render.js`), laid out in TeX Gyre Pagella Math; no KaTeX fonts or stylesheet load. Images via `[image:UUID]` markers + `/images/*`
+- **Inks**: `data/inks.js` holds 17 document inks and 3 role inks, each with text tones that clear 4.5:1 (`inks.test.js`). Every PDF gets a document ink once, on upload (`PDFFile.ink`, `apps/api/app/inks.py`: least-used, lowest index; existing rows backfilled in upload order by `_migrate_pdf_file_ink`), and keeps it: there's no way to change it. `DOC_INKS` is stored data, append-only. `inkProps(index)` sets a document context (`data-ink` + `--ink-*`); `tokens.css` derives `--doc-mark` / `--doc-text` / `--note` / `--note-on-page` on that element. Review sets the card's document as a coloured field in light mode, and a tinted dark screen with ink marks in dark
 - **Routing**: state-based, persisted in `localStorage` keys `odyssey:route` /
   `odyssey:docId`, and mirrored onto the browser history stack by
   `hooks/useRouteHistory.js` so Back / Forward work. A refresh on the
@@ -81,7 +85,7 @@ Layout (`src/`):
 - `utils/{cloze,format,render}.js` — `format.js` has `fmtInterval`, `plural`, `failText`
 - `data/adapters.js` — API shape → design shape
 - `styles/{tokens,base,screens,pdf}.css` — tokens; type roles + controls; per-screen layout (responsive rules live here, not inline); the reader
-- `fonts/` — R Sans, Google Sans Flex (instanced: opsz + wght only), R Mono (bundled via webpack). All OFL 1.1: a new font needs its copyright line in `fonts/OFL.txt` and a row in `fonts/README.md`
+- `fonts/` — R Sans, Google Sans Flex (instanced: opsz + wght only), JetBrains Mono (code), R Mono (only ⌘ ↵), TeX Gyre Pagella Math (maths, GUST licence), bundled via webpack. A new OFL font needs its copyright line in `fonts/OFL.txt`, and every font a row in `fonts/README.md`
 
 ### Native Mac App (apps/mac)
 
@@ -351,13 +355,14 @@ All API endpoints are documented in OpenAPI format at `/docs` when the backend i
   the pinned pydantic doesn't build on 3.13). Covers the Meta metadata
   client against a fake server, the upload / PATCH / refresh precedence
   rules against a throwaway SQLite DB, and the linker pipeline + link API
-  against a scripted fake LLM (`tests/test_linker.py`). `scripts/tests/` holds older ad-hoc
+  against a scripted fake LLM (`tests/test_linker.py`), and ink assignment (`tests/test_inks.py`). `scripts/tests/` holds older ad-hoc
   scripts that need a live server and are excluded by `pytest.ini`. For
   other endpoints, smoke-test via `curl` against `/health`,
   `/stats/dashboard`, `/annotations`, `/files`.
 - Web frontend: Jest / RTL via `bun run test` (`CI=true` to run once).
-  Covers route history, reader chrome auto-hide, and the format helpers +
-  the Comb's log scale (`utils/format.test.js`).
+  Covers route history, reader chrome auto-hide, the theme toggle, the
+  format helpers + the Comb's log scale (`utils/format.test.js`), and the ink
+  map's contrast (`data/inks.test.js`).
 - Mac app: XCTest (`swift test`).
 - CI (`.github/workflows/ci.yml`) runs pytest on Python 3.11, and in
   `apps/webapp` `bun install --frozen-lockfile`, the Jest suite and
@@ -512,14 +517,17 @@ The webapp follows a strict visual contract. **The full guide is
 
 One-paragraph summary so you don't reach for bad defaults:
 
-> Cool neutral ground, ink for everything. Colour only as four signals with
-> one meaning each: `--link` (followable), `--note` (the person's marks:
-> highlights, blanks, graph nodes), `--data` (computed values: intervals),
-> `--you` (where the person is). Card edges carry the note type instead
-> (`--type-cloze` crimson, `--type-recall` violet, `--type-note` teal). The
-> logo's orange blank (`--mark`) is the one other exception. R Sans for running text, Google Sans Flex for small text
-> and every number, R Mono for code only; sentence case, no letter-spaced
-> uppercase labels. Elevation is a sheet colour plus a 1px rule, never a
+> Warm proof ground, softened ink for running text, colour only as inks:
+> marks and fields, never body text. Three role inks mean one thing
+> everywhere: `--link` Periwinkle (followable), `--data` Mint (intervals and
+> counts), `--you` Tangerine (where you are). Every document has its own ink
+> for good (`data/inks.js`, `PDFFile.ink`): its dot, its author line, its
+> note-card edges (the note type is a word), its highlights, its spiral ticks
+> and graph nodes, and its review field. Text in an ink uses that ink's
+> paper or dark tone, which clears 4.5:1. The logo's orange blank (`--mark`)
+> is the one colour outside the inks. R Sans for running text, Google Sans
+> Flex for small text and every number, JetBrains Mono for code, Pagella for
+> maths; sentence case, no letter-spaced uppercase labels. Elevation is a sheet colour plus a 1px rule, never a
 > shadow. 8px grid, 0 radius. Instruments (the review Comb, the home Spiral) draw
 > real data; the Comb is always shown. No load-in animation; motion
 > `cubic-bezier(.2,.7,.2,1)` at 200–400ms. Light and dark via
@@ -535,8 +543,13 @@ Quick pitfall list for future sessions:
   `?v=<file_hash>`.
 - The notes column is **per-page** (inside each lazily mounted page row) —
   don't try to lift it out.
-- Marks on a PDF page use `--note-on-page` / `--link-on-page`: the canvas
-  stays white in dark mode, so they keep their light values.
+- Marks on a PDF page use `--note-on-page` (the document's light mark):
+  the canvas stays white in dark mode, so they keep their light values.
+- A custom property resolves where it's declared. Anything derived from a
+  document's ink (`--doc-mark`, `--note`, …) is set on the `[data-ink]`
+  element, never on `:root`, or it freezes at the root's value.
+- `DOC_INKS` order is stored data (`PDFFile.ink` indexes it): append only,
+  and keep `INK_COUNT` in `apps/api/app/inks.py` in step.
 - Preserve the text-anchor → normalized_rects → pixel_rects fallback chain
   in `resolveAnnotationLocation`. Each method has subtle callers.
 

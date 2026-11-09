@@ -56,13 +56,14 @@
 }
 .pdf-title-name {
   font-size: 15px;
-  font-weight: 540;
+  font-weight: 500;
   line-height: 20px;
   overflow: hidden;
   text-overflow: ellipsis;
   min-width: 0;
 }
 .pdf-title-author { flex-shrink: 1; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.pdf-chrome .pdf-title-author { color: var(--doc-text); }
 .pdf-bar-end { display: flex; align-items: baseline; justify-content: flex-end; gap: 24px; min-width: 0; }
 /* The page dial (components/PageDial.js): a tape of pages sliding under a
    fixed index, the page as a figure above it. 112 × 32, edges faded. */
@@ -118,7 +119,7 @@
   transform: translateX(-50%);
   font-family: var(--small);
   font-size: 11px;
-  font-weight: 560;
+  font-weight: 540;
   line-height: 13px;
   color: var(--ink);
   font-variant-numeric: tabular-nums;

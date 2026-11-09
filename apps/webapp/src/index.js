@@ -4,7 +4,6 @@ import './styles/tokens.css';
 import './styles/base.css';
 import './styles/screens.css';
 import './styles/pdf.css';
-import 'katex/dist/katex.min.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 

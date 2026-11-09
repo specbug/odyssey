@@ -34,6 +34,9 @@ class PDFFile(Base):
     title = Column(String, nullable=True)
     author = Column(String, nullable=True)
     color_hue = Column(Integer, nullable=True)  # 0-360; derived from file_hash if null
+    # Index into the web app's document inks (app/inks.py). Set once at
+    # creation and never changed, so a document keeps its colour for good.
+    ink = Column(Integer, nullable=True)
     excerpt = Column(Text, nullable=True)       # ~200-char opening passage
     upload_date = Column(DateTime(timezone=True), server_default=func.now())
     last_accessed = Column(DateTime(timezone=True), server_default=func.now())

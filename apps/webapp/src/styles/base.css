@@ -13,6 +13,8 @@ button, input, textarea, select {
 }
 button { background: none; border: 0; cursor: pointer; text-align: inherit; }
 button:disabled { cursor: default; }
+/* <pre> sets its children to the UA monospace; code takes ours. */
+pre code { font-family: inherit; }
 
 html, body {
   height: 100%;
@@ -36,25 +38,25 @@ p { text-wrap: pretty; hanging-punctuation: first; }
 a, .link {
   color: var(--link);
   text-decoration: underline 1px;
-  text-decoration-color: color-mix(in oklab, var(--link) 45%, transparent);
+  text-decoration-color: color-mix(in oklab, var(--link-mark) 60%, transparent);
   text-underline-offset: 0.22em;
   transition: text-decoration-color 200ms var(--ease);
 }
-a:hover, .link:hover { text-decoration-color: var(--link); }
+a:hover, .link:hover { text-decoration-color: var(--link-mark); }
 
 /* ── Type roles ─────────────────────────────────────────────────────── */
 
 /* Display: opsz 40, tight but never touching. */
 .t-display {
   font-variation-settings: 'opsz' 40;
-  font-weight: 520;
-  letter-spacing: -0.02em;
+  font-weight: 440;
+  letter-spacing: -0.024em;
   line-height: 1.02;
   text-wrap: balance;
 }
 .t-h {
   font-size: 21px;
-  font-weight: 620;
+  font-weight: 560;
   letter-spacing: -0.012em;
   line-height: 1.25;
 }
@@ -79,7 +81,7 @@ a:hover, .link:hover { text-decoration-color: var(--link); }
 }
 .t-small.lg { font-size: 13px; }
 .t-small.xs { font-size: 11px; }
-.t-small strong, .t-fig { font-weight: 560; }
+.t-small strong, .t-fig { font-weight: 540; }
 
 .ink   { color: var(--ink); }
 .ink-2 { color: var(--ink-2); }
@@ -210,7 +212,7 @@ a:hover, .link:hover { text-decoration-color: var(--link); }
 .btn {
   font-family: var(--sans);
   font-size: 15px;
-  font-weight: 540;
+  font-weight: 500;
   line-height: 20px;
   padding: 9px 15px;
   border: 1px solid var(--rule);
@@ -279,14 +281,15 @@ a:hover, .link:hover { text-decoration-color: var(--link); }
 /* ── Cards ──────────────────────────────────────────────────────────── */
 
 /* Only for objects the person can pick up and act on. The 2px left edge
-   says what the card is: its note type (cloze, recall, note), falling back
-   to the note signal. 2px, not 3px: 3px read heavy beside a page. */
+   is the card's document ink (data/inks.js), so every note from one PDF
+   shares a colour; the note type is a word, .card-type. 2px, not 3px: 3px
+   read heavy beside a page. A note without a document has a neutral edge. */
 .card {
   display: block;
   width: 100%;
   background: var(--sheet);
   border: 1px solid var(--rule);
-  border-left: 2px solid var(--note);
+  border-left: 2px solid var(--doc-mark);
   padding: 12px 14px;
   text-align: left;
   transition: border-color 200ms var(--ease);
@@ -295,11 +298,10 @@ a:hover, .link:hover { text-decoration-color: var(--link); }
   font-family: var(--small);
   font-size: 12px;
   font-weight: 450;
-  color: var(--note);
+  color: var(--doc-text);
 }
-.card[data-type="cloze"]  { border-left-color: var(--type-cloze); }
-.card[data-type="recall"] { border-left-color: var(--type-recall); }
-.card[data-type="note"]   { border-left-color: var(--type-note); }
+/* The note type, as a word: Cloze, Recall, Note. */
+.card-type { font-family: var(--small); font-size: 11px; font-weight: 500; color: var(--ink-3); }
 button.card:hover, .card.hoverable:hover { border-top-color: var(--ink-3); border-right-color: var(--ink-3); border-bottom-color: var(--ink-3); }
 .card[data-active="true"] { border-top-color: var(--ink-2); border-right-color: var(--ink-2); border-bottom-color: var(--ink-2); }
 
@@ -319,7 +321,7 @@ button.card:hover, .card.hoverable:hover { border-top-color: var(--ink-3); borde
   vertical-align: -0.1em;
   border-bottom: 2px solid var(--note);
 }
-.cloze.active { font-weight: 600; }
+.cloze.active { font-weight: 560; }
 .cloze-mask { color: var(--ink-3); }
 
 /* ── Focus ──────────────────────────────────────────────────────────── */
@@ -351,3 +353,13 @@ button.card:hover, .card.hoverable:hover { border-top-color: var(--ink-3); borde
   outline-width: 0;
   animation: odyssey-focus-pulse 600ms var(--ease);
 }
+
+/* ── Maths (utils/math.js) ──────────────────────────────────────────── */
+
+/* KaTeX's MathML in Pagella. 1.15em brings Pagella's x-height (0.469) level
+   with R Sans's (0.551). */
+.katex { font-size: 1.15em; line-height: normal; text-indent: 0; }
+.katex math { font-family: var(--math); }
+.math-block { margin: 12px 0; text-align: center; overflow-x: auto; overflow-y: hidden; padding-block: 4px; }
+.math-block .katex-display { margin: 0; }
+.math-block math { display: inline-block; }

@@ -47,4 +47,5 @@ reviews are made against it.
 | `src/utils/` | Cloze parsing, formatting, rich-text rendering |
 | `src/data/adapters.js` | API responses mapped to the shapes the screens use |
 | `src/styles/` | Tokens, type and controls, screen layout, the reader |
-| `src/fonts/` | R Sans, Google Sans Flex, R Mono; [sources and licenses](src/fonts/README.md) |
+| `src/data/inks.js` | The inks: one per document, three for roles, with readable text tones |
+| `src/fonts/` | R Sans, Google Sans Flex, JetBrains Mono, Pagella Math, R Mono; [sources and licenses](src/fonts/README.md) |

@@ -87,3 +87,6 @@ export const RELATION_LABEL = {
   prerequisite: 'Prerequisite',
   cause_effect: 'Cause and effect',
 };
+
+// The note type, as a word on its card (the edge is the document's ink).
+export const TYPE_LABEL = { cloze: 'Cloze', recall: 'Recall', note: 'Note' };
