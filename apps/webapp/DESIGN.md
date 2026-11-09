@@ -2,8 +2,9 @@
 
 The web app follows the rishit-design system. This file is the contract for
 anything the user can see: read it before a visual change. Values live in
-`src/styles/tokens.css`; type roles and controls in `base.css`; per-screen
-layout and every responsive rule in `screens.css` and `pdf.css`.
+`src/styles/tokens.css` and the inks in `src/data/inks.js`; type roles and
+controls in `base.css`; per-screen layout and every responsive rule in
+`screens.css` and `pdf.css`.
 
 ## Principles, as they apply here
 
@@ -14,8 +15,8 @@ layout and every responsive rule in `screens.css` and `pdf.css`.
   number and its unit (`9 d`, `p. 4`), tabular figures wherever numbers
   update or sit in a column.
 - **Earn the space.** Cut from this redesign for failing the test: the home
-  memory tiles (retention, stability, sessions, streak), per-document glyphs
-  and colours, the note count in the reader chrome, the page progress bar
+  memory tiles (retention, stability, sessions, streak), per-document glyphs,
+  the note count in the reader chrome, the page progress bar
   that duplicated the page number, the date on each note card, and later the
   reader's page Rule (a hidden page scale in the left margin), which the
   reader didn't need.
@@ -25,7 +26,9 @@ layout and every responsive rule in `screens.css` and `pdf.css`.
 
 ## Colour
 
-Cool neutral ground, ink for everything. Light and dark follow
+A proof with a trace of warmth for the ground, a softened ink for running
+text, and colour as inks: marks and fields, never body text. Light and dark
+follow
 `prefers-color-scheme` unless the person pins one with the theme button at
 the foot of the rail (system → light → dark). The choice is `data-theme` on
 `<html>`, remembered in localStorage `odyssey:theme` by `hooks/useTheme.js`
@@ -43,32 +46,71 @@ place the logo's orange appears, and it doesn't render under
 
 | Token | Use |
 |---|---|
-| `--ground` | the app background |
+| `--ground` | the app background: oklch 0.983 0.003 95 in light |
 | `--sheet` | a card, plate or page sitting on the ground |
-| `--ink` / `--ink-2` / `--ink-3` | text, secondary text, folios and key hints |
+| `--ink` / `--ink-2` / `--ink-3` | running text, secondary text, folios and key hints |
 | `--rule` | 1px hairlines |
 | `--grid` | chart gridlines |
 
-Four signals, one meaning each, everywhere:
+### Inks
 
-| Signal | Means | Where it appears |
-|---|---|---|
-| `--link` | something to follow or act on | links, "Review 3", "Open p. 4", "2 links", focus rings, text selection |
-| `--note` | the person's own marks | highlights, cloze underlines and blanks, graph nodes |
-| `--data` | computed values | the interval each grade would set, graded bars in the Comb |
-| `--you` | where the person is | current route in the rail, the current card's bar, the selected graph node |
+All colour comes from one box of 20 inks (`src/data/inks.js`), pooled from
+eight palettes (Highlighter, Risograph, Memphis, Bauhaus, Gouache, Tropic,
+Nippon, Neon) with near-duplicates merged. They are luminous on purpose:
+OKLCH lightness about 0.6–0.9, chroma near the edge of sRGB. An ink is a
+mark or a field; text in an ink uses a darker step of the same hue.
 
-One more code, on card edges only: the note's **type**. `--type-cloze`
-(crimson, kept off the you red), `--type-recall` (violet), `--type-note`
-(teal), set by `data-type` on `.card`. It lives on the 2px edge and nowhere
-else, so it never competes with the signals. The capture drawer's edge
-follows the selected mode. The old time-of-day accent was considered for
-this and rejected: four of its five hours land on the link blue or the you
-red.
+Every ink has the same tones, all one hue: `mark` (dots, edges, highlights,
+underlines), `paper` (text on the light ground, darkened just enough to
+clear 4.5:1), `dark` (text on the dark ground, lightened just enough),
+`markDark` (the mark, lifted where it would sink into the dark ground),
+`field` and `fieldFg` (the review screen and the type on it), and
+`darkField` (the review screen in dark mode). `inks.test.js` holds every text
+tone to 4.5:1.
 
-Signals stay small: an underline, a 2px edge, a numeral, a tick. Marks drawn
-on a PDF page use `--note-on-page` / `--link-on-page`, which keep their
-light-mode values because the canvas stays white in dark mode.
+Two kinds, each with one job:
+
+**Role inks** say what a thing is, the same everywhere. Three are kept out of
+the document set:
+
+| Token | Ink | Means | Where |
+|---|---|---|---|
+| `--link`, `--link-mark` | Periwinkle | follow or act on | links, `Review 3`, `Open p. 4`, `2 links`, focus rings, selection |
+| `--data` | Mint | intervals and counts | the interval each grade would set, `p. 2 of 4`, `5 notes`, graded Comb bars |
+| `--you` | Tangerine | where you are | the rail's current route, the current Comb bar, the page dial's index, the selected graph node |
+
+**Document inks** say which document. The other 17 are assigned one per PDF
+on upload (`PDFFile.ink`, `apps/api/app/inks.py`: the least-used ink, lowest
+index first) and never change: there is no way to pick or switch one, so a
+document's colour is something you learn. `DOC_INKS` is stored data: append
+to it, never reorder it. Its order steps round the colour wheel by seven of
+17, so consecutive uploads look unrelated. A document's ink marks:
+
+- its dot beside its title (library, home, notes filter) and its author line;
+- the 2px edge of every note card from it, in Notes, the reader's margin and
+  the graph, with the note type as a word (`Cloze`, `Recall`, `Note`);
+- its highlights on the page and its cloze underlines;
+- its node in the graph and its ticks on the home spiral;
+- the review screen while one of its cards is up.
+
+An element sets a document context with `inkProps(index)` (`data-ink` plus
+`--ink-*`); `tokens.css` turns those into `--doc-mark`, `--doc-text`,
+`--note` and `--note-on-page` for the theme. Custom properties resolve where
+they are declared, so derived names must be set on the `[data-ink]` element
+itself, not on `:root`. Without a document, the same names fall back to
+neutral.
+
+**The review field.** In light mode the review screen is a field of the
+card's document ink, and every mark on it (source line, intervals, links,
+the Comb) takes the field's type colour, dark or white, whichever contrasts
+more. In dark mode the screen stays dark, tinted towards the ink, with a 3px
+edge along the top and the ink lifted for the source line, intervals, links
+and the current card. A note without a document reviews on plain paper.
+
+Signals stay small everywhere else: an underline, a 2px edge, a dot, a tick.
+Highlights on a PDF page are a marker stroke in the document's light mark
+(36%, 52% while selected, multiplied into the page), since the canvas stays
+white in dark mode.
 
 **The logo** is a cloze: square brackets in ink around one orange blank,
 `[_]`, the app's own syntax for the thing it does. `public/logo.svg` is the
@@ -87,7 +129,7 @@ file behind it changes.
 
 In the app, `components/Mark.js` draws the master at the top of the rail as
 the Home button: the brackets take `--ink`, the blank takes `--mark`
-(`#ff4d06`), the one colour outside the four signals, by decision. Inside
+(`#ff4d06`), the one colour outside the inks, by decision. Inside
 the app the brackets go light only when the app itself is dark, because
 black brackets would vanish on the dark rail; everywhere else (favicon, app
 icon, link previews) the logo is black. Apart from the rail, it appears only
@@ -98,12 +140,14 @@ retired because it sat too close to Claude's mark.
 
 | Face | Job | Notes |
 |---|---|---|
-| R Sans | all running text | `ss03`, optical sizing on. Body weight 450, 425 in dark. |
+| R Sans | all running text | `ss03`, optical sizing on. Body weight 410, 395 in dark. |
 | Google Sans Flex | small text and every number | 11–13px, sentence case, natural tracking, `tabular-nums`. GRAD/ROND/slnt/wdth pinned at build. |
-| R Mono | code only | also supplies ⌘ and ↵, which the other two lack |
+| JetBrains Mono | code | variable, ligatures on; `pre code` inherits it (the UA default is the system monospace) |
+| TeX Gyre Pagella Math | maths | KaTeX renders MathML (`utils/math.js`), the browser lays it out in Pagella at 1.15em, which levels its x-height with R Sans |
+| R Mono | ⌘ and ↵ | only those glyphs in key hints, which the others lack |
 
-Roles (`base.css`): `.t-display` (opsz 40, 520, −0.02em, 1.02, balanced),
-`.t-h` (21px, 620, −0.012em), `.t-body` (18.5 / 1.62), `.t-note`
+Roles (`base.css`): `.t-display` (opsz 40, 440, −0.024em, 1.02, balanced),
+`.t-h` (21px, 560, −0.012em), `.t-body` (18.5 / 1.62), `.t-note`
 (13.5 / 1.48, ink-2), `.t-small` (Google Sans Flex 12px; `.lg` 13, `.xs` 11).
 No uppercase letter-spaced labels, no monospace for words.
 
@@ -151,7 +195,9 @@ summary.
 
 The same log time axis wound into an Archimedean spiral: centre is now,
 the outer end one year. Each due card is a tick at its current interval, so
-new cards sit near the centre and well-learned ones far out. Scale labels
+new cards sit near the centre and well-learned ones far out. Each tick is in
+its card's document ink, so the queue reads as a scatter of the documents
+it came from. Scale labels
 (1 d, 1 wk, 1 mo, 1 yr) appear on hover; pointing at a tick reads the card.
 With no cards due there is nothing to plot, so the logo (176px, 112px on a
 phone) takes the spiral's 272px box and the page keeps its shape.
@@ -173,9 +219,10 @@ there. It's a `role="slider"`; ←/→ already turn pages.
 
 Only for things the person made and can act on: notes in the Notes list,
 notes in the reader margin, the capture drawer. `.card`: `--sheet`, 1px
-rule on three sides, a 2px left edge in the type colour (`--note` when a
-card has no type), padding 12 / 14. A card shows its content and no type
-label: the edge colour is the label. In the reader margin cards rest at 72%
+rule on three sides, a 2px left edge in the card's document ink (neutral
+for a standalone note), padding 12 / 14. The note type is a word,
+`.card-type` (`Cloze`, `Recall`, `Note`), in ink-3 at 11px, so the edge has
+one meaning. In the reader margin cards rest at 72%
 opacity and come up to full on hover, on focus, or when their highlight is
 selected. Text that only extends content stays a borderless note.
 
@@ -192,8 +239,8 @@ selected. Text that only extends content stays a borderless note.
 ### Cloze
 
 `[[word]]`. One card per blank. In review only the active blank hides, as an
-empty slot with a 2px note underline sized to the answer; on reveal the
-answer appears, weight 600 with the same underline. Other blanks show their
+empty slot with a 2px underline in the document's ink, sized to the answer;
+on reveal the answer appears, weight 560 with the same underline. Other blanks show their
 answers underlined. Linked notes shown after reveal mask every blank as
 `[…]`, since a neighbour may come up later in the session.
 

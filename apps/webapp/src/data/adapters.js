@@ -18,6 +18,8 @@ export function toLibraryDoc(file) {
     due: file.due_count || 0,
     retained: null, // per-doc retention not yet in schema
     sample: file.excerpt || null,
+    // Index into DOC_INKS (data/inks.js); fixed when the file was created.
+    ink: Number.isInteger(file.ink) ? file.ink : null,
     fileHash: file.file_hash,
     // pass-throughs for screens that need raw data
     raw: file,
@@ -36,6 +38,7 @@ export function toNote(ann) {
     id: ann.id,
     source: ann.file_id,
     sourceTitle: ann.file_title || null,
+    ink: Number.isInteger(ann.file_ink) ? ann.file_ink : null,
     page: (ann.page_index != null ? ann.page_index + 1 : null),
     date: relativeDate(ann.updated_date || ann.created_date),
     rawDate: ann.updated_date || ann.created_date,

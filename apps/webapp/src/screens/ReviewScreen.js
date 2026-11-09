@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import apiService from '../api';
 import { toQueueCard } from '../data/adapters';
+import { inkProps } from '../data/inks';
 import { hasCloze } from '../utils/cloze';
 import { renderRich } from '../utils/render';
 import { failText, fmtInterval, plainText, plural, RELATION_LABEL } from '../utils/format';
@@ -23,8 +24,9 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
   const [leaving, setLeaving] = useState(false);
   const [sessionId, setSessionId] = useState(null);
   const [doc, setDoc] = useState(null);
-  // file id → title, for each card's source line.
+  // file id → title, for each card's source line; file id → ink, for its field.
   const [titles, setTitles] = useState({});
+  const [inks, setInks] = useState({});
   const cardStartRef = useRef(Date.now());
   const endedRef = useRef(false);
   // annotation id → linked notes, fetched as each card comes up and shown
@@ -57,6 +59,7 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
         setNextDays(Array(cards.length).fill(null));
         if (session?.id) setSessionId(session.id);
         setTitles(Object.fromEntries((files || []).map((f) => [f.id, f.display_name || f.original_filename])));
+        setInks(Object.fromEntries((files || []).map((f) => [f.id, f.ink])));
         if (fileId != null) {
           const f = files.find((x) => x.id === fileId);
           if (f) setDoc(f);
@@ -219,9 +222,13 @@ export default function ReviewScreen({ fileId, onExit, onJumpToSource }) {
   const ann = card?.raw?.annotation;
   const sourceTitle = ann?.file_title || titles[card?.source] || doc?.display_name || doc?.original_filename;
   const readout = `${idx + 1} of ${total}`;
+  // The screen takes the card's document ink: a field in light mode, marks
+  // on a tinted ground in dark (screens.css). A note without a document
+  // stays on paper.
+  const ink = card?.source != null ? (inks[card.source] ?? doc?.ink) : null;
 
   return (
-    <div className="review">
+    <div className="review" {...inkProps(ink)}>
       <button className="btn ghost quiet review-exit" onClick={onExit}>
         End session <span className="key">Esc</span>
       </button>

@@ -4,7 +4,8 @@ import { toNote } from '../data/adapters';
 import { renderRich } from '../utils/render';
 import InlineCaptureDrawer from '../components/InlineCaptureDrawer';
 import { Ic } from '../components/Icons';
-import { failText, plural } from '../utils/format';
+import { failText, plural, TYPE_LABEL } from '../utils/format';
+import { inkProps } from '../data/inks';
 
 // Every note, as cards. Filter by source or tag, search by substring, and
 // write standalone notes in the capture drawer.
@@ -49,7 +50,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
       counts.set(key, (counts.get(key) || 0) + 1);
     });
     return files
-      .map((f) => ({ id: f.id, title: f.display_name || f.original_filename, count: counts.get(String(f.id)) || 0 }))
+      .map((f) => ({ id: f.id, title: f.display_name || f.original_filename, ink: f.ink, count: counts.get(String(f.id)) || 0 }))
       .filter((s) => s.count > 0)
       .concat(counts.get('standalone') ? [{ id: 'standalone', title: 'Standalone', count: counts.get('standalone') }] : []);
   }, [files, notes]);
@@ -127,6 +128,7 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
             <button
               key={x.id}
               className="filter"
+              {...inkProps(x.ink)}
               aria-pressed={isSource(x.id)}
               onClick={() => setFilter(x.id === 'standalone' ? 'standalone' : Number(x.id))}
             >
@@ -232,16 +234,20 @@ export default function NotesScreen({ onOpenDoc, onStartReview, onOpenGraph }) {
 }
 
 // A note is something the person made and can act on, so it is a card: sheet,
-// rule on three sides, a 2px edge in its type colour. Clicking opens it where it
-// lives: its page in the PDF, or the drawer for a standalone note.
+// rule on three sides, a 2px edge in its document's ink, its type as a word.
+// Clicking opens it where it lives: its page in the PDF, or the drawer for a
+// standalone note.
 function NoteCard({ note, onOpen, onEdit, onOpenGraph }) {
   const where = note.sourceTitle
     ? `${note.sourceTitle}${note.page ? ` · p.\u00a0${note.page}` : ''}`
     : 'Standalone';
   return (
-    <article className="card note-card hoverable" data-type={note.type || 'note'}>
+    <article className="card note-card hoverable" {...inkProps(note.ink)}>
       <div className="note-card-head">
-        <span className="t-small ink-3 note-card-where">{where}</span>
+        <span className="t-small note-card-where">
+          <span className="card-type">{TYPE_LABEL[note.type] || 'Note'}</span>
+          <span className="note-card-src">{where}</span>
+        </span>
         {note.source != null && (
           <button className="btn ghost sm quiet note-card-edit" onClick={onEdit}>Edit</button>
         )}

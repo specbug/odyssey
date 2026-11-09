@@ -52,6 +52,7 @@ from .spaced_repetition import SpacedRepetitionService
 from . import meta_ai as llm_client
 from . import heartbeat as heartbeat_client
 from . import linker
+from . import inks
 from .utils import (
     calculate_file_hash_from_bytes,
     is_pdf_file,
@@ -183,6 +184,28 @@ def _migrate_pdf_file_title() -> None:
 
 
 _migrate_pdf_file_title()
+
+
+def _migrate_pdf_file_ink() -> None:
+    """Idempotent: add pdf_files.ink if missing, then give every document
+    without one an ink, in upload order (app/inks.py)."""
+    from sqlalchemy import inspect, text
+
+    insp = inspect(engine)
+    if "pdf_files" not in insp.get_table_names():
+        return
+    cols = {c["name"] for c in insp.get_columns("pdf_files")}
+    if "ink" not in cols:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE pdf_files ADD COLUMN ink INTEGER"))
+    db = SessionLocal()
+    try:
+        inks.backfill_inks(db)
+    finally:
+        db.close()
+
+
+_migrate_pdf_file_ink()
 
 
 @asynccontextmanager
@@ -487,6 +510,7 @@ async def upload_file(
             file_size=len(file_content),
             file_path=file_path,
             mime_type=get_file_mime_type(file.filename),
+            ink=inks.assign_ink(db),
         )
 
         db.add(db_file)
@@ -967,6 +991,7 @@ async def list_all_annotations(
                 from .utils import strip_file_extension
                 resp.file_title = strip_file_extension(f.original_filename)
                 resp.file_color_hue = f.color_hue
+                resp.file_ink = f.ink
         out.append(resp)
     return out
 
@@ -1230,6 +1255,7 @@ async def get_annotation_links(annotation_id: int, db: Session = Depends(get_db)
         if f is not None:
             note.file_title = f.title or strip_file_extension(f.original_filename)
             note.file_color_hue = f.color_hue
+            note.file_ink = f.ink
         out.append(LinkedNote(link=_link_response(row), note=note))
     return out
 

@@ -24,6 +24,7 @@ class PDFFileResponse(PDFFileBase):
     title: Optional[str] = None
     author: Optional[str] = None
     color_hue: Optional[int] = None
+    ink: Optional[int] = None  # index into the web app's document inks; fixed at creation
     excerpt: Optional[str] = None
     upload_date: datetime
     last_accessed: datetime
@@ -97,6 +98,7 @@ class AnnotationResponse(AnnotationBase):
     # Denormalized file metadata so NotesScreen doesn't need a second fetch.
     file_title: Optional[str] = None
     file_color_hue: Optional[int] = None
+    file_ink: Optional[int] = None
     # Active auto-links touching this note (see app/linker.py).
     link_count: int = 0
 

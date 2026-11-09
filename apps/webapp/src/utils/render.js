@@ -1,5 +1,5 @@
 import React from 'react';
-import { InlineMath, BlockMath } from 'react-katex';
+import { MathTex } from './math';
 
 // Render a string with a small, consistent markup set into React nodes.
 // Supported:
@@ -66,7 +66,7 @@ function classify(s) {
   return 'html';
 }
 
-// Code is the one place R Mono appears.
+// Code: JetBrains Mono (--mono), ligatures on.
 const CODE_BLOCK_STYLE = {
   fontFamily: 'var(--mono)',
   fontSize: '0.8em',
@@ -97,7 +97,7 @@ function renderMath(value, kind, key) {
     else if (kind === 'math_inline') math = value.slice(1, -1);
     else if (kind === 'math_inline_paren') math = value.slice(2, -2);
     const isBlock = kind.startsWith('math_block');
-    return isBlock ? <BlockMath key={key} math={math}/> : <InlineMath key={key} math={math}/>;
+    return <MathTex key={key} tex={math} display={isBlock}/>;
   } catch {
     return <span key={key}>{value}</span>;
   }

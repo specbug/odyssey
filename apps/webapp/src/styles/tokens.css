@@ -1,6 +1,6 @@
 /* Odyssey tokens. The contract is apps/webapp/DESIGN.md; values come from
-   the rishit-design system. Colour is ink on cool neutrals plus four
-   signals, each with one meaning across the whole app. */
+   the rishit-design system. Colour comes as inks: one per document, and
+   three role inks that mean the same thing everywhere (data/inks.js). */
 
 /* R Sans: running text. Variable, opsz 9–40, wght 100–1000.
    Source: github.com/specbug/iconfig, fonts branch, r-sans/web-fonts (v3). */
@@ -41,7 +41,38 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
-/* R Mono: code only. */
+/* JetBrains Mono: code. Variable wght, ligatures on (calt). SIL Open Font
+   License 1.1, Copyright 2020 The JetBrains Mono Project Authors. Latin and
+   Latin Extended subsets from Fontsource. */
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../fonts/JetBrainsMono-latin.woff2') format('woff2-variations');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'JetBrains Mono';
+  src: url('../fonts/JetBrainsMono-latin-ext.woff2') format('woff2-variations');
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+/* TeX Gyre Pagella Math: maths, as MathML (utils/math.js). A Palatino with
+   an OpenType MATH table, so the browser lays out KaTeX's MathML with its own
+   spacing and stretchy delimiters. GUST Font License; see fonts/README.md. */
+@font-face {
+  font-family: 'Pagella Math';
+  src: url('../fonts/TeXGyrePagellaMath.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* R Mono: only the ⌘ and ↵ glyphs in key hints, which the others lack. */
 @font-face {
   font-family: 'R Mono';
   src: url('../fonts/RMono-Regular.woff2') format('woff2');
@@ -60,45 +91,47 @@
 :root {
   color-scheme: light dark;
 
-  /* Neutrals, light */
-  --ground: oklch(0.972 0.002 250);
-  --sheet:  oklch(0.995 0.001 250);
-  --ink:    oklch(0.19 0.004 250);
-  --ink-2:  oklch(0.47 0.004 250);
-  --ink-3:  oklch(0.60 0.004 250);
-  --rule:   oklch(0.87 0.003 250);
-  --grid:   oklch(0.915 0.003 250);
+  /* Neutrals, light: a proof with a trace of warmth, and an ink softened
+     from near-black so long reading doesn't glare. */
+  --ground: oklch(0.983 0.003 95);
+  --sheet:  oklch(0.995 0.002 95);
+  --ink:    oklch(0.24 0.005 60);
+  --ink-2:  oklch(0.47 0.005 60);
+  --ink-3:  oklch(0.61 0.005 60);
+  --rule:   oklch(0.88 0.004 80);
+  --grid:   oklch(0.93 0.003 80);
 
-  /* Signals. One meaning each, everywhere.
-     link: something you can follow or act on
-     note: the person's own marks (highlights, notes, blanks)
-     data: measured or computed values (intervals, schedules)
-     you:  the person's current position or item */
-  --link: oklch(0.50 0.16 255);
-  --note: oklch(0.64 0.17 52);
-  --data: oklch(0.55 0.13 152);
-  --you:  oklch(0.60 0.20 30);
+  /* Role inks (data/inks.js ROLE_INKS). One meaning each, everywhere; text
+     values clear 4.5:1 on this ground, marks are the bright ink.
+     link: something you can follow or act on (Periwinkle)
+     data: intervals and counts (Mint)
+     you:  where you are: the current card, page, route (Tangerine) */
+  --link: #6461e1;
+  --link-mark: #7b7cff;
+  --data: #08816a;
+  --you:  #ff8c42;
 
-  /* Card edges, by note type. A fifth code, used only on the 2px left edge
-     of a card, so it never competes with the signals: cloze is crimson
-     (kept off the you red), recall violet, note teal. */
-  --type-cloze:  oklch(0.57 0.19 15);
-  --type-recall: oklch(0.55 0.15 292);
-  --type-note:   oklch(0.62 0.09 200);
+  /* Document inks (data/inks.js DOC_INKS). An element with data-ink sets
+     --ink-* for its document; these pick the tone for the theme. Without a
+     document they fall back to neutral. */
+  --doc-mark: var(--ink-3);
+  --doc-text: var(--ink-2);
+  --note: var(--ink-3);
 
-  /* PDF canvases stay white in dark mode, so marks drawn on a page keep
-     their light values. */
-  --note-on-page: oklch(0.64 0.17 52);
-  --link-on-page: oklch(0.50 0.16 255);
+  /* PDF canvases stay white in dark mode, so marks drawn on a page always
+     use the light mark (set per document below). */
+  --note-on-page: oklch(0.80 0.14 85);
+  --link-on-page: #6461e1;
 
   /* The logo's own orange: the blank in the mark, and the theme flicker. */
   --mark: rgb(255 77 6);
 
-  --body-weight: 450;
+  --body-weight: 410;
 
   --sans:  'R Sans', ui-sans-serif, sans-serif;
   --small: 'Google Sans Flex', 'R Sans', 'R Mono', ui-sans-serif, sans-serif; /* R Mono only supplies ⌘ and ↵ */
-  --mono:  'R Mono', ui-monospace, monospace;
+  --mono:  'JetBrains Mono', 'R Mono', ui-monospace, monospace;
+  --math:  'Pagella Math', math;
 
   --ease: cubic-bezier(.2, .7, .2, 1);
 }
@@ -118,17 +151,13 @@
     --rule:   oklch(0.30 0.004 250);
     --grid:   oklch(0.245 0.004 250);
 
-    --link: oklch(0.74 0.12 250);
-    --note: oklch(0.78 0.14 62);
-    --data: oklch(0.76 0.13 152);
-    --you:  oklch(0.70 0.17 30);
-
-    --type-cloze:  oklch(0.70 0.15 15);
-    --type-recall: oklch(0.72 0.12 292);
-    --type-note:   oklch(0.76 0.08 200);
+    --link: #7b7cff;
+    --link-mark: #7b7cff;
+    --data: #3bceac;
+    --you:  #ff8c42;
 
     /* Light text on a dark ground blooms. */
-    --body-weight: 425;
+    --body-weight: 395;
   }
 }
 :root[data-theme="dark"] {
@@ -140,17 +169,22 @@
   --rule:   oklch(0.30 0.004 250);
   --grid:   oklch(0.245 0.004 250);
 
-  --link: oklch(0.74 0.12 250);
-  --note: oklch(0.78 0.14 62);
-  --data: oklch(0.76 0.13 152);
-  --you:  oklch(0.70 0.17 30);
-
-  --type-cloze:  oklch(0.70 0.15 15);
-  --type-recall: oklch(0.72 0.12 292);
-  --type-note:   oklch(0.76 0.08 200);
+  --link: #7b7cff;
+  --link-mark: #7b7cff;
+  --data: #3bceac;
+  --you:  #ff8c42;
 
   /* Light text on a dark ground blooms. */
-  --body-weight: 425;
+  --body-weight: 395;
 }
+/* Document tones for the theme. The same rule twice, as above. */
+/* Custom properties resolve where they're declared, so each document
+   context sets the derived names itself. */
+[data-ink] { --doc-mark: var(--ink-mark); --doc-text: var(--ink-paper); --note: var(--ink-mark); --note-on-page: var(--ink-mark); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) [data-ink] { --doc-mark: var(--ink-mark-dark); --doc-text: var(--ink-dark); --note: var(--ink-mark-dark); }
+}
+:root[data-theme="dark"] [data-ink] { --doc-mark: var(--ink-mark-dark); --doc-text: var(--ink-dark); --note: var(--ink-mark-dark); }
+
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"]  { color-scheme: dark; }

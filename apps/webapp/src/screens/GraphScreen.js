@@ -5,8 +5,9 @@ import { zoom as d3zoom, zoomIdentity } from 'd3-zoom';
 import apiService from '../api';
 import { toNote } from '../data/adapters';
 import { renderRich } from '../utils/render';
-import { failText, plainText, plural, relativeDate, RELATION_LABEL } from '../utils/format';
+import { failText, plainText, plural, relativeDate, RELATION_LABEL, TYPE_LABEL } from '../utils/format';
 import { Ic } from '../components/Icons';
+import { inkProps, inkStyle } from '../data/inks';
 
 // The note graph. Links are written by the backend's background linker —
 // nothing here creates them; the reader only browses and unlinks. Layout is
@@ -333,8 +334,9 @@ function GraphCanvas({ nodes, links, positions, degree, selected, focus, neighbo
             <g
               key={n.id}
               className="graph-node"
+              {...(n.ink != null ? { 'data-ink': '' } : {})}
               transform={`translate(${p.x},${p.y})`}
-              style={{ cursor: 'pointer', opacity: dim(n.id) ? 0.22 : 1, transition: `opacity 220ms ${EASE}` }}
+              style={{ ...inkStyle(n.ink), cursor: 'pointer', opacity: dim(n.id) ? 0.22 : 1, transition: `opacity 220ms ${EASE}` }}
               onClick={(e) => { e.stopPropagation(); onSelect(n.id); }}
               onMouseEnter={() => onHover(n.id)}
               onMouseLeave={() => onHover(null)}
@@ -348,7 +350,7 @@ function GraphCanvas({ nodes, links, positions, degree, selected, focus, neighbo
               <circle className="graph-node-focus" r={p.r + 4} fill="none" stroke="var(--ink-3)" strokeWidth={1} vectorEffect="non-scaling-stroke"/>
               {/* The selected note is where you are: a you-colour ring. */}
               {active && <circle r={p.r + 4} fill="none" stroke="var(--you)" strokeWidth={1.5} vectorEffect="non-scaling-stroke"/>}
-              {/* Nodes are the person's notes, so the note colour. */}
+              {/* A node is a note, in its document's ink. */}
               <circle r={p.r} fill="var(--note)" stroke="var(--ground)" strokeWidth={1.5} vectorEffect="non-scaling-stroke"/>
             </g>
           );
@@ -526,7 +528,8 @@ function NotePanel({ note, entries, unlinked, onSelect, onUnlink, onRestore, onO
         </button>
       </div>
 
-      <div className="card graph-note-card" data-type={note.type || 'note'}>
+      <div className="card graph-note-card" {...inkProps(note.ink)}>
+        <span className="card-type">{TYPE_LABEL[note.type] || 'Note'}</span>
         <div className="graph-note-text">{renderRich(note.prompt || note.excerpt, { cloze: 'inline' })}</div>
         {note.answer && <div className="t-note graph-note-answer">{renderRich(note.answer)}</div>}
       </div>

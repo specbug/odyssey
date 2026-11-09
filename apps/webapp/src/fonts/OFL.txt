@@ -7,6 +7,9 @@ Copyright 2015-2026, Renzhi Li (aka. Belleve Invis, belleve@typeof.net).
 Google Sans Flex
 Copyright 2015 Google LLC (https://fonts.google.com/specimen/Google+Sans+Flex)
 
+JetBrains Mono
+Copyright 2020 The JetBrains Mono Project Authors (https://github.com/JetBrains/JetBrainsMono)
+
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:
 https://openfontlicense.org

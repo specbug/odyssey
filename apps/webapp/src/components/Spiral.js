@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { reach } from './Comb';
 import { fmtInterval } from '../utils/format';
+import { inkStyle } from '../data/inks';
 
 // Today's queue on a time spiral. The curve is a log time axis wound into an
 // Archimedean spiral: the centre is now, the outer end one year. Each due
@@ -83,7 +84,8 @@ export default function Spiral({ items, size = 272 }) {
           <line
             key={t.id ?? i}
             x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
-            stroke={hover === i ? 'var(--ink)' : 'var(--ink-2)'}
+            {...(t.ink != null ? { 'data-ink': '', style: inkStyle(t.ink) } : {})}
+            stroke={hover === i ? 'var(--ink)' : 'var(--doc-mark)'}
             strokeWidth={hover === i ? 2 : 1.25}
             strokeLinecap="round"
           />

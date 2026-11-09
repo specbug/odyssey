@@ -75,6 +75,7 @@ tier lets Meta do with it.
 | `app/schemas.py` | Request and response schemas |
 | `app/spaced_repetition.py` | FSRS scheduling; card creation, one card per blank |
 | `app/review_queue.py` | Which cards a session holds, and in what order |
+| `app/inks.py` | Each document's colour, chosen once on upload |
 | `app/meta_ai.py` | Meta Model API client; a no-op without a key |
 | `app/linker.py` | Background worker that links related notes |
 | `app/heartbeat.py` | Uptime heartbeat |

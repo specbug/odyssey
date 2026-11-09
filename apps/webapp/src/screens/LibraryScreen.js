@@ -3,6 +3,7 @@ import { pdfjs } from 'react-pdf';
 import apiService from '../api';
 import { toLibraryDoc } from '../data/adapters';
 import { failText, plural } from '../utils/format';
+import { inkProps } from '../data/inks';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `${process.env.PUBLIC_URL || ''}/pdf.worker.min.mjs`;
 
@@ -151,7 +152,7 @@ export default function LibraryScreen({ onOpenDoc, onStartReview }) {
 
         <ul className="rows library-rows">
           {sorted.map((doc) => (
-            <li key={doc.id} className="library-row">
+            <li key={doc.id} className="library-row" {...inkProps(doc.ink)}>
               <button className="row" onClick={() => onOpenDoc(doc.id)}>
                 <span className="row-main">
                   <span className="row-title">{doc.title}</span>

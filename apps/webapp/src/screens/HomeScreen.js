@@ -4,6 +4,7 @@ import { toLibraryDoc, toQueueCard } from '../data/adapters';
 import Spiral from '../components/Spiral';
 import Mark from '../components/Mark';
 import { failText, plainText, plural } from '../utils/format';
+import { inkProps } from '../data/inks';
 
 // Home: what is due, what you are partway through, and today's queue drawn
 // on the time spiral. R starts the review.
@@ -27,6 +28,7 @@ export default function HomeScreen({ onOpenDoc, onStartReview }) {
   }, [attempt]);
 
   const { loading, error, files, queue } = state;
+  const inkOf = new Map(files.map((f) => [f.id, f.ink]));
   const due = queue.length;
   const start = useCallback(() => onStartReview(null), [onStartReview]);
 
@@ -72,7 +74,7 @@ export default function HomeScreen({ onOpenDoc, onStartReview }) {
             )}
           </div>
           {due > 0 ? (
-            <Spiral items={queue.map((c) => ({ id: c.id, days: c.interval, label: plainText(c.prompt, 64) }))}/>
+            <Spiral items={queue.map((c) => ({ id: c.id, days: c.interval, label: plainText(c.prompt, 64), ink: c.source != null ? inkOf.get(c.source) : null }))}/>
           ) : (
             // Nothing to draw on the spiral: the mark holds its place, so the
             // page keeps its shape between a due day and a quiet one.
@@ -85,7 +87,7 @@ export default function HomeScreen({ onOpenDoc, onStartReview }) {
             <h2 className="t-h">Reading</h2>
             <ul className="rows">
               {reading.map((d) => (
-                <li key={d.id}>
+                <li key={d.id} {...inkProps(d.ink)}>
                   <button className="row" onClick={() => onOpenDoc(d.id)}>
                     <span className="row-main">
                       <span className="row-title">{d.title}</span>

@@ -88,7 +88,6 @@ export default function InlineCaptureDrawer({
       {variant === 'modal' && <div className="scrim" onClick={onCancel}/>}
       <div
         className={`card drawer drawer-${variant}`}
-        data-type={mode}
         onKeyDown={onKey}
         style={style}
         role={variant === 'modal' ? 'dialog' : 'group'}
