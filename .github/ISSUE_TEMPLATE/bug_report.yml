@@ -1,0 +1,46 @@
+name: Bug report
+description: Something doesn't work as it should.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Search the existing issues first; for a security problem, follow SECURITY.md instead.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open a PDF
+        2. Select a passage and choose Add note
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: app
+    attributes:
+      label: Where
+      options:
+        - Web app
+        - macOS app
+        - API
+        - Docs or setup
+    validations:
+      required: true
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      description: Browser or macOS version, how you run the server (compose or local), and the commit if you know it.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Console errors, server logs, or a screenshot. Remove anything private first.

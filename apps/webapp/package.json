@@ -2,6 +2,7 @@
   "name": "odyssey",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
   "homepage": "/odyssey",
   "dependencies": {
     "@testing-library/dom": "^10.4.0",
