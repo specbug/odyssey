@@ -1,8 +1,9 @@
 # Fonts
 
-The web app bundles its fonts so it renders the same offline. All three
-families are under the SIL Open Font License 1.1; the copyright notices and
-the full license are in [OFL.txt](OFL.txt).
+The web app bundles its fonts, so it renders the same offline and asks no
+font CDN for anything. All three families are under the SIL Open Font
+License 1.1; [OFL.txt](OFL.txt) holds their copyright notices and the full
+license.
 
 | Files | Family | Source | Changes |
 | --- | --- | --- | --- |

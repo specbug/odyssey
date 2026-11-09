@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the report. Search the existing issues first; for a security problem, follow SECURITY.md instead.
+        Search the existing issues first. Report security problems privately, as SECURITY.md describes.
   - type: textarea
     id: what
     attributes:

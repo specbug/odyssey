@@ -1,24 +1,23 @@
 # Odyssey web app
 
-The React front end: a library, a PDF reader with notes in the margin, a
-review screen, and a graph of related notes. It talks to the
-[API](../api/README.md).
+The React client: a library of PDFs, a reader with notes in the margin, a
+review screen, and a graph of linked notes. It needs the
+[API](../api/README.md) running.
 
 ## Run
-
-Start the API first, then:
 
 ```bash
 bun install
 bun run start
 ```
 
-The app opens at <http://localhost:3000/odyssey> and calls the API at
-`http://localhost:8000`. A production build (`bun run build`) calls `/api`
-on its own origin instead; the [Dockerfile](Dockerfile) and
-[nginx.conf](nginx.conf) serve it that way.
+The development server opens <http://localhost:3000/odyssey> and calls the API
+at `http://localhost:8000`. A production build (`bun run build`) calls `/api`
+on its own origin instead, which is how the [Dockerfile](Dockerfile) and
+[nginx.conf](nginx.conf) serve it: nginx passes `/api/*` to the server with
+the prefix removed.
 
-Use bun, not npm. The lockfile is `bun.lock`.
+Use bun. The lockfile is `bun.lock`, and npm would write a second one.
 
 ## Test
 
@@ -27,23 +26,25 @@ CI=true bun run test --watchAll=false
 CI=true bun run build
 ```
 
-With `CI=true`, lint warnings fail the build, as they do in CI.
+`CI=true` turns lint warnings into build errors, as CI does. The Jest suite
+covers route history, the theme toggle, the reader bar's auto-hide, and the
+formatting helpers, including the log scale the Comb and the spiral share.
 
 ## Design
 
-Every visual change follows [`DESIGN.md`](DESIGN.md): the type roles, the four
-colour signals, layout, motion and copy. Read it before changing anything you
-can see.
+[`DESIGN.md`](DESIGN.md) is the contract for anything visible: type, the four
+colour signals, layout, motion and copy. Read it before a visual change;
+reviews are made against it.
 
-## Layout
+## Source layout
 
-| Path | What it is |
+| Path | Contents |
 | --- | --- |
 | `src/App.js` | Shell and routing |
 | `src/screens/` | Home, Library, Notes, Graph, Pdf (the reader), Review |
-| `src/components/` | Shared pieces, including the Comb and the Spiral, the two instruments that draw review data |
-| `src/hooks/` | Route history and the theme toggle |
+| `src/components/` | Shared pieces, including the two instruments: the Comb in review and the spiral on Home |
+| `src/hooks/` | Route history, the theme, the reader bar |
 | `src/utils/` | Cloze parsing, formatting, rich-text rendering |
-| `src/data/adapters.js` | API responses to the shapes the screens use |
+| `src/data/adapters.js` | API responses mapped to the shapes the screens use |
 | `src/styles/` | Tokens, type and controls, screen layout, the reader |
-| `src/fonts/` | R Sans, Google Sans Flex, R Mono. See [its README](src/fonts/README.md) |
+| `src/fonts/` | R Sans, Google Sans Flex, R Mono; [sources and licenses](src/fonts/README.md) |

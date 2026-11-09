@@ -1,24 +1,22 @@
 # Contributing to Odyssey
 
-Thanks for your interest. Bug reports, fixes, documentation and ideas are all
-welcome. This page covers how to propose a change and what a pull request
-needs before it can merge.
+Odyssey is three programs that share one API: a FastAPI server, a React web
+app, and a SwiftUI client for macOS. This page covers how to propose a
+change and what a pull request needs before it merges.
 
-## Before you start
+## Before writing code
 
-- **Bugs.** Search [existing issues](https://github.com/specbug/odyssey/issues)
-  first. If it isn't there, open one with the steps to reproduce it.
-- **Features and larger changes.** Open an issue to discuss the idea before
-  writing code. It saves you building something that doesn't fit.
-- **Security issues.** Don't open a public issue. Follow
-  [SECURITY.md](SECURITY.md).
+- **Bugs.** Search the [issues](https://github.com/specbug/odyssey/issues)
+  first. A new report needs the steps that reproduce it; a bug that can't be
+  reproduced can't be confirmed fixed.
+- **Features and larger changes.** Open an issue first. A paragraph of
+  discussion costs less than a pull request that doesn't fit.
+- **Security issues.** Report them privately, as [SECURITY.md](SECURITY.md)
+  describes.
 
-Everyone taking part is expected to follow the
-[code of conduct](CODE_OF_CONDUCT.md).
+Everyone taking part follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Setting up
-
-The repository holds three apps that share one API.
 
 ### API (`apps/api`)
 
@@ -29,26 +27,28 @@ cd apps/api
 python3.11 -m venv .venv && source .venv/bin/activate
 pip install -r requirements-dev.txt
 python run.py          # http://localhost:8000, docs at /docs
-python -m pytest       # tests
+python -m pytest
 ```
 
-The tests use a throwaway SQLite database and a fake LLM, so they need no
-network or API key.
+The tests use a throwaway SQLite database and a scripted fake in place of the
+language model, so they need neither a network nor an API key.
 
 ### Web app (`apps/webapp`)
 
-React, built with Create React App. Use [bun](https://bun.sh), not npm: the
-lockfile is `bun.lock`.
+React, built with Create React App and managed with [bun](https://bun.sh).
+The lockfile is `bun.lock`; npm would write a second one.
 
 ```bash
 cd apps/webapp
 bun install
 bun run start                       # http://localhost:3000/odyssey
 CI=true bun run test --watchAll=false
-CI=true bun run build               # warnings fail the build, as in CI
+CI=true bun run build
 ```
 
-### macOS app (`apps/mac/OdysseyMacApp`)
+`CI=true` turns lint warnings into build errors, as CI does.
+
+### macOS client (`apps/mac/OdysseyMacApp`)
 
 macOS 14 and Swift 5.9 or later.
 
@@ -60,36 +60,36 @@ swift test
 
 ## Making a change
 
-1. Fork the repository and create a branch from `main`.
-2. Keep each pull request to one change. Unrelated fixes go in their own.
-3. Add or update tests for behaviour you change. API changes need a pytest
-   case; web changes with logic worth testing need a Jest case.
+1. Fork the repository and branch from `main`.
+2. Make one change per pull request. An unrelated fix goes in its own.
+3. Test the behaviour you change: a pytest case for the API, a Jest case for
+   web logic.
 4. Run the checks above for every app you touched.
-5. Update the docs that describe what you changed: the README, an app's
-   README, or [`CLAUDE.md`](CLAUDE.md), which is the detailed architecture
-   reference.
-6. Open a pull request and fill in the template.
+5. Update the documentation that describes the old behaviour: the README, the
+   app's README, or [`CLAUDE.md`](CLAUDE.md), the full architecture reference.
+6. Open the pull request and fill in its template.
 
 CI runs the API tests and the web app's tests and production build on every
-pull request. A pull request merges once CI passes and a maintainer has
-approved it.
+pull request. A pull request merges when CI passes and a maintainer approves
+it.
 
 ## Conventions
 
-- **Visual changes.** Read [`apps/webapp/DESIGN.md`](apps/webapp/DESIGN.md)
-  first. It sets the type, the colour signals, layout and motion, and pull
-  requests are reviewed against it. Include before and after screenshots, in
-  light and dark mode.
-- **Copy.** Plain and specific, in sentence case: "No documents.", "Couldn't
-  load library. Server not responding."
-- **Cloze syntax** is `[[word]]`. Each blank is its own card.
-- **Database.** Tables are created by SQLAlchemy on startup. A change to an
-  existing table needs a migration path for existing databases; say how in
-  the pull request.
-- **Commit messages.** A short summary line in the imperative ("Add page dial
-  keyboard control"), then a body that explains why.
+- **Visual changes** follow [`apps/webapp/DESIGN.md`](apps/webapp/DESIGN.md),
+  which sets the type, the four colour signals, layout and motion. Attach
+  before and after screenshots in light and dark mode.
+- **Interface copy** is plain and in sentence case. An empty library says
+  "No documents." A failed load says "Couldn't load library. Server not
+  responding." and offers Retry.
+- **Cloze syntax** is `[[word]]`, and each blank is a separate card.
+- **Database.** SQLAlchemy creates missing tables on startup, but it never
+  alters an existing one. A schema change needs an idempotent migration
+  function in `app/main.py`, called at startup, so databases created before
+  the change still open; `_migrate_study_card_cloze_index` is an example.
+- **Commit messages** start with a short summary in the imperative ("Add page
+  dial keyboard control"), followed by a body that says why.
 
 ## License
 
-By contributing, you agree that your contributions are licensed under the
-[Apache License 2.0](LICENSE), the project's license.
+Contributions are licensed under the [Apache License 2.0](LICENSE), the
+project's license.
