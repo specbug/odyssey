@@ -1,18 +1,18 @@
 # @odyssey/ui-foundation
 
-Design tokens for the macOS app: colours, type, spacing and radii, in
-[`tokens.json`](tokens.json), with a JavaScript export in `index.js`.
+Design tokens for the macOS client: colours, type, spacing and radii in
+[`tokens.json`](tokens.json), re-exported for JavaScript by `index.js`.
 
 These are the tokens of Odyssey's earlier design. The web app has since moved
 to the system in [`apps/webapp/DESIGN.md`](../../apps/webapp/DESIGN.md), whose
-tokens live in `apps/webapp/src/styles/tokens.css`. Bringing the macOS app
-across is open work.
+tokens are in `apps/webapp/src/styles/tokens.css`. The macOS client has not
+followed yet.
 
-## Sync into the macOS app
+## Syncing into the macOS client
 
 ```bash
 ./scripts/sync-design-tokens.sh
 ```
 
-This copies `tokens.json` into the app's resources. Update
-`DesignTokens.swift` by hand when you add a token.
+The script copies `tokens.json` into the client's resources. A new token also
+needs a matching constant in `DesignTokens.swift`, added by hand.

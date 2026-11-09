@@ -1,8 +1,8 @@
 # Odyssey for macOS
 
 A native SwiftUI client for the Odyssey [API](../api/README.md). It browses
-documents and notes, runs review sessions, and captures new notes with LaTeX
-and images. Scheduling and storage stay on the server; the app holds no data
+documents and notes, runs review sessions, and captures notes with LaTeX and
+images. Scheduling and storage stay on the server, and the app keeps no data
 of its own.
 
 ## Requirements
@@ -20,21 +20,22 @@ swift run OdysseyMacApp
 swift test
 ```
 
-The server address is set in the app's settings and saved between launches.
+The server address is set in the app's Settings and kept between launches.
 
-## Layout
+## Source layout
 
-| Path | What it is |
+| Path | Contents |
 | --- | --- |
 | `Sources/OdysseyMacApp/App/` | Entry point, app state, menu commands |
 | `Sources/OdysseyMacApp/Services/` | API client and server address |
-| `Sources/OdysseyMacApp/Models/` | Codable types that match the API's schemas |
+| `Sources/OdysseyMacApp/Models/` | Codable types matching the API's schemas |
 | `Sources/OdysseyMacApp/ViewModels/` | Browse and study view models |
 | `Sources/OdysseyMacApp/Views/` | Browse, study, capture and settings screens |
 | `Sources/OdysseyMacApp/DesignSystem/` | Colours, type and button styles |
 
 ## Status
 
-The macOS app predates the web app's current design
-([`DESIGN.md`](../webapp/DESIGN.md)) and still uses the earlier look and
-tokens from [`packages/ui-foundation`](../../packages/ui-foundation).
+The client predates the web app's current design
+([`DESIGN.md`](../webapp/DESIGN.md)). It still draws with the earlier tokens
+in [`packages/ui-foundation`](../../packages/ui-foundation) and the retired
+starburst logo. CI does not build it.

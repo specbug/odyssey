@@ -73,10 +73,10 @@ light-mode values because the canvas stays white in dark mode.
 **The logo** is a cloze: square brackets in ink around one orange blank,
 `[_]`, the app's own syntax for the thing it does. `public/logo.svg` is the
 master (100-unit grid, 10-unit strokes, the blank sitting just above the
-bracket foot). The logo is always black brackets (`#1f2124`) with the
-orange blank (`#ff4d06`), whatever the system or app theme: no dark variant in
-the files. `public/favicon.svg` is the same mark redrawn on
-the 16px grid with 2px strokes so every edge lands on a pixel. The PNGs are
+bracket foot). In the files the logo is always black brackets (`#1f2124`)
+around the orange blank (`#ff4d06`), whatever the theme; there is no dark
+variant. `public/favicon.svg` is the same mark redrawn on the 16px grid with
+2px strokes, so every edge lands on a pixel. The PNGs are
 exported from those two: `favicon-16x16` and `favicon-32x32` from the 16px
 drawing (32 is it doubled), and `apple-touch-icon` (180), `logo-192` and
 `logo` (512) from the master, centred on `--ground` with 18% padding so they
@@ -90,8 +90,8 @@ the Home button: the brackets take `--ink`, the blank takes `--mark`
 (`#ff4d06`), the one colour outside the four signals, by decision. Inside
 the app the brackets go light only when the app itself is dark, because
 black brackets would vanish on the dark rail; everywhere else (favicon, app
-icon, link previews) the logo is black. It
-appears nowhere else but the theme flicker. The original starburst logo was
+icon, link previews) the logo is black. Apart from the rail, it appears only
+in the theme flicker. The original starburst logo was
 retired because it sat too close to Claude's mark.
 
 ## Type
@@ -113,7 +113,8 @@ No uppercase letter-spaced labels, no monospace for words.
 plus a 1px rule, never a shadow. Empty space stays empty.
 
 - **Shell:** a 64px rail (logo/Home, Library, Notes, Graph, Review, and the
-  theme button at its foot) and the main column. Under 640px the rail moves to the bottom edge.
+  theme button at its foot) and the main column. Under 640px the rail moves
+  to the bottom edge.
 - **App screens** have one focal object. Page frame: 880px max, 48px gutters.
 - **Reader:** a 48px bar across the top, then each page with its 216px notes
   column 48px to the right, the pair centred together. Never add width beside
@@ -123,13 +124,14 @@ plus a 1px rule, never a shadow. Empty space stays empty.
   zoom a page and its notes need 1046px.
 - **Reader bar:** one full-width strip on `--ground` with a 1px rule under
   it, in three columns: `Library` on the left; the title (15px / 540) and
-  author centred; the page dial, zoom and `Review N` on the right. It hides while you read (`hooks/useReaderChrome.js`): a 280ms
-  fade with a slide up out of the way, back on scroll up, pointer or focus.
-  On phones the title gives way.
+  author centred; the page dial, zoom and `Review N` on the right. It hides
+  while you read (`hooks/useReaderChrome.js`), fading over 280ms as it
+  slides up, and returns on scroll up, pointer or focus. On phones the title
+  gives way.
 
 ## Components
 
-### Comb (`components/Comb.js`) — the review instrument
+### Comb: the review instrument (`components/Comb.js`)
 
 One bar per card in queue order; bar length is the card's interval on a log
 scale from now to one year, with gridlines at a day, a week, a month and a
@@ -145,7 +147,7 @@ of the session. Under 1100px it runs across the top instead, bars hanging
 down. On the done screen it is shown at full strength as the session's
 summary.
 
-### Spiral (`components/Spiral.js`) — today's queue on Home
+### Spiral: today's queue on Home (`components/Spiral.js`)
 
 The same log time axis wound into an Archimedean spiral: centre is now,
 the outer end one year. Each due card is a tick at its current interval, so
@@ -154,7 +156,7 @@ new cards sit near the centre and well-learned ones far out. Scale labels
 With no cards due there is nothing to plot, so the logo (176px, 112px on a
 phone) takes the spiral's 272px box and the page keeps its shape.
 
-### Page dial (`components/PageDial.js`) — the reader's page readout
+### Page dial: the reader's page readout (`components/PageDial.js`)
 
 In the reader bar, a 112 × 32 window onto a tape of pages that slides
 under a fixed index, like the scale on a lens: a tick per page, longer every
@@ -172,9 +174,9 @@ there. It's a `role="slider"`; ←/→ already turn pages.
 Only for things the person made and can act on: notes in the Notes list,
 notes in the reader margin, the capture drawer. `.card`: `--sheet`, 1px
 rule on three sides, a 2px left edge in the type colour (`--note` when a
-card has no type), padding 12 / 14. Cards show
-the content only, no type label; the edge colour carries the type. In the reader margin they rest at 72%
-opacity and come up to full on hover, focus or when their highlight is
+card has no type), padding 12 / 14. A card shows its content and no type
+label: the edge colour is the label. In the reader margin cards rest at 72%
+opacity and come up to full on hover, on focus, or when their highlight is
 selected. Text that only extends content stays a borderless note.
 
 ### Controls
@@ -214,7 +216,7 @@ The marquee line, in the README, meta description and manifest:
 **A PDF reader with a long memory.** / Spaced repetition for every
 highlight.
 
-Run the skill's last pass on every new string: delete words that carry
+Run the skill's last pass on every new string: delete words that add
 nothing, use the term instead of a paraphrase, don't repeat a control, and
 scan for the bestiary (not / — / yet / quiet / just / simply).
 

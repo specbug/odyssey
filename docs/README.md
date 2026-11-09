@@ -1,12 +1,13 @@
 # Docs
 
-- [`screenshots/`](screenshots): images used in the README. The sample
-  documents in them are written for Odyssey and ship under its license.
-- [`samples/`](samples): a short PDF to try the reader with, written for
-  Odyssey and shipped under its license.
-- [`archive/`](archive): implementation notes from earlier versions, kept for
-  history. They describe code that has since changed; the current reference
-  is [`CLAUDE.md`](../CLAUDE.md).
+- [`screenshots/`](screenshots): the README's images, taken from the sample
+  below.
+- [`samples/`](samples): *Notes on forgetting*, a four-page PDF written for
+  Odyssey, set in R Sans, and licensed with the project. Upload it to try the
+  reader.
+- [`archive/`](archive): implementation notes from earlier versions. They
+  describe code that has since changed and are kept as history. The current
+  reference is [`CLAUDE.md`](../CLAUDE.md).
 
 The web app's design rules are in
 [`apps/webapp/DESIGN.md`](../apps/webapp/DESIGN.md).
